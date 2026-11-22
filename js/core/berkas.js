@@ -79,7 +79,7 @@ export function simpanBlob(nama, blob) {
 export async function mulaiHubungDrive(slot) {
   if (modePratinjau) { await api.hubungDriveTiruan(slot); return { selesai: true }; }
   const kembali = location.origin + location.pathname;
-  const d = bacaJson(await kirim('mulai_hubung', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aksi: 'mulai_hubung', slot, kembali }) }, 30_000));
+  const d = await bacaJson(await kirim('mulai_hubung', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aksi: 'mulai_hubung', slot, kembali }) }, 30_000));
   location.assign(d.url);
   return { selesai: false };
 }
