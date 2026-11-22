@@ -1,0 +1,8 @@
+LETAKKAN DUA BERKAS RESMI DARI DIREKTORAT DI FOLDER INI (nama harus persis sama):
+
+1. logo-kemensos.png   → logo Kementerian Sosial RI (latar transparan, persegi, minimal 160x160 px)
+2. gedung-kemensos.jpg → foto gedung Kementerian Sosial RI (lebar minimal 1200 px, ukuran < 400 KB)
+
+Selama berkas belum ada, aplikasi menampilkan tanda "ST" sebagai pengganti logo
+dan kotak keterangan sebagai pengganti foto. Tidak ada yang rusak.
+Nama berkas dapat diubah di js/config.js (LOGO dan FOTO_GEDUNG).

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SITASI TSKPO · Direktorat Rehabilitasi Sosial TSKPO, Kementerian Sosial RI</title>
+  <meta name="description" content="SITASI TSKPO — Sistem Integrasi Data dan Informasi Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI. Portal internal.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#17824A">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+
+  <!-- Sambungan awal ke server font & pustaka agar halaman cepat tampil -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="dns-prefetch" href="https://script.googleusercontent.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+  <link rel="stylesheet" href="css/style.css?v=2.1.0">
+  <link rel="stylesheet" href="css/tahap2.css?v=2.1.0">
+  <link rel="stylesheet" href="css/landing.css?v=2.1.0">
+  <link rel="modulepreload" href="js/app.js?v=2.1.0">
+
+  <script>
+    // Terapkan ukuran teks (A+) sebelum halaman digambar, agar tidak "melompat"
+    try { var t = localStorage.getItem('sitasi:teks'); if (t && t !== '100') document.documentElement.classList.add('teks-' + t); } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- Tampilan awal sambil JavaScript dimuat -->
+    <div class="boot" role="status" aria-live="polite">
+      <div class="boot-isi">
+        <span class="logo-mono" style="width:56px;height:56px;border-radius:16px;font-size:1.125rem">ST</span>
+        <div class="skel" style="width:180px;height:12px"></div>
+        <span>Memuat SITASI TSKPO…</span>
+      </div>
+    </div>
+  </div>
+  <noscript>
+    <p style="font-family:sans-serif;padding:24px;text-align:center">SITASI TSKPO memerlukan JavaScript. Aktifkan JavaScript di browser Anda, lalu muat ulang halaman.</p>
+  </noscript>
+  <script type="module" src="js/app.js?v=2.1.0"></script>
+</body>
+</html>

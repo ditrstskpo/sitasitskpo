@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kebijakan Privasi · SITASI TSKPO</title>
+  <meta name="description" content="Kebijakan privasi SITASI TSKPO, sistem informasi internal Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI.">
+  <meta name="theme-color" content="#17824A">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=2.1.0">
+  <style>
+    .dok { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+    .dok-kepala { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+    .dok-merek { display: inline-flex; align-items: center; gap: 12px; color: var(--judul); text-decoration: none; font-weight: 800; }
+    .dok-merek small { display: block; font-weight: 500; color: var(--redup); font-size: .8125rem; }
+    .dok-kartu { background: var(--kartu); border: 1px solid var(--garis); border-radius: var(--r-kartu); padding: 32px; box-shadow: var(--bayang-1); }
+    .dok h1 { color: var(--judul); font-size: 1.75rem; line-height: 1.25; margin: 0 0 6px; }
+    .dok h1 span { color: var(--hijau); }
+    .dok h2 { color: var(--judul); font-size: 1.0625rem; margin: 28px 0 8px; }
+    .dok p, .dok li { font-size: .9375rem; }
+    .dok ul { padding-left: 20px; margin: 8px 0; }
+    .dok .tgl { color: var(--redup); font-size: .8125rem; margin: 0 0 20px; }
+    .dok a { color: var(--hijau); }
+    .dok a.dok-merek { color: var(--judul); }
+    .dok-kaki { margin-top: 24px; color: var(--redup); font-size: .8125rem; text-align: center; }
+    @media (max-width: 600px) { .dok-kartu { padding: 22px 18px; } .dok h1 { font-size: 1.4rem; } }
+  </style>
+</head>
+<body>
+  <main class="dok">
+    <header class="dok-kepala">
+      <a class="dok-merek" href="./"><span class="logo-mono" style="width:40px;height:40px;border-radius:12px">ST</span><span>SITASI TSKPO<small>Kementerian Sosial Republik Indonesia</small></span></a>
+      <a class="btn btn-secondary btn-sm" href="./">Kembali ke beranda</a>
+    </header>
+
+    <article class="dok-kartu">
+      <h1><span>Kebijakan</span> Privasi</h1>
+      <p class="tgl">Berlaku sejak 22 November 2026</p>
+
+      <p>SITASI TSKPO (Sistem Integrasi Data dan Informasi) adalah sistem informasi <b>internal</b> milik Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang (Dit. RSTSKPO), Kementerian Sosial Republik Indonesia. Sistem ini dipakai pegawai Direktorat untuk mengelola data penerima manfaat program ATENSI, alur usulan dan pencairan bantuan, serta pemantauan kegiatan. Kebijakan ini menjelaskan data apa yang diproses, untuk apa, dan bagaimana data itu dilindungi.</p>
+
+      <h2>1. Siapa yang dapat menggunakan SITASI TSKPO</h2>
+      <p>Hanya pegawai dan petugas yang <b>didaftarkan oleh Super Admin</b> Direktorat. Orang yang masuk dengan akun Google yang tidak terdaftar akan ditolak dan tidak dapat melihat data apa pun.</p>
+
+      <h2>2. Data dari akun Google Anda</h2>
+      <p>Saat Anda memilih "Masuk dengan Google", SITASI TSKPO hanya menerima <b>nama, alamat email, dan foto profil</b> akun Google Anda. Data ini dipakai semata-mata untuk:</p>
+      <ul>
+        <li>mencocokkan email Anda dengan daftar pegawai yang berhak masuk;</li>
+        <li>menampilkan nama dan foto Anda di dalam aplikasi;</li>
+        <li>mencatat siapa yang melakukan suatu tindakan di Log Aktivitas.</li>
+      </ul>
+      <p>SITASI TSKPO <b>tidak</b> membaca email Gmail, isi Google Drive, kontak, atau data lain dari akun Google pegawai.</p>
+      <p>Penggunaan dan pemindahan informasi yang diterima dari Google API mematuhi <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Kebijakan Data Pengguna Layanan Google API</a>, termasuk persyaratan Penggunaan Terbatas (<i>Limited Use</i>).</p>
+
+      <h2>3. Data penerima manfaat dan dokumen kedinasan</h2>
+      <p>Data penerima manfaat (antara lain NIK, nama, alamat, dan rekening) serta dokumen kedinasan (Draft SK, Nota Dinas, SK, lampiran, dan foto dokumentasi) diproses dalam rangka pelaksanaan tugas dan fungsi Kementerian Sosial. Data tersebut:</p>
+      <ul>
+        <li>disimpan di basis data Supabase dengan aturan hak akses per peran dan per Pokja;</li>
+        <li>dokumen dan foto disimpan di Google Drive akun Direktorat (Super Admin) dan tidak dibagikan secara publik;</li>
+        <li>kolom sensitif ditampilkan tersamar bagi pegawai yang tidak berwenang;</li>
+        <li>setiap ekspor, unduhan, dan perubahan dicatat di Log Aktivitas.</li>
+      </ul>
+
+      <h2>4. Notifikasi</h2>
+      <p>Pegawai dapat menerima pemberitahuan lewat aplikasi, WhatsApp, atau email tentang perkembangan usulan. Isi pemberitahuan hanya nomor register, judul usulan, tahap, dan tautan, <b>tanpa</b> NIK, nomor rekening, atau data pribadi penerima manfaat.</p>
+
+      <h2>5. Berbagi data</h2>
+      <p>Data tidak dijual dan tidak dibagikan kepada pihak lain di luar kepentingan kedinasan, kecuali bila diwajibkan oleh peraturan perundang-undangan.</p>
+
+      <h2>6. Penyimpanan dan penghapusan</h2>
+      <p>Data disimpan selama diperlukan untuk pelaksanaan program dan sesuai ketentuan kearsipan yang berlaku. Akun pegawai yang tidak lagi bertugas dinonaktifkan oleh Super Admin.</p>
+
+      <h2>7. Kontak</h2>
+      <p>Pertanyaan tentang kebijakan ini dapat disampaikan kepada Super Admin SITASI TSKPO, Pokja Data Dit. RSTSKPO, melalui email <a href="mailto:asterpokjadata@gmail.com">asterpokjadata@gmail.com</a>.</p>
+
+      <p style="margin-top:24px">Lihat juga: <a href="ketentuan.html">Ketentuan Layanan</a>.</p>
+    </article>
+    <p class="dok-kaki">© 2026 Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI</p>
+  </main>
+</body>
+</html>
