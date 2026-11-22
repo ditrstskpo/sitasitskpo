@@ -240,7 +240,7 @@ export function badgeAktif(aktif) {
 }
 
 export function logo(ukuran = 40) {
-  return raw(`<img class="logo-img" src="${esc(CONFIG.LOGO)}" width="${ukuran}" height="${ukuran}" alt="Logo Kementerian Sosial RI"
+  return raw(`<img class="logo-img" src="${esc(CONFIG.LOGO)}" width="${ukuran}" height="${ukuran}" alt="Logo SITASI TSKPO"
     onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-mono',textContent:'ST',title:'Letakkan logo resmi di ${esc(CONFIG.LOGO)}'}))">`);
 }
 

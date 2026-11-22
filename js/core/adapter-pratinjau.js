@@ -970,16 +970,19 @@ export async function koreksiRekap(id, kolom, nilai, alasan) {
 }
 
 // ---------------------------------------------------------------- Notifikasi WA / email
-export async function pengaturanNotif() { await tunggu(60); return salin(db.notif_atur); }
+export async function pengaturanNotif() { await tunggu(60); return { wa_batch: 10, wa_jeda: 5, wa_acak: 3, ...salin(db.notif_atur) }; }
 export async function aturNotifikasi(d) {
   if (!isSA()) throw galat('Hanya Super Admin.', '42501');
   const n = db.notif_atur;
   if ('wa' in d) n.notif_wa_aktif = !!d.wa;
   if ('email' in d) n.notif_email_aktif = !!d.email;
   if (d.matriks) n.notif_matriks = d.matriks;
+  if ('wa_batch' in d) { if (!(d.wa_batch >= 1 && d.wa_batch <= 50)) throw galat('Ukuran batch harus 1 sampai 50 pesan.'); n.wa_batch = d.wa_batch; }
+  if ('wa_jeda' in d) { if (!(d.wa_jeda >= 3 && d.wa_jeda <= 120)) throw galat('Jeda antar pesan harus 3 sampai 120 detik (di bawah 3 detik berisiko dianggap spam).'); n.wa_jeda = d.wa_jeda; }
+  if ('wa_acak' in d) { if (!(d.wa_acak >= 0 && d.wa_acak <= 60)) throw galat('Jeda acak harus 0 sampai 60 detik.'); n.wa_acak = d.wa_acak; }
   if ('app_url' in d) { if (d.app_url && !/^https:\/\//i.test(d.app_url)) throw galat('Alamat web harus diawali https://'); n.app_url = d.app_url || ''; }
   log('PENGATURAN', 'pengaturan', 'notifikasi', 'Mengubah pengaturan notifikasi', d); simpan();
-  return salin(n);
+  return { wa_batch: 10, wa_jeda: 5, wa_acak: 3, ...salin(n) };
 }
 export async function ujiNotifikasi(kanal, tujuan) {
   if (!isSA()) throw galat('Hanya Super Admin.', '42501');
@@ -1045,7 +1048,37 @@ export async function imporBnbaHistoris(rows, uji = true, opsi = {}) {
   return { uji, ditambah: tambah, diperbarui: ubah, dilewati: lewat, usulan_baru: baru, gagal };
 }
 
-// ---------------------------------------------------------------- tiruan Apps Script (berkas Drive, Fonnte, baca Sheets)
+// ---------------------------------------------------------------- Penyimpanan berkas (v2.2.0)
+const pen = () => (db.penyimpanan ||= { aktif: 'drive_sa1', sambungan: {} });
+const saAktif = (n) => db.pengguna.find((x) => x.peran_sistem === 'super_admin' && x.aktif && x.super_admin_slot === n);
+export async function statusPenyimpanan() {
+  await tunggu(80); if (!isSA()) throw galat('Hanya Super Admin.', '42501');
+  const berkas = {};
+  db.berkas.filter((b) => !b.dihapus && b.lokasi !== 'tautan').forEach((b) => { const x = (berkas[b.lokasi] ||= { jumlah: 0, ukuran: 0 }); x.jumlah++; x.ukuran += b.ukuran || 0; });
+  return { aktif: pen().aktif, berkas, slot: [1, 2].map((n) => { const a = saAktif(n), s = pen().sambungan[n];
+    return { slot: n, ada_akun: !!a, nama: a?.nama || null, email: a?.email || null, email_drive: s?.email || null, status: s?.status || 'belum', terhubung_pada: s?.pada || null }; }) };
+}
+export async function aturPenyimpanan(lokasi) {
+  await tunggu(80); if (!isSA()) throw galat('Hanya Super Admin.', '42501');
+  if (!['drive_sa1', 'drive_sa2', 'tunda'].includes(lokasi)) throw galat('Tujuan penyimpanan tidak dikenal.');
+  if (lokasi !== 'tunda' && pen().sambungan[lokasi.slice(-1)]?.status !== 'tersambung') throw galat(`Drive Super Admin ${lokasi.slice(-1)} belum tersambung. Pemiliknya perlu menekan "Hubungkan Drive" lebih dulu.`);
+  log('PENGATURAN', 'pengaturan', 'penyimpanan_aktif', `Mengalihkan penyimpanan berkas: ${pen().aktif} → ${lokasi}`); pen().aktif = lokasi; simpan();
+  return statusPenyimpanan();
+}
+export async function hubungDriveTiruan(slot) {
+  await tunggu(400); const me = sayaAktif();
+  if (!isSA() || me?.super_admin_slot !== slot) throw galat(`Akun Anda bukan Super Admin ${slot}. Hanya pemilik akun itu yang dapat mengelola Drive-nya.`, '42501');
+  pen().sambungan[slot] = { email: me.email, status: 'tersambung', pada: sekarang() };
+  log('PENGATURAN', 'drive_sambungan', String(slot), `Menghubungkan Google Drive Super Admin ${slot} (${me.email})`); simpan();
+}
+export async function putusDriveTiruan(slot) {
+  await tunggu(200); const me = sayaAktif();
+  if (!isSA() || me?.super_admin_slot !== slot) throw galat(`Akun Anda bukan Super Admin ${slot}.`, '42501');
+  delete pen().sambungan[slot]; if (pen().aktif === 'drive_sa' + slot) pen().aktif = 'tunda';
+  log('PENGATURAN', 'drive_sambungan', String(slot), `Memutus Google Drive Super Admin ${slot}`); simpan(); return { ok: true };
+}
+
+// ---------------------------------------------------------------- tiruan Apps Script (Fonnte, baca Sheets) dan berkas pratinjau
 const BERKAS_MEMORI = new Map();
 export async function gasTiruan(action, d = {}) {
   await tunggu(350); butuhSesi();
@@ -1054,7 +1087,9 @@ export async function gasTiruan(action, d = {}) {
     if (!bolehTahapP(u.pokja_id, d.tahap)) throw galat('Anda tidak berwenang mengunggah berkas tahap ini.', '42501');
     const ukuran = Math.floor((d.base64 || '').length * 0.75);
     if (ukuran > 10 * 1024 * 1024) throw galat('Ukuran dokumen maksimal 10 MB.');
-    const r = { id: uid(), usulan_id: u.id, tahap: d.tahap, jenis: d.jenis, nama: d.nama, ukuran, mime: d.mime, lokasi: 'drive_sa1', tautan: null, diunggah_nama: namaSaya(), dibuat_pada: sekarang() };
+    const lok = pen().aktif;
+    if (lok === 'tunda') throw galat('Unggahan berkas sedang ditunda oleh Super Admin. Hubungi Super Admin.');
+    const r = { id: uid(), usulan_id: u.id, tahap: d.tahap, jenis: d.jenis, nama: d.nama, ukuran, mime: d.mime, lokasi: lok, tautan: null, diunggah_nama: namaSaya(), dibuat_pada: sekarang() };
     BERKAS_MEMORI.set(r.id, d.base64); db.berkas.push(r); simpan(); return salin(r);
   }
   if (action === 'unduh') {

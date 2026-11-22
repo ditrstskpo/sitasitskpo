@@ -1,8 +1,8 @@
-LETAKKAN DUA BERKAS RESMI DARI DIREKTORAT DI FOLDER INI (nama harus persis sama):
+LETAKKAN BERKAS BERIKUT DI FOLDER INI (nama harus persis sama):
 
-1. logo-kemensos.png   → logo Kementerian Sosial RI (latar transparan, persegi, minimal 160x160 px)
-2. gedung-kemensos.jpg → foto gedung Kementerian Sosial RI (lebar minimal 1200 px, ukuran < 400 KB)
+1. logo-sitasi.png     -> logo SITASI TSKPO (PNG, latar transparan, PERSEGI, minimal 512x512 px, di bawah 300 KB)
+                          Dipakai untuk: ikon tab browser, layar memuat, menu samping, halaman depan, halaman privasi/ketentuan.
+2. gedung-kemensos.jpg -> foto gedung Kementerian Sosial RI (lebar minimal 1200 px, ukuran di bawah 400 KB)
 
-Selama berkas belum ada, aplikasi menampilkan tanda "ST" sebagai pengganti logo
-dan kotak keterangan sebagai pengganti foto. Tidak ada yang rusak.
+Selama berkas belum ada, aplikasi menampilkan tanda "ST" dan kotak keterangan sebagai pengganti. Tidak ada yang rusak.
 Nama berkas dapat diubah di js/config.js (LOGO dan FOTO_GEDUNG).

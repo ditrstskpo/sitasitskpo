@@ -29,6 +29,7 @@ const RUTE = {
   '/pengaturan/pengumuman': { judul: 'Pengumuman', muat: () => import('./pages/pengumuman.js'), izin: P.bolehKelolaPengumuman },
   '/pengaturan/log-aktivitas': { judul: 'Log Aktivitas', muat: () => import('./pages/log-aktivitas.js'), izin: P.isSuperAdmin },
   '/pengaturan/notifikasi': { judul: 'Notifikasi WA & Email', muat: () => import('./pages/notif-pengaturan.js'), izin: P.isSuperAdmin },
+  '/pengaturan/penyimpanan': { judul: 'Penyimpanan Berkas', muat: () => import('./pages/penyimpanan.js'), izin: P.isSuperAdmin },
   '/pengaturan/migrasi': { judul: 'Migrasi Data 2026', muat: () => import('./pages/migrasi.js'), izin: P.isSuperAdmin },
   // Tahap 2 — BNBA & alur pencairan
   '/workspace-bnba': { judul: 'Workspace BNBA Pokja', muat: () => import('./pages/ws-bnba.js'), izin: (s) => P.isSuperAdmin(s) || P.pokjaEfektif(s).length > 0 },

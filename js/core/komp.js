@@ -2,7 +2,7 @@
 import { html, raw, angka, tanggalJam, hariIni, esc } from './util.js';
 import { ikon } from './icons.js';
 import { api } from './api.js';
-import { gas, gasAktif, keBase64, unduhBase64 } from './gas.js';
+import { unggahBerkas, ambilBerkas, hapusBerkas, simpanBlob } from './berkas.js';
 import { toast, konfirmasi, pesanGalat, tombolMuat, bukaModal } from './ui.js';
 
 /** Kartu KPI. nilai angka → hitung naik; rp → awalan "Rp" kecil. */
@@ -43,8 +43,8 @@ export function slotBerkas({ judul, ket = '', jenis, berkas = [], boleh = false 
       <button type="button" class="btn btn-icon" data-unduh="${b.id}" title="Unduh / buka" aria-label="Unduh ${b.nama}">${raw(ikon('download', 18))}</button>
       ${boleh ? html`<button type="button" class="btn btn-icon" data-hapus-berkas="${b.id}" title="Hapus berkas" aria-label="Hapus ${b.nama}">${raw(ikon('trash', 18))}</button>` : ''}</div>`)}
     ${boleh ? html`<div class="slot-aksi">
-      ${gasAktif() ? html`<label class="btn btn-secondary btn-sm">${raw(ikon('upload', 16))} ${ada.length ? 'Ganti / tambah berkas' : 'Unggah berkas'}
-        <input type="file" hidden data-file="${jenis}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"></label>` : ''}
+      <label class="btn btn-secondary btn-sm">${raw(ikon('upload', 16))} ${ada.length ? 'Ganti / tambah berkas' : 'Unggah berkas'}
+        <input type="file" hidden data-file="${jenis}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"></label>
       <button type="button" class="btn btn-ghost btn-sm" data-tautan="${jenis}">${raw(ikon('link', 16))} Tempel tautan</button>
       <small class="redup">PDF, DOC/DOCX, XLS/XLSX, JPG/PNG · maks 10 MB</small></div>` : ''}
   </div>`;
@@ -62,7 +62,7 @@ export function pasangSlotBerkas(root, { usulanId, tahap, judulJenis = {}, muatU
     const lbl = inp.closest('label');
     const pulih = tombolMuat(lbl, 'Mengunggah…');
     try {
-      await gas('unggah', { usulan_id: usulanId, tahap: tahapX, jenis, nama: f.name, mime: f.type || 'application/octet-stream', base64: await keBase64(f) }, { tulis: true });
+      await unggahBerkas({ usulanId, tahap: tahapX, jenis, file: f });
       toast(`${judulJenis[jenis] || 'Berkas'} tersimpan di Google Drive.`);
       await muatUlang();
     } catch (err) { toast(pesanGalat(err), 'galat', 'Unggah gagal'); pulih(); }
@@ -92,7 +92,7 @@ export function pasangSlotBerkas(root, { usulanId, tahap, judulJenis = {}, muatU
     if (h) {
       const k = await konfirmasi({ judul: 'Hapus berkas?', pesan: 'Berkas dihapus dari usulan dan dari Google Drive.', label: 'Hapus', bahaya: true });
       if (!k.ok) return;
-      try { await gas('hapus_berkas', { id: h.dataset.hapusBerkas }, { tulis: true }); toast('Berkas dihapus.'); await muatUlang(); }
+      try { await hapusBerkas(h.dataset.hapusBerkas); toast('Berkas dihapus.'); await muatUlang(); }
       catch (err) { toast(pesanGalat(err), 'galat'); }
     }
   });
@@ -101,9 +101,9 @@ export function pasangSlotBerkas(root, { usulanId, tahap, judulJenis = {}, muatU
 export async function unduhBerkas(id, tombol) {
   const pulih = tombolMuat(tombol, '');
   try {
-    const r = await gas('unduh', { id });
+    const r = await ambilBerkas(id);
     if (r.tautan) window.open(r.tautan, '_blank', 'noopener');
-    else unduhBase64(r.nama, r.mime, r.base64);
+    else simpanBlob(r.nama, r.blob);
   } catch (e) { toast(pesanGalat(e), 'galat', 'Unduh gagal'); }
   finally { pulih(); }
 }

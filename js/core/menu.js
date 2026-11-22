@@ -69,7 +69,7 @@ export const MODUL = {
   notif: { label: 'Notifikasi WA & Email', ikon: 'send', rute: '/pengaturan/notifikasi', judul: ['Notifikasi', 'WhatsApp & Email'] },
   migrasi: { label: 'Migrasi Data 2026', ikon: 'upload', rute: '/pengaturan/migrasi', judul: ['Migrasi Data', '2026'] },
   log: { label: 'Log Aktivitas', ikon: 'history', rute: '/pengaturan/log-aktivitas', judul: ['Log Aktivitas', '& Audit'] },
-  penyimpanan: { label: 'Penyimpanan Berkas', ikon: 'hard-drive', rute: '/pengaturan/penyimpanan', tahap: 4, judul: ['Penyimpanan Berkas', '(Google Drive)'],
+  penyimpanan: { label: 'Penyimpanan Berkas', ikon: 'hard-drive', rute: '/pengaturan/penyimpanan', judul: ['Penyimpanan Berkas', '(Google Drive)'],
     ket: ['Tujuan penyimpanan aktif: Drive Super Admin 1 atau 2', 'Tombol "Alihkan Penyimpanan" dan "Hubungkan Drive Saya"', 'Struktur folder "SITASI TSKPO" dibuat otomatis'] },
 };
 

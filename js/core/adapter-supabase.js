@@ -270,7 +270,7 @@ export const koreksiRekap = (usulanId, kolom, nilai, alasan) =>
 
 // ---------------------------------------------------------------- Notifikasi WA / email (pengaturan & antrean)
 export async function pengaturanNotif() {
-  const rows = cek(await sb.from('pengaturan').select('kunci,nilai').in('kunci', ['notif_wa_aktif', 'notif_email_aktif', 'notif_matriks', 'app_url']));
+  const rows = cek(await sb.from('pengaturan').select('kunci,nilai').in('kunci', ['notif_wa_aktif', 'notif_email_aktif', 'notif_matriks', 'app_url', 'wa_batch', 'wa_jeda', 'wa_acak']));
   return Object.fromEntries(rows.map((r) => [r.kunci, r.nilai]));
 }
 export const aturNotifikasi = (d) => rpc('atur_notifikasi', { p_data: d });
@@ -287,3 +287,7 @@ export const kirimUlangAntrian = (id = null) => rpc('kirim_ulang_antrian', { p_i
 
 // ---------------------------------------------------------------- Migrasi data 2026
 export const imporBnbaHistoris = (rows, uji = true, opsi = {}) => rpc('impor_bnba_historis', { p_rows: rows, p_uji: uji, p_opsi: opsi });
+
+// ---------------------------------------------------------------- Penyimpanan berkas (v2.2.0)
+export const statusPenyimpanan = () => rpc('status_penyimpanan');
+export const aturPenyimpanan = (lokasi) => rpc('atur_penyimpanan', { p_lokasi: lokasi });

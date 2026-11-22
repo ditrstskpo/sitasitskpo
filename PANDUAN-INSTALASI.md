@@ -1,4 +1,4 @@
-# Panduan Instalasi SITASI TSKPO (versi 2.1.0: Tahap 1 Fondasi + Tahap 2 BNBA & Alur Pencairan)
+# Panduan Instalasi SITASI TSKPO (versi 2.2.0: Tahap 1 Fondasi + Tahap 2 BNBA & Alur Pencairan)
 
 Panduan ini untuk pemula. Ikuti **berurutan** dan jangan melompat. Setiap langkah punya tanda **✅ Berhasil jika…** supaya Anda tahu kapan boleh lanjut.
 

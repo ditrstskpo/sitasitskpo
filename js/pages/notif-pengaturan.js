@@ -40,7 +40,7 @@ export async function render(el) {
             <div><dt>Kuota email tersisa</dt><dd>${angka(status.kuota_email)}</dd></div><div><dt>Pemicu 1 menit</dt><dd>${status.pemicu_aktif ? 'Aktif' : html`<span class="teks-merah">Belum dipasang (jalankan pasangSITASI)</span>`}</dd></div>
             <div><dt>Akun Google pengirim</dt><dd>${status.akun_google || '—'}</dd></div><div><dt>Terakhir memproses</dt><dd>${tanggalJam(status.terakhir)}</dd></div></dl>` : gasAktif() ? html`<p class="redup">Memeriksa Apps Script…</p>` : html`<p class="redup">Status tersedia setelah Apps Script tersambung.</p>`}`);
   }
-  function gambar() { gambarIsi(); gambarGateway(); }
+  function gambar() { gambarIsi(); gambarGateway(); taksir(); }
   function gambarIsi() {
     const m = atur.notif_matriks || {};
     $('[data-isi]').innerHTML = String(html`
@@ -60,6 +60,21 @@ export async function render(el) {
             <button class="btn btn-primary" data-simpan-token ${!gasAktif() ? raw('disabled') : ''}>Simpan Token</button></div>
         </section>
       </div>
+      <section class="card" style="margin-top:24px"><div class="card-head"><span class="ubin emas">${raw(ikon('sliders', 20))}</span><div><h2 class="card-title">Pengiriman WhatsApp (Anti-Spam)</h2>
+          <p class="card-sub">Pesan dikirim berkelompok dengan jeda acak antar pesan, supaya nomor pengirim tidak dianggap spam oleh WhatsApp.</p></div></div>
+        <div class="grid grid-3" style="gap:16px">
+          <div class="field"><label class="label" for="wa-batch">Batch bawaan</label><select id="wa-batch" class="select" data-pg>${opsi([['5', '5 pesan'], ['10', '10 pesan (disarankan)'], ['20', '20 pesan'], ['50', '50 pesan']], String(atur.wa_batch ?? 10))}</select>
+            <div class="help">Jumlah pesan maksimum yang dikirim dalam satu putaran.</div></div>
+          <div class="field"><label class="label" for="wa-jeda">Jeda antar pesan (detik)</label><input id="wa-jeda" class="input" type="number" min="3" max="120" step="1" value="${atur.wa_jeda ?? 5}" data-pg>
+            <div class="help">Minimal 3 detik. Makin lama makin aman.</div></div>
+          <div class="field"><label class="label" for="wa-acak">Tambahan jeda acak (detik)</label><input id="wa-acak" class="input" type="number" min="0" max="60" step="1" value="${atur.wa_acak ?? 3}" data-pg>
+            <div class="help">Jeda tiap pesan = jeda di atas + acak 0 sampai angka ini, agar pola tidak seragam.</div></div>
+        </div>
+        <p class="redup" style="margin-top:12px" data-taksiran></p>
+        <div class="slot-aksi" style="margin-top:12px"><button type="button" class="btn btn-primary" data-simpan-pengiriman>${raw(ikon('save', 16))} Simpan Pengaturan Pengiriman</button>
+          <button type="button" class="btn btn-ghost" data-cek-perangkat ${!gasAktif() ? raw('disabled') : ''}>${raw(ikon('refresh', 16))} Cek Perangkat</button></div>
+        <div class="info-card biru" style="margin-top:16px">${raw(ikon('info', 20))}<span>Tips: gunakan nomor khusus kantor, jangan kirim ke nomor yang tidak menyimpan kontak Anda dalam jumlah besar, dan biarkan batch 10 dengan jeda 5 detik atau lebih. Email tidak terkena pembatasan ini.</span></div>
+      </section>
       <section class="card" style="margin-top:24px"><div class="card-head"><span class="ubin emas">${raw(ikon('list-checks', 20))}</span><div><h2 class="card-title">Matriks Kejadian</h2><p class="card-sub">Pilih kejadian yang dikirim lewat WhatsApp dan email.</p></div><span class="spacer"></span>
         <button class="btn btn-primary btn-sm" data-simpan-matriks>${raw(ikon('save', 16))} Simpan Matriks</button></div>
         <div class="table-wrap"><table class="tbl"><thead><tr><th>Kejadian</th><th>Penerima</th><th class="tengah">WhatsApp</th><th class="tengah">Email</th></tr></thead><tbody>
@@ -88,6 +103,13 @@ export async function render(el) {
         </tbody></table></div>${pager({ hal, total: d.total, per: 20 })}` : kosong({ ikonNama: 'inbox', judul: 'Antrean kosong', teks: 'Pesan WhatsApp dan email muncul di sini saat ada perpindahan tahap.' }));
     } catch (e) { $('[data-antri]').innerHTML = String(kotakGalat(pesanGalat(e))); }
   }
+  function taksir() {
+    const t = $('[data-taksiran]'); if (!t) return;
+    const b = Number($('#wa-batch').value) || 10, j = Number($('#wa-jeda').value) || 5, a = Number($('#wa-acak').value) || 0, rata = j + a / 2;
+    const permenit = Math.min(b, Math.floor(60 / rata) || 1), detikBatch = Math.round(b * rata);
+    t.innerHTML = String(html`Kira-kira satu batch <b>${angka(b)} pesan</b> selesai dalam <b>±${angka(detikBatch)} detik</b>; sekitar <b>${angka(Math.max(1, Math.round(3600 / rata)))} pesan per jam</b> bila antrean panjang.`);
+  }
+  el.addEventListener('input', (e) => { if (e.target.matches('[data-pg]')) taksir(); });
   el.addEventListener('change', async (e) => {
     const k = e.target.closest('[data-kanal]');
     if (k) { try { atur = await api.aturNotifikasi({ [k.dataset.kanal]: k.checked }); toast(`${k.dataset.kanal === 'wa' ? 'WhatsApp' : 'Email'} ${k.checked ? 'diaktifkan' : 'dinonaktifkan'}.`); muatAntrean(); } catch (err) { k.checked = !k.checked; toast(pesanGalat(err), 'galat'); } }
@@ -97,6 +119,10 @@ export async function render(el) {
     const b = e.target.closest('button'); if (!b) return;
     const jalan = async (fn, pesan) => { const pulih = tombolMuat(b); try { await fn(); if (pesan) toast(pesan); } catch (err) { toast(pesanGalat(err), 'galat'); } pulih(); };
     if (b.matches('[data-simpan-url]')) return jalan(async () => { atur = await api.aturNotifikasi({ app_url: $('#app-url').value.trim() }); }, 'Alamat web tersimpan.');
+    if (b.matches('[data-simpan-pengiriman]')) return jalan(async () => {
+      atur = await api.aturNotifikasi({ wa_batch: Number($('#wa-batch').value), wa_jeda: Number($('#wa-jeda').value), wa_acak: Number($('#wa-acak').value) });
+    }, 'Pengaturan pengiriman tersimpan.');
+    if (b.matches('[data-cek-perangkat]')) return jalan(async () => { status = await gas('status_notif').catch((err) => ({ galat: pesanGalat(err) })); gambarGateway(); }, 'Status perangkat diperbarui.');
     if (b.matches('[data-simpan-matriks]')) return jalan(async () => {
       const m = {}; el.querySelectorAll('[data-m]').forEach((c) => { (m[c.dataset.m] ||= {})[c.dataset.k] = c.checked; });
       atur = await api.aturNotifikasi({ matriks: m });

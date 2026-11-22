@@ -19,6 +19,6 @@ export const CONFIG = {
   VERSI: '2.1.0 · Tahap 2',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
-  LOGO: 'assets/logo-kemensos.png',
+  LOGO: 'assets/logo-sitasi.png',
   FOTO_GEDUNG: 'assets/gedung-kemensos.jpg',
 };
