@@ -186,7 +186,7 @@ function siapkan() {
   });
   D.dok_tanpa = [];
   // ---- riwayat realisasi 2026 (usulan selesai di berbagai provinsi & bulan) agar dashboard bermakna
-  const URUT = ['1', '2', '3', '4a', '4b', '4c', '5', '6', '7', '8', '9', '10', '11'];
+  const URUT = ['1', '2', '3', '3b', '4a', '4b', '4c', '5', '6', '7', '7b', '8', '9', '10', '11'];
   const RIW = [
     ['KPO_PMBS', 'Jawa Timur', 'Kota Surabaya', '2026-02', 9, ['KPO', 'PMIB'], true],
     ['GEPENGLUNG', 'Sumatera Utara', 'Kota Medan', '2026-03', 8, ['Gelandangan', 'Pengemis', 'Pemulung'], true],

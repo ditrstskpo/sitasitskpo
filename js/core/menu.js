@@ -28,6 +28,8 @@ export const MODUL = {
     ket: ['Kisi bulanan Perjadin, Fullday, Fullboard (Sabtu–Minggu tetap bisa diisi)', 'Warna sama untuk kegiatan yang sama di hari yang sama', 'Rekap per pegawai otomatis dan realtime'] },
   dokBersama: { label: 'Dokumen Bersama', ikon: 'folder', rute: '/dokumen-bersama', judul: ['Dokumen Bersama', '— Repositori Terpadu'],
     ket: ['Satu pilihan Kategori: SK ATENSI, SK Kegiatan, SK, SOP, Perpres, KAK, Bahan Paparan, Dokumentasi Kegiatan, Lainnya', 'Terbit setelah diverifikasi Pokja TU', 'Berkas tersimpan di Google Drive Super Admin, diunduh lewat web'] },
+  burekolBank: { label: 'Burekol — Petugas Bank', pendek: 'Burekol', ikon: 'landmark', rute: '/burekol-bank', judul: ['Burekol', '— Petugas Bank'],
+    ket: ['Daftar SK bundle yang menunggu tindak lanjut bank', 'Isi nomor rekening per PM atau kirim koreksi NIK/nama', 'Setelah semua selesai, kirim kembali ke Keuangan untuk SP2D'] },
   pesan: { label: 'Pesan & Komunikasi', ikon: 'pesan', rute: '/pesan', judul: ['Pesan & Komunikasi', 'Internal'],
     ket: ['Chat Pokja, Koordinasi Lintas-Pokja, Pesan Pribadi', 'Diskusi pada record BNBA dan usulan', 'Bukan pengganti pencatatan resmi'] },
 
@@ -84,6 +86,7 @@ const BERSAMA = ['beranda', 'rekonsiliasi', 'rekap', 'master', 'dashSupermonev',
 
 /** Daftar grup menu sesuai peran efektif. */
 export function grupMenu(s) {
+  if (P.isBank(s)) return [{ judul: 'Petugas Bank', item: ['burekolBank', 'bantuan'].map((k) => MODUL[k]) }];
   if (P.isPetugas(s)) return [{ judul: 'Supermonev Lapangan', item: ['supermonev', 'verifBelanja', 'bantuan'].map((k) => MODUL[k]) }];
   const grup = [{ judul: 'Menu Bersama', item: BERSAMA.map((k) => MODUL[k]) }];
 
@@ -99,7 +102,7 @@ export function grupMenu(s) {
   if (P.diPokja(s, 'DATA')) tambah('inputAster');
   if (P.diPokja(s, 'KEPEGAWAIAN')) tambah('sdm');
   if (P.diPokja(s, 'HUKUM')) tambah('hukum');
-  if (P.diPokja(s, 'SUPERMONEV')) tambah('supermonev', 'verifBelanja');
+  if (P.diPokja(s, 'SUPERMONEV') || P.jugaSupermonev(s)) tambah('supermonev', 'verifBelanja');
   if (P.diPokja(s, 'SUPERMONEV', 'kapokja') || P.diPokja(s, 'TU', 'kapokja')) tambah('penugasan');
   if (P.isPegawai(s) && !P.isSuperAdmin(s)) tambah('tugas');
   if (ws.length) grup.push({ judul: 'Workspace Saya' + (P.labelPokjaSaya(s) ? ` (${P.labelPokjaSaya(s)})` : ''), item: ws.map((k) => MODUL[k]) });
@@ -120,6 +123,7 @@ export const ruteBoleh = (s) => new Set(grupMenu(s).flatMap((g) => g.item.map((m
 
 /** Menu navigasi bawah (ponsel): 4 menu utama + "Lainnya". */
 export function menuBawah(s) {
+  if (P.isBank(s)) return [MODUL.burekolBank, MODUL.bantuan];
   if (P.isPetugas(s)) return [MODUL.supermonev, MODUL.verifBelanja, MODUL.bantuan];
   const pilihan = [MODUL.beranda, MODUL.rekonsiliasi, MODUL.master];
   pilihan.push(P.isSuperAdmin(s) ? MODUL.pengguna : MODUL.pesan);

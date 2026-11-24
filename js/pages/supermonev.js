@@ -18,9 +18,10 @@ import * as P from '../core/peran.js';
 
 export async function render(el, { sesi: s, query }) {
   const petugas = P.isPetugas(s), pegawai = P.isPegawai(s);
+  const lapangan = P.bisaSupermonev(s);
   const verif = P.isSuperAdmin(s) || P.diPokja(s, 'SUPERMONEV', 'kapokja');
   const anggotaSmv = P.diPokja(s, 'SUPERMONEV');
-  let tab = query?.get('tab') || (petugas || anggotaSmv ? 'tugas' : verif ? 'antrean' : 'semua');
+  let tab = query?.get('tab') || (lapangan || anggotaSmv ? 'tugas' : verif ? 'antrean' : 'semua');
   let f = { q: '', status: '', hasil: '', putaran: '', hal: 1, per: 20 }, semuaSelesai = false;
   const lepas = [];
 

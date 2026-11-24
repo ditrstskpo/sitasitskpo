@@ -62,7 +62,7 @@ export async function pokjaDenganAnggota() {
 }
 
 // ---------------------------------------------------------------- pengguna
-const KOLOM_PENGGUNA = 'id,email,nama,nip,no_hp,jenis_akses,peran_sistem,super_admin_slot,aktif,auth_id,login_terakhir,catatan,dibuat_pada,' +
+const KOLOM_PENGGUNA = 'id,email,nama,nip,no_hp,jenis_akses,juga_supermonev,peran_sistem,super_admin_slot,aktif,auth_id,login_terakhir,catatan,dibuat_pada,' +
   'pengguna_pokja(jabatan,pokja(id,kode,nama_pendek,warna,warna_tint,warna_teks,urutan))';
 
 export async function daftarPengguna({ q = '', pokja = '', peran = '', status = 'aktif', hal = 1, per = 50 } = {}) {
@@ -73,6 +73,7 @@ export async function daftarPengguna({ q = '', pokja = '', peran = '', status = 
   if (peran === 'kapokja' || peran === 'anggota') qr = qr.eq('fp.jabatan', peran);
   if (peran === 'super_admin' || peran === 'direktur') qr = qr.eq('peran_sistem', peran);
   if (peran === 'petugas_supermonev') qr = qr.eq('jenis_akses', 'petugas_supermonev');
+  if (peran === 'petugas_bank') qr = qr.eq('jenis_akses', 'petugas_bank');
   if (status === 'aktif') qr = qr.eq('aktif', true);
   if (status === 'nonaktif') qr = qr.eq('aktif', false);
   const s = bersihCari(q);
@@ -280,6 +281,12 @@ export const simpanDataPencairan = (usulanId, rows) => rpc('simpan_data_pencaira
 export const tolakPmKeuangan = (usulanId, bnbaId, catatan) => rpc('tolak_pm_keuangan', { p_usulan: usulanId, p_bnba: bnbaId, p_catatan: catatan });
 export const perbaikiPmDitolak = (bnbaId, data) => rpc('perbaiki_pm_ditolak', { p_bnba: bnbaId, p_data: data });
 export const simpanRekeningSp2d = (usulanId, rows) => rpc('simpan_rekening_sp2d', { p_usulan: usulanId, p_rows: rows });
+export const bankDaftar = () => rpc('bank_daftar');
+export const bankDetail = (usulanId) => rpc('bank_detail', { p_usulan: usulanId });
+export const kirimKoreksiBank = (bnbaId, jenis, catatan = null) => rpc('kirim_koreksi_bank', { p_bnba: bnbaId, p_jenis: jenis, p_catatan: catatan });
+export const koreksiBankDaftar = (usulanId) => rpc('koreksi_bank_daftar', { p_usulan: usulanId });
+export const ubahPmLanjutan = (bnbaId, data) => rpc('ubah_pm_lanjutan', { p_bnba: bnbaId, p_data: data });
+export const ubahUsulanLanjutan = (usulanId, data) => rpc('ubah_usulan_lanjutan', { p_usulan: usulanId, p_data: data });
 export const calonPenerima = (usulanId, tahap) => rpc('calon_penerima', { p_usulan: usulanId, p_tahap: tahap });
 export const simpanPenyaluran = (usulanId, d) => rpc('simpan_penyaluran', { p_usulan: usulanId, p_data: d });
 export const hapusPenyaluran = (id) => rpc('hapus_penyaluran', { p_id: id });

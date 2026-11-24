@@ -60,6 +60,7 @@ const RUTE = {
   '/pesan': { judul: 'Pesan & Komunikasi', muat: () => import('./pages/pesan.js'), izin: P.isPegawai },
   // Tahap 5 — Supermonev
   '/supermonev': { judul: 'Supermonev', muat: () => import('./pages/supermonev.js'), izin: (s) => P.isPetugas(s) || P.isPegawai(s) },
+  '/burekol-bank': { judul: 'Burekol — Petugas Bank', muat: () => import('./pages/burekol-bank.js'), izin: (s) => P.isBank(s) || P.isSuperAdmin(s) },
   '/penugasan-supermonev': { judul: 'Penugasan Petugas Supermonev', muat: () => import('./pages/penugasan.js'), izin: P.isPegawai },
   '/dashboard-supermonev': { judul: 'Dashboard Supermonev', muat: () => import('./pages/dash-supermonev.js'), izin: P.isPegawai },
   '/ekspor-supermonev': { judul: 'Ekspor PPTX & Laporan Supermonev', induk: '/dashboard-supermonev', muat: () => import('./pages/smv-ekspor.js'), izin: P.isPegawai },

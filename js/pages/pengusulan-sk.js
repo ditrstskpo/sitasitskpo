@@ -56,7 +56,7 @@ export async function render(el, { path }) {
         const r = await api.ringkasanUsulan(), p = r.per_tahap || {}, n = (...t) => t.reduce((a, x) => a + (p[x] || 0), 0);
         $('[data-kpi]').innerHTML = String(html`<div class="kpi-row kpi-6">
           ${kpi({ warna: 'blue', ikonNama: 'file-text', label: 'Tahap 3', nilai: n('3'), note: 'Draft SK & Nota Dinas' })}
-          ${kpi({ warna: 'violet', ikonNama: 'user-check', label: 'Tahap 4 Aktif', nilai: n('4a', '4b', '4c'), note: 'Verif TU / Direktur / Sekretariat' })}
+          ${kpi({ warna: 'violet', ikonNama: 'user-check', label: 'Tahap 4 Aktif', nilai: n('3b', '4a', '4b', '4c'), note: 'Kapokja / TU / Direktur / Sekretariat' })}
           ${kpi({ warna: 'coral', ikonNama: 'banknote', label: 'Tahap 5 & 6', nilai: n('5', '6'), note: 'Data Pencairan & SK Keluar' })}
           ${kpi({ warna: 'teal', ikonNama: 'landmark', label: 'Tahap 7 – 10', nilai: n('7', '8', '9', '10'), note: 'Burekol s.d. SI' })}
           ${kpi({ ikonNama: 'check-circle', label: 'Tahap 11 Final', nilai: r.selesai, note: 'Sudah cair' })}

@@ -5,13 +5,16 @@ export const peranEfektif = (s) => s?.efektif?.peran || null;
 export const isSuperAdmin = (s) => peranEfektif(s) === 'super_admin';
 export const isSuperAdminAsli = (s) => s?.pengguna?.peran_sistem === 'super_admin';
 export const isDirektur = (s) => peranEfektif(s) === 'direktur';
-export const isPetugas = (s) => peranEfektif(s) === 'petugas_supermonev';
+export const isPetugas = (s) => peranEfektif(s) === 'petugas_supermonev';   // petugas lapangan murni: menu terbatas
+export const isBank = (s) => peranEfektif(s) === 'petugas_bank';
+export const jugaSupermonev = (s) => !!s?.efektif?.juga_supermonev;            // pegawai Direktorat yang juga Supermonev
+export const bisaSupermonev = (s) => isPetugas(s) || jugaSupermonev(s);
 export const isPegawai = (s) => ['super_admin', 'direktur', 'pegawai'].includes(peranEfektif(s));
 export const pokjaEfektif = (s) => s?.efektif?.pokja || [];
 export const diPokja = (s, kode, jabatan) => pokjaEfektif(s).some((p) => p.kode === kode && (!jabatan || p.jabatan === jabatan));
 export const isKapokja = (s) => pokjaEfektif(s).some((p) => p.jabatan === 'kapokja');
 export const bolehKelolaPengumuman = (s) => isSuperAdmin(s) || diPokja(s, 'TU');
-export const halamanAwal = (s) => (isPetugas(s) ? '/supermonev' : '/beranda');
+export const halamanAwal = (s) => (isBank(s) ? '/burekol-bank' : isPetugas(s) ? '/supermonev' : '/beranda');
 
 export function labelPokjaSaya(s) {
   const p = pokjaEfektif(s);

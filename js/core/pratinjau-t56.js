@@ -34,7 +34,7 @@ const LABEL_HASIL = { berhasil: 'Berhasil', berhasil_catatan: 'Berhasil dengan C
 const labelHasil = (h) => LABEL_HASIL[h] || 'Belum dinilai';
 
 // ---------------------------------------------------------------- peran
-const isPetugas = () => I.peran() === 'petugas_supermonev';
+const isPetugas = () => I.peran() === 'petugas_supermonev' || !!(I.sayaAktif()?.juga_supermonev && I.peran() === 'pegawai');
 const kapokja = (k) => I.pokjaEf().some((e) => kode(e.pokja_id) === k && e.jabatan === 'kapokja');
 const bolehTugaskan = () => I.isSA() || kapokja('SUPERMONEV') || kapokja('TU');
 const verifikator = () => I.isSA() || kapokja('SUPERMONEV');
@@ -272,7 +272,7 @@ function pengingat() {
 const bebanPetugas = (pid) => d().smv_tugas.filter((t) => t.petugas_id === pid && !d().supermonev.some((s) => s.bnba_id === t.bnba_id && s.putaran === t.putaran && s.status === 'terverifikasi')).length;
 export async function smvPetugas() {
   await jeda(); siapkan(); butuhPeg();
-  return d().pengguna.filter((u) => u.aktif && (u.jenis_akses === 'petugas_supermonev' || anggotaSmv(u.id))).sort((a, b) => a.nama.localeCompare(b.nama))
+  return d().pengguna.filter((u) => u.aktif && (u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev || anggotaSmv(u.id))).sort((a, b) => a.nama.localeCompare(b.nama))
     .map((u) => ({ id: u.id, nama: u.nama, email: u.email, jenis: u.jenis_akses === 'petugas_supermonev' ? 'Petugas lapangan' : 'Pokja Supermonev', beban: bebanPetugas(u.id) }));
 }
 function barisPenugasan() {
@@ -300,7 +300,7 @@ export async function smvPenugasan(f = {}) {
 export async function smvTugaskan(items, petugasId, catatan = null) {
   await jeda(); siapkan();
   if (!bolehTugaskan()) throw g('Penugasan dilakukan Kapokja Supermonev atau Kapokja TU.', '42501');
-  const p = d().pengguna.find((u) => u.id === petugasId && u.aktif && (u.jenis_akses === 'petugas_supermonev' || anggotaSmv(u.id)));
+  const p = d().pengguna.find((u) => u.id === petugasId && u.aktif && (u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev || anggotaSmv(u.id)));
   if (!p) throw g('Pilih petugas Supermonev yang terdaftar dan aktif.');
   if (!Array.isArray(items) || !items.length) throw g('Pilih minimal satu PM.');
   const jw = jadwal(tambahHari(hariIni(), 400));

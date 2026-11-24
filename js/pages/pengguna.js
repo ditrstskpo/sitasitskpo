@@ -27,7 +27,7 @@ export async function render(el, { query, segarkanSesi }) {
         <div class="field"><label class="label" for="f-pokja">Pokja</label><select id="f-pokja" class="select"><option value="">Semua Pokja</option></select></div>
         <div class="field"><label class="label" for="f-peran">Peran</label><select id="f-peran" class="select">
           <option value="">Semua peran</option><option value="super_admin">Super Admin</option><option value="direktur">Direktur</option>
-          <option value="kapokja">Kapokja</option><option value="anggota">Anggota Pokja</option><option value="petugas_supermonev">Petugas Supermonev</option></select></div>
+          <option value="kapokja">Kapokja</option><option value="anggota">Anggota Pokja</option><option value="petugas_supermonev">Petugas Supermonev</option><option value="petugas_bank">Petugas Bank</option></select></div>
         <div class="field"><label class="label" for="f-status">Status</label><select id="f-status" class="select">
           <option value="aktif">Aktif</option><option value="nonaktif">Nonaktif</option><option value="">Semua status</option></select></div>
         <button type="button" class="btn btn-ghost" data-reset>${raw(ikon('refresh', 18))} Reset</button>
@@ -80,7 +80,8 @@ export async function render(el, { query, segarkanSesi }) {
     const b = [];
     if (u.peran_sistem === 'super_admin') b.push(html`<span class="badge b-violet">${raw(ikon('shield', 15))} Super Admin${u.super_admin_slot ? ' ' + u.super_admin_slot : ''}</span>`);
     if (u.peran_sistem === 'direktur') b.push(html`<span class="badge b-proc">${raw(ikon('landmark', 15))} Direktur</span>`);
-    if (u.jenis_akses === 'petugas_supermonev') b.push(html`<span class="badge b-gold">${raw(ikon('clipboard-list', 15))} Petugas Supermonev</span>`);
+    if (u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev) b.push(html`<span class="badge b-gold">${raw(ikon('clipboard-list', 15))} Petugas Supermonev</span>`);
+    if (u.jenis_akses === 'petugas_bank') b.push(html`<span class="badge b-proc">${raw(ikon('landmark', 15))} Petugas Bank</span>`);
     const pk = (u.pengguna_pokja || []).filter((x) => x.pokja).sort((a, c) => a.pokja.urutan - c.pokja.urutan);
     pk.forEach((x) => b.push(chipPokja(x.pokja, (x.jabatan === 'kapokja' ? 'Kapokja · ' : 'Anggota · ') + x.pokja.nama_pendek)));
     if (!b.length) b.push(html`<span class="redup">Pegawai (belum ada Pokja)</span>`);
@@ -132,9 +133,11 @@ export async function render(el, { query, segarkanSesi }) {
             <div class="field"><label class="label" for="u-hp">Nomor HP <span class="redup" style="font-weight:500">(opsional)</span></label><input id="u-hp" name="no_hp" class="input" value="${u?.no_hp || ''}" inputmode="tel"></div>
           </div></div>
         <div class="form-section"><div class="form-section-head"><span class="no">2</span><h3>Jenis Akses</h3></div>
-          <div class="pilihan">
-            <label><input type="radio" name="jenis_akses" value="pegawai" ${u?.jenis_akses !== 'petugas_supermonev' ? raw('checked') : ''}><span><b>Pegawai Direktorat</b><small>Melihat Menu Bersama dan Workspace sesuai Pokja</small></span></label>
-            <label><input type="radio" name="jenis_akses" value="petugas_supermonev" ${u?.jenis_akses === 'petugas_supermonev' ? raw('checked') : ''}><span><b>Petugas Supermonev</b><small>Boleh dari luar Direktorat; hanya formulir Supermonev</small></span></label>
+          <p class="help" style="margin:-4px 0 10px">Boleh memilih <b>Pegawai Direktorat dan Petugas Supermonev sekaligus</b>: seluruh Workspace tetap tampil, ditambah halaman Supermonev. Bila hanya Petugas Supermonev, yang tampil hanya halaman Supermonev. Petugas Bank berdiri sendiri.</p>
+          <div class="pilihan" style="--kol:3">
+            <label><input type="checkbox" name="akses_pegawai" ${u ? (u.jenis_akses === 'pegawai' ? raw('checked') : '') : raw('checked')}><span><b>Pegawai Direktorat</b><small>Menu Bersama dan Workspace sesuai Pokja</small></span></label>
+            <label><input type="checkbox" name="akses_smv" ${u && (u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev) ? raw('checked') : ''}><span><b>Petugas Supermonev</b><small>Formulir Supermonev; boleh dari luar Direktorat</small></span></label>
+            <label><input type="checkbox" name="akses_bank" ${u?.jenis_akses === 'petugas_bank' ? raw('checked') : ''}><span><b>Petugas Bank</b><small>Hanya menu Burekol: isi rekening & kirim koreksi</small></span></label>
           </div></div>
         <div class="form-section" data-bag-pegawai><div class="form-section-head"><span class="no">3</span><h3>Peran Sistem</h3></div>
           <div class="pilihan" style="--kol:3">
@@ -162,12 +165,24 @@ export async function render(el, { query, segarkanSesi }) {
         <button type="button" class="btn btn-primary" data-simpan>${raw(ikon('check', 18))} ${baru ? 'Simpan Pengguna' : 'Simpan Perubahan'}</button>`),
     });
     const form = m.el.querySelector('[data-form]');
-    const aturJenis = () => {
-      const petugas = form.jenis_akses.value === 'petugas_supermonev';
-      form.querySelectorAll('[data-bag-pegawai]').forEach((x) => { x.hidden = petugas; });
-      m.el.querySelector('[data-no-akhir]').textContent = petugas ? '3' : '5';
+    // jenis_akses (basis data) dan penanda "juga Supermonev" dihitung dari tiga kotak centang
+    const jenisForm = () => {
+      const pg = form.akses_pegawai.checked, sm = form.akses_smv.checked, bk = form.akses_bank.checked;
+      if (bk) return { jenis_akses: 'petugas_bank', juga_supermonev: false };
+      if (pg) return { jenis_akses: 'pegawai', juga_supermonev: sm };
+      if (sm) return { jenis_akses: 'petugas_supermonev', juga_supermonev: false };
+      return null;
     };
-    form.addEventListener('change', (e) => { if (e.target.name === 'jenis_akses') aturJenis(); });
+    const aturJenis = () => {
+      const j = jenisForm(), tanpaPokja = !j || j.jenis_akses !== 'pegawai';
+      form.querySelectorAll('[data-bag-pegawai]').forEach((x) => { x.hidden = tanpaPokja; });
+      m.el.querySelector('[data-no-akhir]').textContent = tanpaPokja ? '3' : '5';
+    };
+    form.addEventListener('change', (e) => {
+      if (e.target.name === 'akses_bank' && e.target.checked) { form.akses_pegawai.checked = false; form.akses_smv.checked = false; }
+      if (['akses_pegawai', 'akses_smv'].includes(e.target.name) && e.target.checked) form.akses_bank.checked = false;
+      if (e.target.name?.startsWith('akses_')) aturJenis();
+    });
     form.addEventListener('click', (e) => {
       const b = e.target.closest('.segmen button');
       if (!b) return;
@@ -188,12 +203,14 @@ export async function render(el, { query, segarkanSesi }) {
     m.foot.querySelector('[data-simpan]').addEventListener('click', async (e) => {
       form.querySelectorAll('.field.salah').forEach((x) => { x.classList.remove('salah'); const er = x.querySelector('.err'); if (er) er.hidden = true; });
       m.el.querySelector('[data-galat-form]').innerHTML = '';
+      const jf = jenisForm();
+      if (!jf) { m.el.querySelector('[data-galat-form]').innerHTML = String(kotakGalat('Pilih minimal satu jenis akses.')); return; }
       const data = {
         id: u?.id || null, nama: form.nama.value.trim(), email: form.email.value.trim().toLowerCase(),
-        nip: form.nip.value.trim(), no_hp: form.no_hp.value.trim(), jenis_akses: form.jenis_akses.value,
-        peran_sistem: form.jenis_akses.value === 'petugas_supermonev' ? null : (form.peran_sistem.value || null),
+        nip: form.nip.value.trim(), no_hp: form.no_hp.value.trim(), jenis_akses: jf.jenis_akses, juga_supermonev: jf.juga_supermonev,
+        peran_sistem: jf.jenis_akses !== 'pegawai' ? null : (form.peran_sistem.value || null),
         aktif: form.aktif.checked, catatan: form.catatan.value.trim(),
-        pokja: form.jenis_akses.value === 'petugas_supermonev' ? [] : [...form.querySelectorAll('.segmen')]
+        pokja: jf.jenis_akses !== 'pegawai' ? [] : [...form.querySelectorAll('.segmen')]
           .map((s) => ({ pokja_id: s.dataset.pokja, jabatan: s.querySelector('[aria-pressed="true"]')?.dataset.j || '' })).filter((x) => x.jabatan),
       };
       let ok = true;

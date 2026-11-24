@@ -111,7 +111,7 @@ export const badge = (peta, k, teks) => {
 export const URUT_TAHAP = TAHAP_PENCAIRAN.map((t) => t.no);
 export const infoTahap = (no) => TAHAP_PENCAIRAN.find((t) => t.no === String(no)) || { no, nama: 'Tahap ' + no, warna: '#7A8794' };
 export const TAHAP_TU = ['4a', '4b', '4c', '6'];
-export const TAHAP_KEU = ['5', '7', '8', '9', '10', '11'];
+export const TAHAP_KEU = ['5', '7', '7b', '8', '9', '10', '11'];
 
 /** Cermin aturan basis data (app.boleh_tahap) — hanya untuk menampilkan tombol yang relevan. */
 export function bolehTahap(s, pokjaId, tahap) {
@@ -119,9 +119,10 @@ export function bolehTahap(s, pokjaId, tahap) {
   const ef = P.pokjaEfektif(s);
   const milik = ef.some((p) => p.id === pokjaId);
   if (['1', '3'].includes(tahap)) return milik;
-  if (tahap === '2') return ef.some((p) => p.id === pokjaId && p.jabatan === 'kapokja');
+  if (['2', '3b'].includes(tahap)) return ef.some((p) => p.id === pokjaId && p.jabatan === 'kapokja');
   if (['4a', '4b'].includes(tahap)) return P.diPokja(s, 'TU');
   if (['4c', '6'].includes(tahap)) return P.diPokja(s, 'TU') || milik;
+  if (tahap === '7b') return P.diPokja(s, 'KEUANGAN') || P.isBank(s);
   if (TAHAP_KEU.includes(tahap)) return P.diPokja(s, 'KEUANGAN');
   return false;
 }

@@ -45,6 +45,8 @@ const AKUN = [
   ['maya.puspita@contoh.id', 'Maya Puspita', 'pegawai', null, true, [['BWBP', 'anggota']]],
   ['petugas.lapangan@contoh.id', 'Petugas Lapangan (contoh)', 'petugas_supermonev', null, true, []],
   ['pindah.tugas@contoh.id', 'Pegawai Pindah Tugas', 'pegawai', null, false, []],
+  ['petugas.bank@contoh.id', 'Petugas Bank (contoh)', 'petugas_bank', null, true, []],
+  ['dual.smv@contoh.id', 'Pegawai + Supermonev (contoh)', 'pegawai', null, true, [['DATA', 'anggota']]],
 ];
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2));
@@ -55,7 +57,7 @@ const galat = (pesan, code = 'P0001') => Object.assign(new Error(pesan), { code 
 function benih() {
   const t = Date.now();
   const pengguna = AKUN.map(([email, nama, jenis_akses, peran_sistem, aktif], i) => ({
-    id: 'pg-' + (i + 1), email, nama, nip: null, no_hp: null, jenis_akses, peran_sistem,
+    id: 'pg-' + (i + 1), email, nama, nip: null, no_hp: null, jenis_akses, peran_sistem, juga_supermonev: email === 'dual.smv@contoh.id',
     super_admin_slot: peran_sistem === 'super_admin' ? 1 : null, aktif, simulasi: null, catatan: null,
     auth_id: i > 5 && i < 13 ? 'tertaut' : null,
     login_terakhir: i > 5 && i < 13 ? new Date(t - i * 3.6e6 * 7).toISOString() : null,
@@ -92,6 +94,7 @@ const sayaAktif = () => { const p = saya(); return p && p.aktif ? p : null; };
 function peran(p = sayaAktif()) {
   if (!p) return null;
   if (p.jenis_akses === 'petugas_supermonev') return 'petugas_supermonev';
+  if (p.jenis_akses === 'petugas_bank') return 'petugas_bank';
   if (p.peran_sistem === 'super_admin' && p.simulasi) return ['direktur', 'petugas_supermonev'].includes(p.simulasi.peran) ? p.simulasi.peran : 'pegawai';
   return p.peran_sistem || 'pegawai';
 }
@@ -109,6 +112,7 @@ const bolehPengumuman = () => isSA() || diPokja('TU');
 function label(p = sayaAktif()) {
   if (!p) return 'Sistem';
   if (p.jenis_akses === 'petugas_supermonev') return 'Petugas Supermonev';
+  if (p.jenis_akses === 'petugas_bank') return 'Petugas Bank';
   if (p.peran_sistem === 'super_admin' && p.simulasi) {
     const k = pokjaById(p.simulasi.pokja_id);
     const l = { direktur: 'Direktur', petugas_supermonev: 'Petugas Supermonev', kapokja: 'Kapokja ' + (k?.nama_pendek || '?') }[p.simulasi.peran]
@@ -152,10 +156,11 @@ export function akunContoh() {
 }
 function labelUntuk(p) {
   if (p.jenis_akses === 'petugas_supermonev') return 'Petugas Supermonev';
+  if (p.jenis_akses === 'petugas_bank') return 'Petugas Bank';
   if (p.peran_sistem === 'super_admin') return 'Super Admin';
   if (p.peran_sistem === 'direktur') return 'Direktur';
   const pk = db.pengguna_pokja.filter((x) => x.pengguna_id === p.id).map((x) => (x.jabatan === 'kapokja' ? 'Kapokja ' : 'Anggota ') + pokjaById(x.pokja_id).nama_pendek);
-  return pk.join(', ') || 'Pegawai';
+  return (pk.join(', ') || 'Pegawai') + (p.juga_supermonev ? ' + Supermonev' : '');
 }
 
 // ---------------------------------------------------------------- sesi & peran
@@ -178,9 +183,9 @@ export async function sesiSaya(login = false) {
     : [];
   return {
     status: 'aktif',
-    pengguna: { id: p.id, email: p.email, nama: p.nama, nip: p.nip, no_hp: p.no_hp, jenis_akses: p.jenis_akses, peran_sistem: p.peran_sistem, super_admin_slot: p.super_admin_slot, simulasi: p.simulasi },
+    pengguna: { id: p.id, email: p.email, nama: p.nama, nip: p.nip, no_hp: p.no_hp, jenis_akses: p.jenis_akses, juga_supermonev: !!p.juga_supermonev, peran_sistem: p.peran_sistem, super_admin_slot: p.super_admin_slot, simulasi: p.simulasi },
     pokja_asli: asli,
-    efektif: { peran: peran(p), label: label(p), simulasi: !!p.simulasi, pokja: ef },
+    efektif: { peran: peran(p), label: label(p), simulasi: !!p.simulasi, pokja: ef, juga_supermonev: !!p.juga_supermonev && p.jenis_akses === 'pegawai' && !p.simulasi },
     simulasi_tautan: tautan,
     notif_belum_dibaca: db.notifikasi.filter((n) => n.penerima_id === p.id && !n.dibaca_pada).length,
     waktu_server: sekarang(),
@@ -232,7 +237,8 @@ export async function daftarPengguna({ q = '', pokja = '', peran: pf = '', statu
   if (pokja) r = r.filter((u) => anggota(u, (x) => x.pokja_id === pokja && (!['kapokja', 'anggota'].includes(pf) || x.jabatan === pf)));
   else if (pf === 'kapokja' || pf === 'anggota') r = r.filter((u) => anggota(u, (x) => x.jabatan === pf));
   if (pf === 'super_admin' || pf === 'direktur') r = r.filter((u) => u.peran_sistem === pf);
-  if (pf === 'petugas_supermonev') r = r.filter((u) => u.jenis_akses === 'petugas_supermonev');
+  if (pf === 'petugas_supermonev') r = r.filter((u) => u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev);
+  if (pf === 'petugas_bank') r = r.filter((u) => u.jenis_akses === 'petugas_bank');
   r.sort((a, b) => (b.aktif - a.aktif) || a.nama.localeCompare(b.nama, 'id'));
   return { baris: r.slice((hal - 1) * per, hal * per).map(barisPengguna), total: r.length };
 }
@@ -243,7 +249,8 @@ export async function ringkasanPengguna() {
   return {
     aktif: u.filter((x) => x.aktif).length, nonaktif: u.filter((x) => !x.aktif).length,
     pegawai: u.filter((x) => x.aktif && x.jenis_akses === 'pegawai').length,
-    petugas_supermonev: u.filter((x) => x.aktif && x.jenis_akses === 'petugas_supermonev').length,
+    petugas_supermonev: u.filter((x) => x.aktif && (x.jenis_akses === 'petugas_supermonev' || x.juga_supermonev)).length,
+    petugas_bank: u.filter((x) => x.aktif && x.jenis_akses === 'petugas_bank').length,
     super_admin: u.filter((x) => x.aktif && x.peran_sistem === 'super_admin').length,
     belum_login: u.filter((x) => x.aktif && !x.auth_id).length,
   };
@@ -256,8 +263,9 @@ export async function simpanPengguna(d) {
   if (!nama) throw galat('Nama wajib diisi.');
   if (!email) throw galat('Email wajib diisi.');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw galat('Format email tidak valid: ' + email);
-  const jenis = d.jenis_akses === 'petugas_supermonev' ? 'petugas_supermonev' : 'pegawai';
-  let peranSistem = jenis === 'petugas_supermonev' ? null : (d.peran_sistem || null);
+  const jenis = ['petugas_supermonev', 'petugas_bank'].includes(d.jenis_akses) ? d.jenis_akses : 'pegawai';
+  let peranSistem = jenis !== 'pegawai' ? null : (d.peran_sistem || null);
+  const jugaSmv = jenis === 'pegawai' && !!d.juga_supermonev;
   const aktif = d.aktif !== false;
   const lama = d.id ? db.pengguna.find((u) => u.id === d.id) : null;
   if (d.id && !lama) throw galat('Pengguna tidak ditemukan.');
@@ -270,19 +278,19 @@ export async function simpanPengguna(d) {
 
   const u = lama || { id: 'pg-' + uid().slice(0, 8), auth_id: null, login_terakhir: null, simulasi: null, dibuat_pada: sekarang() };
   const sebelum = lama ? salin(lama) : null;
-  Object.assign(u, { email, nama, nip: d.nip?.trim() || null, no_hp: d.no_hp?.trim() || null, jenis_akses: jenis, peran_sistem: peranSistem, aktif, catatan: d.catatan?.trim() || null });
+  Object.assign(u, { email, nama, nip: d.nip?.trim() || null, no_hp: d.no_hp?.trim() || null, jenis_akses: jenis, juga_supermonev: jugaSmv, peran_sistem: peranSistem, aktif, catatan: d.catatan?.trim() || null });
   if (lama && sebelum.email !== email) { u.auth_id = null; u.simulasi = null; }
   if (u.peran_sistem !== 'super_admin' || !u.aktif) { u.simulasi = null; u.super_admin_slot = null; }
   else if (!u.super_admin_slot || saLain.some((x) => x.super_admin_slot === u.super_admin_slot)) u.super_admin_slot = saLain.some((x) => x.super_admin_slot === 1) ? 2 : 1;
   if (!lama) db.pengguna.push(u);
 
-  if (d.pokja || jenis === 'petugas_supermonev') {
-    const baru = jenis === 'petugas_supermonev' ? [] : (d.pokja || []).filter((x) => x.pokja_id);
+  if (d.pokja || jenis !== 'pegawai') {
+    const baru = jenis !== 'pegawai' ? [] : (d.pokja || []).filter((x) => x.pokja_id);
     db.pengguna_pokja = db.pengguna_pokja.filter((x) => x.pengguna_id !== u.id);
     baru.forEach((x) => db.pengguna_pokja.push({ pengguna_id: u.id, pokja_id: x.pokja_id, jabatan: x.jabatan === 'kapokja' ? 'kapokja' : 'anggota' }));
   }
   const ubah = {};
-  if (sebelum) for (const k of ['email', 'nama', 'nip', 'no_hp', 'jenis_akses', 'peran_sistem', 'aktif', 'catatan', 'super_admin_slot'])
+  if (sebelum) for (const k of ['email', 'nama', 'nip', 'no_hp', 'jenis_akses', 'juga_supermonev', 'peran_sistem', 'aktif', 'catatan', 'super_admin_slot'])
     if (sebelum[k] !== u[k]) ubah[k] = { lama: sebelum[k], baru: u[k] };
   log(lama ? 'UPDATE' : 'INSERT', 'pengguna', u.id, null, lama ? ubah : salin(u), d.alasan || null);
   simpan();
@@ -391,8 +399,8 @@ export function langganan() { return () => {}; }
 // TAHAP 2 (pratinjau) — usulan BNBA, alur 11 tahap, rekap, notifikasi, migrasi.
 // Meniru fungsi SQL SETUP_SUPABASE_TAHAP2 agar alur bisa dicoba tanpa server.
 // =====================================================================
-const URUT = ['1', '2', '3', '4a', '4b', '4c', '5', '6', '7', '8', '9', '10', '11'];
-const NAMA_T = { 1: 'Pengajuan BNBA & Profil', 2: 'Verifikasi Kapokja', 3: 'Draft SK & Nota Dinas', '4a': 'Verifikasi Tata Usaha', '4b': 'TTD Direktur',
+const URUT = ['1', '2', '3', '3b', '4a', '4b', '4c', '5', '6', '7', '7b', '8', '9', '10', '11'];
+const NAMA_T = { 1: 'Pengajuan BNBA & Profil', 2: 'Verifikasi Kapokja', 3: 'Draft SK & Nota Dinas', '3b': 'Verifikasi Ketua Pokja (SK & Nota Dinas)', '7b': 'Pengisian Rekening Bank', '4a': 'Verifikasi Tata Usaha', '4b': 'TTD Direktur',
   '4c': 'Sekretariat', 5: 'Data Pencairan', 6: 'SK Keluar dari Sekretariat', 7: 'Administrasi Burekol', 8: 'SP2D', 9: 'Administrasi SI', 10: 'SI', 11: 'Pencairan' };
 const SINGKAT = { KPO_PMBS: 'KPO', GEPENGLUNG: 'GEP', BWBP: 'BWBP', KTK_WTS: 'KTK', TU: 'TU', KEUANGAN: 'KEU', PERENCANAAN: 'REN', KEPEGAWAIAN: 'KEP', HUKUM: 'HUK', SUPERMONEV: 'SMV', DATA: 'DATA' };
 const isPeg = () => ['super_admin', 'direktur', 'pegawai'].includes(peran());
@@ -470,10 +478,14 @@ function bolehTahapP(pokjaId, t) {
   const ef = pokjaEf(), milik = ef.some((e) => e.pokja_id === pokjaId);
   if (['1', '3'].includes(t)) return milik;
   if (t === '2') return ef.some((e) => e.pokja_id === pokjaId && e.jabatan === 'kapokja');
+  if (t === '3b') return ef.some((e) => e.pokja_id === pokjaId && e.jabatan === 'kapokja');
+  if (t === '7b') return diPokja('KEUANGAN') || peran() === 'petugas_bank';
   if (['4a', '4b'].includes(t)) return diPokja('TU');
   if (['4c', '6'].includes(t)) return diPokja('TU') || milik;
   return ['5', '7', '8', '9', '10', '11'].includes(t) && diPokja('KEUANGAN');
 }
+const JENIS_L = ['draft_sk', 'nota_dinas', 'sk_final'];
+const bolehLanjutan = (u) => isSA() || diPokja('TU') || idsPokja().includes(u.pokja_id);
 const bolehPenuhP = (pokjaId) => isSA() || diPokja('KEUANGAN') || idsPokja().includes(pokjaId);
 const usulanTerlihat = (u) => isPeg() && (!['draft', 'menunggu', 'perlu_perbaikan'].includes(u.status) || isSA() || idsPokja().includes(u.pokja_id));
 const bnbaTerlihat = (b) => isPeg() && (b.status_verifikasi === 'terverifikasi' || isSA() || idsPokja().includes(b.pokja_id));
@@ -500,9 +512,10 @@ function riwayatP(uid_, t, aksi, lama, baru, cat) {
 }
 let penerimaPilih = null;   // diisi sementara oleh prosesTahap (data._penerima)
 function penerimaTahap(pokjaId, t) {
+  if (t === '7') { const bk = db.pengguna.filter((u) => u.aktif && u.jenis_akses === 'petugas_bank').map((u) => u.id); if (bk.length) return bk; }
   return db.pengguna.filter((u) => !penerimaPilih || penerimaPilih.includes(u.id)).filter((u) => u.aktif && u.jenis_akses === 'pegawai' && db.pengguna_pokja.some((pp) => pp.pengguna_id === u.id && (
     ['1', '3'].includes(t) ? pp.pokja_id === pokjaId
-      : t === '2' ? pp.pokja_id === pokjaId && pp.jabatan === 'kapokja'
+      : ['2', '3b'].includes(t) ? pp.pokja_id === pokjaId && pp.jabatan === 'kapokja'
         : ['4a', '4b', '4c', '6'].includes(t) ? pokjaById(pp.pokja_id)?.kode === 'TU'
           : pokjaById(pp.pokja_id)?.kode === 'KEUANGAN'))).map((u) => u.id);
 }
@@ -578,7 +591,7 @@ function benihT2() {
       let st = status === 'selesai' || i < posisi ? 'selesai' : t === tahap ? 'aktif' : 'terkunci';
       if (status === 'proses' && tahap === '5' && t === '6') st = 'aktif';
       if (status === 'perlu_perbaikan' && t === '1') st = 'aktif';
-      db.tahap.push({ usulan_id: u.id, tahap: t, status: st, data: {}, catatan: null, pic_nama: st === 'selesai' ? (['1', '3'].includes(t) ? 'Bambang Wijaya' : t === '2' ? 'Sari Handayani' : ['4a', '4b', '4c', '6'].includes(t) ? 'Anggota Pokja TU' : 'Nur Aini') : null,
+      db.tahap.push({ usulan_id: u.id, tahap: t, status: st, data: {}, catatan: null, pic_nama: st === 'selesai' ? (['1', '3'].includes(t) ? 'Bambang Wijaya' : ['2', '3b'].includes(t) ? 'Sari Handayani' : ['4a', '4b', '4c', '6'].includes(t) ? 'Anggota Pokja TU' : 'Nur Aini') : null,
         mulai_pada: st !== 'terkunci' ? t0 : null, selesai_pada: st === 'selesai' ? t0 : null });
     });
     if (posisi > URUT.indexOf('6') || status === 'selesai') { u.no_sk = `${140 + idx}/RSTSKPO/SK/${10 + (idx % 2)}/2026`; u.tgl_sk = '2026-11-0' + (idx + 1); }
@@ -802,10 +815,10 @@ async function prosesTahapInti(id, t, aksi, data, cat, u, x) {
   const d = { ...x.data, ...data };
   if (aksi === 'simpan') { x.data = d; if (cat) x.catatan = cat; simpan(); return { ok: true, data: d }; }
   if (aksi === 'kembalikan' || aksi === 'tolak') {
-    if (!['4a', '4b', '4c'].includes(t)) throw galat('Pengembalian atau penolakan hanya pada tahap 4a, 4b, dan 4c.');
+    if (!['3b', '4a', '4b', '4c'].includes(t)) throw galat('Pengembalian atau penolakan hanya pada tahap 3b, 4a, 4b, dan 4c.');
     if (!cat) throw galat('Alasan wajib diisi.');
     if (aksi === 'kembalikan') {
-      ['4a', '4b', '4c'].forEach((y) => Object.assign(tahapU(id, y), { status: 'terkunci', mulai_pada: null }));
+      ['3b', '4a', '4b', '4c'].forEach((y) => Object.assign(tahapU(id, y), { status: 'terkunci', mulai_pada: null }));
       Object.assign(tahapU(id, '3'), { status: 'aktif', selesai_pada: null, catatan: cat });
       u.catatan_terakhir = cat; riwayatP(id, t, 'DIKEMBALIKAN', t, '3', cat);
       beriTahu(anggotaPokja(u.pokja_id), 'USULAN_DIKEMBALIKAN', 'Usulan SK dikembalikan ke Tahap 3', `Usulan "${u.judul}" (${u.no_register}) dikembalikan pada Tahap ${t}. Alasan: ${cat}`, '#/usulan/' + id);
@@ -824,6 +837,7 @@ async function prosesTahapInti(id, t, aksi, data, cat, u, x) {
     5: b.some((y) => y.tolak_keu_catatan) ? 'Masih ada PM yang dikembalikan ke Pokja dan belum diperbaiki.' : b.some((y) => !y.akun_bantuan) ? 'Masih ada PM tanpa akun bantuan.' : b.some((y) => !y.cek_keu) ? 'Masih ada PM yang belum dicentang "sudah dicek".' : null,
     6: !d.sk_selesai ? 'Centang "SK sudah selesai".' : !(d.no_sk && d.tgl_sk) ? 'Isi NO SK dan TGL SK.' : !adaBerkas(id, 'sk_final') ? 'Unggah scan SK TTD final.' : null,
     7: !adaBerkas(id, 'surat_burekol') ? 'Unggah Surat Penyampaian Data Bantuan ATENSI.' : null,
+    '7b': b.some((y) => y.koreksi_bank_catatan) ? 'Masih ada koreksi data PM dari bank yang belum diperbaiki.' : b.some((y) => !y.nama_bank || !y.nomor_rekening) ? 'Masih ada PM tanpa nama bank atau nomor rekening.' : null,
     8: !d.sp2d_terbit ? 'Centang "SP2D sudah terbit".' : b.some((y) => !y.nama_bank || !y.nomor_rekening) ? 'Masih ada PM tanpa nama bank atau nomor rekening.' : null,
     9: !(d.no_sp2d && d.tgl_sp2d && d.bulan_sp2d) ? 'Isi NO SP2D, TGL SP2D, dan BULAN (SP2D).' : null,
     10: !d.si_selesai ? 'Centang "SI sudah selesai".' : null,
@@ -836,7 +850,7 @@ async function prosesTahapInti(id, t, aksi, data, cat, u, x) {
   if (t === '9') b.forEach((y) => Object.assign(y, { no_sp2d: d.no_sp2d, tgl_sp2d: d.tgl_sp2d, bulan_sp2d: d.bulan_sp2d }));
   if (t === '11') Object.assign(u, { status: 'selesai', tgl_cair: d.tgl_cair });
   riwayatP(id, t, 'SELESAI', 'aktif', 'selesai', cat);
-  const lanjut = { 3: ['4a'], '4a': ['4b'], '4b': ['4c'], '4c': ['5', '6'], 7: ['8'], 8: ['9'], 9: ['10'], 10: ['11'] }[t] || [];
+  const lanjut = { 3: ['3b'], '3b': ['4a'], '4a': ['4b'], '4b': ['4c'], '4c': ['5', '6'], 7: ['7b'], '7b': ['8'], 8: ['9'], 9: ['10'], 10: ['11'] }[t] || [];
   if (['5', '6'].includes(t) && tahapU(id, '5').status === 'selesai' && tahapU(id, '6').status === 'selesai') lanjut.push('7');
   lanjut.forEach((y) => bukaT(id, y));
   if (t === '11') beriTahu(anggotaPokja(u.pokja_id), 'USULAN_SELESAI', 'Bantuan sudah cair', `Usulan "${u.judul}" (${u.no_register}) sudah dicairkan.`, '#/usulan/' + id);
@@ -932,8 +946,9 @@ export async function perbaikiPmDitolak(bnbaId, data) {
 // Tahap 8 (SP2D): nama bank & nomor rekening per PM
 export async function simpanRekeningSp2d(id, rows) {
   await tunggu(120); const u = ambilU(id);
-  if (!bolehTahapP(u.pokja_id, '8')) throw galat('Hanya Pokja Keuangan yang mengisi rekening pada Tahap SP2D.', '42501');
-  if (u.status !== 'proses' || tahapU(id, '8').status !== 'aktif') throw galat('Nomor rekening hanya dapat diisi saat Tahap 8 (SP2D) aktif.');
+  const tr = tahapU(id, '7b')?.status === 'aktif' ? '7b' : '8';
+  if (!bolehTahapP(u.pokja_id, tr)) throw galat('Hanya Petugas Bank atau Pokja Keuangan yang mengisi rekening.', '42501');
+  if (u.status !== 'proses' || tahapU(id, tr).status !== 'aktif') throw galat('Nomor rekening hanya dapat diisi saat tahap Pengisian Rekening Bank atau SP2D aktif.');
   let n = 0;
   for (const x of rows || []) {
     const rek = String(x.nomor_rekening || '').replace(/[\s.-]/g, ''), bank = String(x.nama_bank || '').trim() || null, pem = String(x.nama_pemilik_rek || '').trim() || null;
@@ -948,7 +963,10 @@ export async function calonPenerima(id, t) {
   await tunggu(60); const u = ambilU(id);
   if (!bolehTahapP(u.pokja_id, t)) return [];
   const sel = (x) => tahapU(id, x)?.status === 'selesai';
-  const kode = { 3: ['TU'], '4a': ['TU'], '4b': ['TU'], '4c': ['TU', 'KEUANGAN'], 5: sel('6') ? ['KEUANGAN'] : [], 6: sel('5') ? ['KEUANGAN'] : [], 7: ['KEUANGAN'], 8: ['KEUANGAN'], 9: ['KEUANGAN'], 10: ['KEUANGAN'] }[t] || [];
+  if (t === '3') return db.pengguna.filter((p) => p.aktif && db.pengguna_pokja.some((pp) => pp.pengguna_id === p.id && pp.pokja_id === u.pokja_id && pp.jabatan === 'kapokja'))
+    .map((p) => ({ id: p.id, nama: p.nama, jabatan: 'kapokja', kelompok: pokjaById(u.pokja_id).kode, kelompok_nama: pokjaById(u.pokja_id).nama_pendek }));
+  if (t === '7') return db.pengguna.filter((p) => p.aktif && p.jenis_akses === 'petugas_bank').map((p) => ({ id: p.id, nama: p.nama, jabatan: 'bank', kelompok: 'BANK', kelompok_nama: 'Petugas Bank' }));
+  const kode = { '3b': ['TU'], '7b': ['KEUANGAN'], '4a': ['TU'], '4b': ['TU'], '4c': ['TU', 'KEUANGAN'], 5: sel('6') ? ['KEUANGAN'] : [], 6: sel('5') ? ['KEUANGAN'] : [], 7: ['KEUANGAN'], 8: ['KEUANGAN'], 9: ['KEUANGAN'], 10: ['KEUANGAN'] }[t] || [];
   const hasil = [];
   db.pengguna.filter((p) => p.aktif && p.jenis_akses === 'pegawai').forEach((p) => db.pengguna_pokja.filter((pp) => pp.pengguna_id === p.id).forEach((pp) => {
     const k = pokjaById(pp.pokja_id); if (!k || !kode.includes(k.kode) || hasil.some((h) => h.id === p.id && h.kelompok === k.kode)) return;
@@ -975,7 +993,7 @@ export async function hapusPenyaluran(pid) {
 }
 export async function tambahTautanBerkas(id, t, jenis, nama, url) {
   const u = ambilU(id);
-  if (!bolehTahapP(u.pokja_id, t)) throw galat('Anda tidak berwenang mengunggah berkas tahap ini.', '42501');
+  if (!bolehTahapP(u.pokja_id, t) && !(JENIS_L.includes(jenis) && bolehLanjutan(u))) throw galat('Anda tidak berwenang mengunggah berkas tahap ini.', '42501');
   if (!/^https:\/\//i.test(url || '')) throw galat('Tautan harus diawali https://');
   const r = { id: uid(), usulan_id: id, tahap: t, jenis, nama: nama || jenis, ukuran: null, mime: null, lokasi: 'tautan', tautan: url, diunggah_nama: namaSaya(), dibuat_pada: sekarang() };
   db.berkas.push(r); simpan(); return salin(r);
@@ -1193,7 +1211,7 @@ export async function gasTiruan(action, d = {}) {
   }
   if (action === 'unggah') {
     const u = ambilU(d.usulan_id);
-    if (!bolehTahapP(u.pokja_id, d.tahap)) throw galat('Anda tidak berwenang mengunggah berkas tahap ini.', '42501');
+    if (!bolehTahapP(u.pokja_id, d.tahap) && !(JENIS_L.includes(d.jenis) && bolehLanjutan(u))) throw galat('Anda tidak berwenang mengunggah berkas tahap ini.', '42501');
     const ukuran = Math.floor((d.base64 || '').length * 0.75);
     if (ukuran > 10 * 1024 * 1024) throw galat('Ukuran dokumen maksimal 10 MB.');
     const lok = pen().aktif;
@@ -1211,8 +1229,9 @@ export async function gasTiruan(action, d = {}) {
   if (action === 'hapus_berkas') {
     const r = db.berkas.find((x) => x.id === d.id); if (!r) throw galat('Berkas tidak ditemukan.');
     if (r.konteks && r.konteks !== 'usulan') { hapusBerkasKonteksP(r); simpan(); return { ok: true }; }
-    if (!bolehTahapP(ambilU(r.usulan_id).pokja_id, r.tahap)) throw galat('Anda tidak berwenang.', '42501');
-    if (tahapU(r.usulan_id, r.tahap)?.status === 'selesai') throw galat('Tahap sudah selesai; berkas tidak dapat dihapus.');
+    const ul = ambilU(r.usulan_id), lanj = JENIS_L.includes(r.jenis) && bolehLanjutan(ul) && ['menunggu', 'proses', 'selesai'].includes(ul.status);
+    if (!bolehTahapP(ul.pokja_id, r.tahap) && !lanj) throw galat('Anda tidak berwenang.', '42501');
+    if (!lanj && tahapU(r.usulan_id, r.tahap)?.status === 'selesai') throw galat('Tahap sudah selesai; berkas tidak dapat dihapus.');
     r.dihapus = true; simpan(); return { ok: true };
   }
   if (!isSA()) throw galat('Hanya Super Admin.', '42501');
@@ -1241,6 +1260,84 @@ export async function gasTiruan(action, d = {}) {
 }
 
 // ---------------------------------------------------------------- Tahap 3 & 4 (v2.3.0): fungsi di pratinjau-t34.js memakai isi berikut
+// ---------------------------------------------------------------- v2.7.0: Petugas Bank, koreksi, edit lanjutan
+const isBankP = () => peran() === 'petugas_bank' || isSA();
+const bankAktif = (u) => { const x = tahapU(u.id, '7b'); return x && (x.status === 'aktif' || (x.status === 'selesai' && x.mulai_pada)); };
+export async function bankDaftar() {
+  await tunggu(100); if (!isBankP()) throw galat('Akses ditolak.', '42501');
+  return db.usulan.filter((u) => ['proses', 'selesai'].includes(u.status) && bankAktif(u)).map((u) => {
+    const b = db.bnba.filter((x) => x.usulan_id === u.id), d6 = tahapU(u.id, '6')?.data || {};
+    return { id: u.id, no_register: u.no_register, judul: u.judul, kategori: u.kategori, pokja: pokjaById(u.pokja_id).nama_pendek, no_sk: u.no_sk, tgl_sk: u.tgl_sk,
+      bank_penyaluran: d6.bank_penyaluran_nama || null, status_bank: tahapU(u.id, '7b').status === 'aktif' ? 'menunggu' : 'terkirim', jumlah_pm: b.length,
+      terisi: b.filter((x) => x.nomor_rekening && x.nama_bank).length, koreksi: b.filter((x) => x.koreksi_bank_catatan).length };
+  }).sort((a, z) => (z.status_bank > a.status_bank ? 1 : z.status_bank < a.status_bank ? -1 : 0) || a.no_register.localeCompare(z.no_register));
+}
+export async function bankDetail(id) {
+  await tunggu(100); if (!isBankP()) throw galat('Akses ditolak.', '42501');
+  const u = ambilU(id); if (!bankAktif(u)) throw galat('Usulan ini belum sampai ke Petugas Bank.');
+  const d6 = tahapU(id, '6')?.data || {};
+  log('LIHAT_DATA_SENSITIF', 'usulan', id, 'Petugas Bank membuka ' + u.no_register); simpan();
+  return { usulan: { id: u.id, no_register: u.no_register, judul: u.judul, kategori: u.kategori, pokja: pokjaById(u.pokja_id).nama_pendek, no_sk: u.no_sk, tgl_sk: u.tgl_sk },
+    bank_penyaluran: { nama: d6.bank_penyaluran_nama || null, alamat: d6.bank_penyaluran_alamat || null },
+    status_bank: tahapU(id, '7b').status === 'aktif' ? 'menunggu' : 'terkirim',
+    pm: db.bnba.filter((x) => x.usulan_id === id).sort((a, z) => a.nama.localeCompare(z.nama)).map((b) => ({ id: b.id, nama: b.nama, nik: b.nik, klaster: b.klaster_ppks,
+      jenis_bantuan: b.jenis_bantuan, nilai_bantuan: b.nilai_bantuan, nama_bank: b.nama_bank || null, nomor_rekening: b.nomor_rekening || null,
+      nama_pemilik_rek: b.nama_pemilik_rek || null, koreksi: b.koreksi_bank_catatan || null, koreksi_pada: b.koreksi_bank_pada || null })) };
+}
+export async function kirimKoreksiBank(bnbaId, jenis, catatan) {
+  await tunggu(120); const b = db.bnba.find((y) => y.id === bnbaId); if (!b) throw galat('PM tidak ditemukan.');
+  const u = ambilU(b.usulan_id);
+  if (!bolehTahapP(u.pokja_id, '7b')) throw galat('Hanya Petugas Bank atau Keuangan yang dapat mengirim koreksi.', '42501');
+  if (u.status !== 'proses' || tahapU(u.id, '7b').status !== 'aktif') throw galat('Koreksi hanya dapat dikirim saat tahap Pengisian Rekening Bank aktif.');
+  if (!['nik_keliru', 'nama_tidak_sesuai', 'lainnya'].includes(jenis)) throw galat('Jenis koreksi tidak dikenal.');
+  const cat = String(catatan || '').trim();
+  if (jenis === 'lainnya' && !cat) throw galat('Tuliskan catatan koreksi.');
+  const ket = { nik_keliru: 'NIK keliru', nama_tidak_sesuai: 'Nama tidak sesuai', lainnya: 'Koreksi data' }[jenis] + (cat ? ': ' + cat : '');
+  Object.assign(b, { koreksi_bank_catatan: ket, koreksi_bank_oleh: namaSaya(), koreksi_bank_pada: sekarang() });
+  riwayatP(u.id, '7b', 'KOREKSI_BANK', null, null, b.nama + ' — ' + ket);
+  const kep = db.pengguna.filter((p) => p.aktif && (p.id === b.dibuat_oleh || db.pengguna_pokja.some((pp) => pp.pengguna_id === p.id && ((pp.pokja_id === u.pokja_id && pp.jabatan === 'kapokja') || pokjaById(pp.pokja_id)?.kode === 'KEUANGAN')))).map((p) => p.id);
+  beriTahu(kep, 'KOREKSI_BANK', 'Koreksi data PM dari bank', `PM ${b.nama} (NIK ${b.nik}) pada usulan "${u.judul}" (${u.no_register}): ${ket}. Mohon diperbaiki di menu BNBA.`, '#/usulan/' + u.id);
+  simpan(); return { ok: true };
+}
+export async function koreksiBankDaftar(id) {
+  await tunggu(60); const u = ambilU(id);
+  if (!(peran() === 'petugas_bank' || (isPeg() && usulanTerlihat(u)))) return [];
+  return db.bnba.filter((b) => b.usulan_id === id && b.koreksi_bank_catatan).map((b) => ({ id: b.id, nama: b.nama, catatan: b.koreksi_bank_catatan, oleh: b.koreksi_bank_oleh, pada: b.koreksi_bank_pada }));
+}
+export async function ubahPmLanjutan(bnbaId, data) {
+  await tunggu(150); const b = db.bnba.find((y) => y.id === bnbaId); if (!b) throw galat('PM tidak ditemukan.');
+  const u = ambilU(b.usulan_id);
+  if (!(bolehTahapP(u.pokja_id, '1') || diPokja('TU'))) throw galat('Hanya Pokja pemilik usulan atau TU yang dapat mengedit.', '42501');
+  if (!['menunggu', 'proses', 'selesai'].includes(u.status)) throw galat('Usulan masih draft atau dikembalikan: gunakan menu Ubah di Workspace BNBA.');
+  const { id: _i, nik, nama_bank: _nb, nomor_rekening: _nr, nama_pemilik_rek: _np, rek_giro_bni: _rg, akun_bantuan: _ab, ...sisa } = data || {};
+  const r = normalBnba(sisa);
+  let nikBaru = String(nik || '').replace(/[\s.\-]/g, '') || b.nik;
+  if (nikBaru !== b.nik) {
+    if (!/^\d{16}$/.test(nikBaru)) throw galat('NIK harus 16 digit angka.');
+    if (db.bnba.some((x) => x.nik === nikBaru && x.id !== b.id)) throw galat(`NIK ${nikBaru} sudah terdaftar pada PM lain.`);
+  }
+  const e = cekBnba({ ...r, nama: r.nama || b.nama, nik: nikBaru }); if (e) throw galat(e);
+  const jk = jenisDariKategori(u.kategori); if (jk && 'jenis_bantuan' in r) r.jenis_bantuan = jk;
+  if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = ringkasRincian(r.rincian_item); }
+  else if ('rincian_item' in r) r.rincian_item = null;
+  angkaKe(r); const lamaNama = b.nama, lamaNik = b.nik;
+  Object.assign(b, r); if (r.nama) b.nama = String(r.nama).toUpperCase(); b.nik = nikBaru;
+  riwayatP(u.id, null, 'PM_DIKOREKSI', null, null, lamaNama + (b.nama !== lamaNama ? ' → ' + b.nama : '') + (nikBaru !== lamaNik ? ' (NIK diubah)' : ''));
+  if (b.koreksi_bank_catatan && (b.nama !== lamaNama || nikBaru !== lamaNik)) {
+    Object.assign(b, { koreksi_bank_catatan: null, koreksi_bank_oleh: null, koreksi_bank_pada: null });
+    beriTahu(penerimaTahap(u.pokja_id, '7b'), 'PM_DIKOREKSI', 'Koreksi bank sudah diperbaiki', `PM ${b.nama} pada usulan "${u.judul}" (${u.no_register}) sudah diperbaiki Pokja. Silakan lanjutkan pengisian rekening.`, '#/usulan/' + u.id);
+  }
+  simpan(); return { ok: true };
+}
+export async function ubahUsulanLanjutan(id, d) {
+  await tunggu(100); const u = ambilU(id);
+  if (!(bolehTahapP(u.pokja_id, '1') || diPokja('TU'))) throw galat('Hanya Pokja pemilik usulan atau TU yang dapat mengedit.', '42501');
+  if (!['menunggu', 'proses', 'selesai'].includes(u.status)) throw galat('Usulan masih draft atau dikembalikan: gunakan menu Ubah di Workspace BNBA.');
+  const link = String(d?.link_profil || '').trim(), judul = String(d?.judul || '').trim();
+  if (link && !/^https?:\/\//i.test(link)) throw galat('Link profil harus diawali https://');
+  if (link) u.link_profil = link; if (judul) u.judul = judul;
+  riwayatP(id, null, 'USULAN_DIKOREKSI', null, null, 'Judul / link profil diperbarui'); simpan(); return { ok: true };
+}
 export * from './pratinjau-t34.js';
 export * from './pratinjau-t56.js';
 export const _dalam = {
