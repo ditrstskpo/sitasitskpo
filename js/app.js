@@ -42,6 +42,21 @@ const RUTE = {
   '/rekap-pencairan': { judul: 'Rekap Data Pencairan', muat: () => import('./pages/rekap.js'), izin: P.isPegawai },
   '/master-bnba': { judul: 'Master BNBA', muat: () => import('./pages/master-bnba.js'), izin: P.isPegawai },
   '/rekonsiliasi': { judul: 'Rekonsiliasi Pencairan', muat: () => import('./pages/rekonsiliasi.js'), izin: P.isPegawai },
+  // Tahap 3 — dashboard & data pendukung
+  '/data-lks': { judul: 'Data LKS', muat: () => import('./pages/data-lks.js'), izin: P.isPegawai },
+  '/input-lks': { judul: 'Input LKS', muat: () => import('./pages/input-lks.js'), izin: (s) => P.isSuperAdmin(s) || P.pokjaEfektif(s).length > 0 },
+  '/data-aster': { judul: 'Data Aster', muat: () => import('./pages/data-aster.js'), izin: P.isPegawai },
+  '/input-aster': { judul: 'Input Aster', muat: () => import('./pages/input-aster.js'), izin: (s) => P.isSuperAdmin(s) || P.diPokja(s, 'DATA') },
+  '/data-kepegawaian': { judul: 'Data Kepegawaian', muat: () => import('./pages/kepegawaian.js'), izin: P.isPegawai },
+  '/kelola-kepegawaian': { judul: 'Kepegawaian & OJT', muat: () => import('./pages/kelola-kepegawaian.js'), izin: (s) => P.isSuperAdmin(s) || P.diPokja(s, 'KEPEGAWAIAN') || P.diPokja(s, 'TU') },
+  '/jadwal-pegawai': { judul: 'Jadwal Pegawai', muat: () => import('./pages/jadwal.js'), izin: P.isPegawai },
+  '/rencana-kerja': { judul: 'Rencana Kerja Tahunan', muat: () => import('./pages/renja.js'), izin: P.isPegawai },
+  // Tahap 4 — dokumen & koordinasi
+  '/dokumen-pokja': { judul: 'Dokumen Pokja', muat: () => import('./pages/dok-pokja.js'), izin: (s) => P.isSuperAdmin(s) || P.pokjaEfektif(s).length > 0 },
+  '/dokumen-bersama': { judul: 'Dokumen Bersama', muat: () => import('./pages/dok-bersama.js'), izin: P.isPegawai },
+  '/produk-hukum': { judul: 'Produk Hukum & SOP', muat: () => import('./pages/hukum.js'), izin: P.isPegawai },
+  '/tugas': { judul: 'Tugas & Penugasan', muat: () => import('./pages/tugas.js'), izin: P.isPegawai },
+  '/pesan': { judul: 'Pesan & Komunikasi', muat: () => import('./pages/pesan.js'), izin: P.isPegawai },
 };
 // Rute berparameter: #/usulan/<id> dan #/pm/<nik>
 const RUTE_PARAM = [

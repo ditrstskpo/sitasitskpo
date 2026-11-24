@@ -2,7 +2,7 @@
 
 **Sistem Integrasi Data dan Informasi TSKPO** — portal internal Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI.
 
-Versi **2.1.0 · Tahap 1 (Fondasi) + Tahap 2 (BNBA & Alur Pencairan 11 Tahap)**, sesuai PRD Final v2.0 dan Design System v4.
+Versi **2.3.0 · Tahap 1 (Fondasi) + Tahap 2 (BNBA & Alur Pencairan 11 Tahap) + Tahap 3 (Dashboard & Data Pendukung) + Tahap 4 (Dokumen & Koordinasi)**, sesuai PRD Final v2.2 dan Design System v4.
 
 ## Arsitektur
 
@@ -73,7 +73,24 @@ assets/                 favicon; letakkan logo & foto gedung resmi (lihat PETUNJ
 | `#/pengaturan/notifikasi` | Saklar WA/email, token Fonnte, matriks kejadian, uji kirim, antrean | Super Admin |
 | `#/pengaturan/migrasi` | Migrasi Data 2026 dari Excel/CSV atau Google Sheets (uji coba dulu) | Super Admin |
 
-Menu modul Tahap 3–5 sudah tersusun sesuai peran. Bila diklik, menu tersebut menampilkan rencana isi modulnya.
+## Halaman Tahap 3 & 4 (v2.3.0)
+
+| Rute | Halaman | Akses · unggah langsung |
+|---|---|---|
+| `#/` | Dashboard Realisasi Bantuan: KPI, peta 38 provinsi 3D (GeoJSON asli), kolom 3D per klaster/bulan/Pokja, donat, progres Pokja | Pegawai |
+| `#/data-lks` · `#/input-lks` | Data LKS (rekap resmi) dan Input LKS (formulir, impor FORMAT LKS.xlsx, verifikasi Kapokja Data/TU) | Pegawai · semua Pokja · **3 foto LKS + 4 jenis berkas** |
+| `#/data-aster` · `#/input-aster` | Data Aster (peta target/pendamping) dan Input Aster (26 kolom, impor, verifikasi massal) | Pegawai · Pokja Data |
+| `#/data-kepegawaian` · `#/kelola-kepegawaian` | Pegawai pusat, SDM pendamping (peta), OJT | Pegawai · Pokja Kepegawaian/TU · **berkas OJT** |
+| `#/jadwal-pegawai` | Kisi jadwal bulanan Perjadin/Fullday/Fullboard, hari libur, rekap, realtime | Pegawai (diri sendiri) · TU (semua) |
+| `#/rencana-kerja` | Rencana kerja tahunan per Pokja → verifikasi Pokja Perencanaan | Pegawai · **lampiran TOR/RAB** |
+| `#/dokumen-pokja` | Repositori Pokja: folder, seret & lepas banyak berkas, tautan, ajukan publikasi | Anggota Pokja · **unggah dokumen & foto** |
+| `#/dokumen-bersama` | 6 kategori, antrean publikasi TU, "Unggah & Ajukan" langsung | Pegawai · **unggah & ajukan** |
+| `#/produk-hukum` | Produk hukum & SOP | Pegawai · Pokja Hukum **unggah berkas** |
+| `#/tugas` | Tugas & penugasan (Kapokja → anggota, TU → semua, pribadi) | Pegawai |
+| `#/pesan` | Chat Pokja, Koordinasi Lintas-Pokja, pesan pribadi, diskusi data; realtime; NIK ditolak | Pegawai |
+| `#/usulan/<id>` · `#/pm/<nik>` | Tab **Dokumentasi PM** (Sebelum Usaha, Saat Penyaluran, Supermonev; maks 2 foto ≤ 500 KB) dan tab **Diskusi** | Sesuai kewenangan · **unggah foto** |
+
+Efek visual: kartu KPI miring 3D mengikuti kursor, peta miring 3D dengan tebal, kolom 3D, ornamen cincin 3D, latar berpendar (aurora, kisi bergerak), teks/kartu muncul saat digulir. Semua gerak mati otomatis bila "kurangi gerakan" aktif di perangkat.
 
 ## Skema basis data (Tahap 1)
 
@@ -132,6 +149,7 @@ Untuk login Google lokal, tambahkan `http://localhost:8080/` ke *Redirect URLs* 
 - SQL (Postgres lokal + tiruan Supabase): 65 cek Tahap 1 + 92 cek Tahap 2; `SETUP_SUPABASE.sql` dijalankan 2× (pertama sebagai satu transaksi seperti SQL Editor, kedua di atas data yang ada).
 - Apps Script (`uji_gas.cjs`, tiruan layanan Google): 26 cek — autentikasi, token tersamar, batch Fonnte + cadangan, email, unggah/unduh/hapus Drive dengan izin dari basis data, idempotensi unggah.
 - Browser (Playwright, mode pratinjau): alur lintas peran (anggota → Kapokja → Super Admin → TU/Keuangan/Direktur), seluruh rute, desktop 1440, tablet 1024, ponsel 390.
+- Tahap 3 & 4: 88 cek SQL (`40_uji_tahap34.sql`), 45 cek fungsi pratinjau (`uji_pratinjau_t34.mjs`), 36 cek browser (`uji_tahap34.mjs`: unggah foto 4 MB → ≤ 500 KB, unggah banyak dokumen, jadwal, pesan, verifikasi lintas peran, ponsel, kurangi gerakan).
 
 ## Instalasi
 
@@ -139,6 +157,6 @@ Lihat **PANDUAN-INSTALASI.md**.
 
 ## Tahapan berikutnya (PRD 8)
 
-3. Dashboard & data pendukung (peta 38 provinsi, LKS, Aster, jadwal) · 4. Dokumen & koordinasi · 5. Supermonev · 6. Integrasi & penyempurnaan.
+5. Supermonev · 6. Integrasi & penyempurnaan.
 
 © Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI

@@ -4,6 +4,7 @@
 // Semua nama selain akun awal PRD adalah FIKTIF.
 import { tunggu } from './util.js';
 import { barisEkspor } from './bnba.js';
+import { unggahKonteksP, hapusBerkasKonteksP, berkasTerlihatP, fotoContoh, siapkanT34 } from './pratinjau-t34.js';
 
 const KUNCI_DB = 'sitasi:pratinjau-db';
 const KUNCI_AUTH = 'sitasi:pratinjau-auth';
@@ -77,6 +78,7 @@ export async function init() {
   try { db = JSON.parse(sessionStorage.getItem(KUNCI_DB) || 'null'); } catch { db = null; }
   if (!db || !db.pokja) { db = benih(); simpan(); }
   if (!db.usulan) { benihT2(); simpan(); }
+  siapkanT34();
 }
 
 // ---------------------------------------------------------------- pembantu peran (meniru schema app)
@@ -1082,6 +1084,10 @@ export async function putusDriveTiruan(slot) {
 const BERKAS_MEMORI = new Map();
 export async function gasTiruan(action, d = {}) {
   await tunggu(350); butuhSesi();
+  if (action === 'unggah' && String(d.tahap || '').startsWith('konteks:')) {
+    const r = unggahKonteksP(d, pen().aktif);
+    BERKAS_MEMORI.set(r.id, d.base64); simpan(); return salin(r);
+  }
   if (action === 'unggah') {
     const u = ambilU(d.usulan_id);
     if (!bolehTahapP(u.pokja_id, d.tahap)) throw galat('Anda tidak berwenang mengunggah berkas tahap ini.', '42501');
@@ -1093,13 +1099,15 @@ export async function gasTiruan(action, d = {}) {
     BERKAS_MEMORI.set(r.id, d.base64); db.berkas.push(r); simpan(); return salin(r);
   }
   if (action === 'unduh') {
-    const r = db.berkas.find((x) => x.id === d.id && !x.dihapus); if (!r) throw galat('Berkas tidak ditemukan.');
+    const r = db.berkas.find((x) => x.id === d.id && !x.dihapus); if (!r || !berkasTerlihatP(r)) throw galat('Berkas tidak ditemukan.');
     log('UNDUH', 'berkas', r.id, 'Mengunduh ' + r.nama); simpan();
     if (r.lokasi === 'tautan') return { tautan: r.tautan, nama: r.nama };
+    if (!BERKAS_MEMORI.get(r.id) && /^image\//.test(r.mime || '')) return { nama: r.nama, mime: 'image/svg+xml', base64: fotoContoh(r) };
     return { nama: r.nama, mime: r.mime, base64: BERKAS_MEMORI.get(r.id) || btoa('Berkas contoh mode pratinjau: ' + r.nama) };
   }
   if (action === 'hapus_berkas') {
     const r = db.berkas.find((x) => x.id === d.id); if (!r) throw galat('Berkas tidak ditemukan.');
+    if (r.konteks && r.konteks !== 'usulan') { hapusBerkasKonteksP(r); simpan(); return { ok: true }; }
     if (!bolehTahapP(ambilU(r.usulan_id).pokja_id, r.tahap)) throw galat('Anda tidak berwenang.', '42501');
     if (tahapU(r.usulan_id, r.tahap)?.status === 'selesai') throw galat('Tahap sudah selesai; berkas tidak dapat dihapus.');
     r.dihapus = true; simpan(); return { ok: true };
@@ -1128,3 +1136,11 @@ export async function gasTiruan(action, d = {}) {
   }
   throw galat('Aksi tidak dikenal: ' + action);
 }
+
+// ---------------------------------------------------------------- Tahap 3 & 4 (v2.3.0): fungsi di pratinjau-t34.js memakai isi berikut
+export * from './pratinjau-t34.js';
+export const _dalam = {
+  get db() { return db; }, simpan, log, galat, uid, sekarang, salin, tunggu, isSA, diPokja, pokjaEf, peran, isPeg, idsPokja, namaSaya,
+  sayaAktif, pokjaById, beriTahu, anggotaPokja, penerimaTahap, usulanTerlihat, bnbaTerlihat, ambilU, tahapU, samarAngka, samarAlamat, pen,
+  kirimNotif, label,
+};

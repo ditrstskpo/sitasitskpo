@@ -18,17 +18,17 @@ export const MODUL = {
     ket: ['BNBA lintas Pokja dengan NIK sebagai kunci tunggal', 'Data sensitif tersamar sesuai hak akses', 'Detail PM per NIK: BNBA, Usulan & SK, Pencairan, Dokumentasi, Supermonev, Riwayat'] },
   dashSupermonev: { label: 'Dashboard Supermonev', ikon: 'chart', rute: '/dashboard-supermonev', tahap: 5, judul: ['Dashboard Supermonev', '— Evaluasi Hasil Pascapenyaluran'],
     ket: ['Ringkasan status hasil evaluasi lapangan', 'Ringkasan kendala dan grafik distribusi', 'Ekspor PPTX (2 slide per PM) dan Excel'] },
-  lks: { label: 'Data LKS', ikon: 'lks', rute: '/data-lks', tahap: 3, judul: ['Data LKS', 'TSKPO'],
+  lks: { label: 'Data LKS', ikon: 'lks', rute: '/data-lks', judul: ['Data LKS', 'TSKPO'],
     ket: ['Peta Indonesia 38 provinsi dengan jumlah LKS per provinsi', 'Formulir LKS untuk semua Pokja, verifikasi oleh Pokja Data atau TU', 'Unduhan dengan filter wilayah, klaster, akreditasi'] },
-  aster: { label: 'Data Aster', ikon: 'aster', rute: '/data-aster', tahap: 3, judul: ['Data Aster', '— Asesmen Lapangan Terintegrasi'],
+  aster: { label: 'Data Aster', ikon: 'aster', rute: '/data-aster', judul: ['Data Aster', '— Asesmen Lapangan Terintegrasi'],
     ket: ['26 kolom sesuai FORMAT ASTER.xlsx', 'Peta sebaran Pendamping Lapangan per provinsi', 'Unduhan dengan filter batch, wilayah, status'] },
-  kepegawaian: { label: 'Data Kepegawaian', ikon: 'pegawai', rute: '/data-kepegawaian', tahap: 3, judul: ['Data Kepegawaian', '& SDM Pendamping'],
+  kepegawaian: { label: 'Data Kepegawaian', ikon: 'pegawai', rute: '/data-kepegawaian', judul: ['Data Kepegawaian', '& SDM Pendamping'],
     ket: ['Pegawai Direktorat di kantor pusat', 'SDM pendamping lapangan per provinsi', 'OJT bulan berjalan'] },
-  jadwal: { label: 'Jadwal Pegawai', ikon: 'jadwal', rute: '/jadwal-pegawai', tahap: 3, judul: ['Jadwal Pegawai', '(Kantor Pusat)'],
+  jadwal: { label: 'Jadwal Pegawai', ikon: 'jadwal', rute: '/jadwal-pegawai', judul: ['Jadwal Pegawai', '(Kantor Pusat)'],
     ket: ['Kisi bulanan Perjadin, Fullday, Fullboard (Sabtu–Minggu tetap bisa diisi)', 'Warna sama untuk kegiatan yang sama di hari yang sama', 'Rekap per pegawai otomatis dan realtime'] },
-  dokBersama: { label: 'Dokumen Bersama', ikon: 'folder', rute: '/dokumen-bersama', tahap: 4, judul: ['Dokumen Bersama', '— Repositori Terpadu'],
+  dokBersama: { label: 'Dokumen Bersama', ikon: 'folder', rute: '/dokumen-bersama', judul: ['Dokumen Bersama', '— Repositori Terpadu'],
     ket: ['6 kategori tetap: SK ATENSI, SK Kegiatan, KAK, Bahan Paparan, Dokumentasi Kegiatan, Lainnya', 'Terbit setelah diverifikasi Pokja TU', 'Berkas tersimpan di Google Drive Super Admin, diunduh lewat web'] },
-  pesan: { label: 'Pesan & Komunikasi', ikon: 'pesan', rute: '/pesan', tahap: 4, judul: ['Pesan & Komunikasi', 'Internal'],
+  pesan: { label: 'Pesan & Komunikasi', ikon: 'pesan', rute: '/pesan', judul: ['Pesan & Komunikasi', 'Internal'],
     ket: ['Chat Pokja, Koordinasi Lintas-Pokja, Pesan Pribadi', 'Diskusi pada record BNBA dan usulan', 'Bukan pengganti pencatatan resmi'] },
 
   // ---- Workspace
@@ -38,22 +38,23 @@ export const MODUL = {
     ket: ['Kapokja memverifikasi usulan BNBA Pokja-nya (Setujui / Kembalikan)', 'Kapokja Data atau Kapokja TU memverifikasi LKS', 'Notifikasi in-app saat ada usulan baru'] },
   usulanSk: { label: 'Usulan & SK Pokja', ikon: 'file-check', rute: '/usulan-sk', judul: ['Pengusulan SK', '— Monitoring Penerbitan SK'],
     ket: ['Daftar usulan beserta posisi tahap 3–11', 'Draft SK dan Nota Dinas, status TU, Direktur, Sekretariat', 'Tombol "Unduh Excel Bundle Ini" di detail usulan'] },
-  dokPokja: { label: 'Dokumen Pokja', ikon: 'folder', rute: '/dokumen-pokja', tahap: 4, judul: ['Dokumen Pokja', '— Repositori'],
+  dokPokja: { label: 'Dokumen Pokja', ikon: 'folder', rute: '/dokumen-pokja', judul: ['Dokumen Pokja', '— Repositori'],
     ket: ['Folder bawaan SK, KAK, File Kegiatan; Pokja dapat menambah folder', 'Ajukan publikasi ke Dokumen Bersama dengan memilih kategori'] },
-  inputLks: { label: 'Input LKS', ikon: 'lks', rute: '/input-lks', tahap: 3, judul: ['Input LKS', 'Baru'],
+  inputLks: { label: 'Input LKS', ikon: 'lks', rute: '/input-lks', judul: ['Input LKS', 'Baru'],
     ket: ['Formulir LKS sederhana berdasarkan FORMAT LKS.xlsx', 'Semua Pokja dapat menginput; verifikasi Kapokja Data atau Kapokja TU'] },
   tu: { label: 'Workspace Tata Usaha', ikon: 'clipboard-check', rute: '/tata-usaha', judul: ['Workspace Tata Usaha', '— Tahap 4a–4c & 6'],
     ket: ['Verifikasi SK (4a), pencatatan TTD Direktur (4b) dan Sekretariat (4c)', 'Jadwal, OJT, tugas, dan verifikasi publikasi dokumen'] },
   keuangan: { label: 'Workspace Keuangan', ikon: 'wallet', rute: '/keuangan', judul: ['Workspace Keuangan', '— Tahap 5 & 7–11'],
     ket: ['Data Pencairan, SK Final, Burekol, SP2D, Administrasi SI, SI, Pencairan', 'Mengisi tahap Keuangan untuk usulan semua Pokja', 'Koreksi Rekap Data Pencairan'] },
   keuKoreksi: { label: 'Rekap SP2D & Koreksi', ikon: 'banknote', rute: '/keuangan/koreksi-rekap', judul: ['Rekap SP2D', '& Koreksi Data Rekap Pencairan'] },
-  inputAster: { label: 'Input Aster', ikon: 'aster', rute: '/input-aster', tahap: 3, judul: ['Input Aster', 'Baru'],
+  inputAster: { label: 'Input Aster', ikon: 'aster', rute: '/input-aster', judul: ['Input Aster', 'Baru'],
     ket: ['Formulir 26 kolom sesuai FORMAT ASTER.xlsx', 'Diverifikasi Kapokja Data'] },
-  sdm: { label: 'Kepegawaian & OJT', ikon: 'users', rute: '/kelola-kepegawaian', tahap: 3, judul: ['Kepegawaian', '& OJT'],
+  sdm: { label: 'Kepegawaian & OJT', ikon: 'users', rute: '/kelola-kepegawaian', judul: ['Kepegawaian', '& OJT'],
     ket: ['Kelola data SDM pendamping dan OJT'] },
-  renja: { label: 'Rencana Kerja Tahunan', ikon: 'target', rute: '/rencana-kerja', tahap: 3, judul: ['Rencana Kerja', 'Tahunan'],
+  renja: { label: 'Rencana Kerja Tahunan', ikon: 'target', rute: '/rencana-kerja', judul: ['Rencana Kerja', 'Tahunan'],
     ket: ['Pokja mengajukan rencana kerja tahunan', 'Diverifikasi Pokja Perencanaan'] },
-  hukum: { label: 'Produk Hukum & SOP', ikon: 'scale', rute: '/produk-hukum', tahap: 4, judul: ['Produk Hukum', '& SOP'],
+  tugas: { label: 'Tugas & Penugasan', ikon: 'tugas', rute: '/tugas', judul: ['Tugas', '& Penugasan'] },
+  hukum: { label: 'Produk Hukum & SOP', ikon: 'scale', rute: '/produk-hukum', judul: ['Produk Hukum', '& SOP'],
     ket: ['Kelola produk hukum dan SOP Direktorat'] },
   supermonev: { label: 'Supermonev (Formulir & Verifikasi)', ikon: 'clipboard-list', rute: '/supermonev', tahap: 5, judul: ['Supermonev', '— Formulir & Verifikasi'],
     ket: ['Jadwal monitoring otomatis 3 bulan setelah pencairan', 'Penilaian otomatis: Berhasil, Berhasil dengan Catatan, Perlu Pendampingan, Tidak Berhasil', 'Verifikasi oleh Kapokja Supermonev'] },
@@ -88,20 +89,23 @@ export function grupMenu(s) {
   if (P.pokjaEfektif(s).length) {
     tambah('wsBnba');
     if (P.isKapokja(s) || P.diPokja(s, 'TU')) tambah('antrean');
-    tambah('usulanSk', 'dokPokja', 'inputLks');
+    tambah('usulanSk', 'dokPokja', 'inputLks', 'renja');
   }
-  if (P.diPokja(s, 'TU')) tambah('tu', 'pengumuman');
+  if (P.diPokja(s, 'TU')) tambah('tu', 'pengumuman', 'sdm');
   if (P.diPokja(s, 'KEUANGAN')) tambah('keuangan', 'keuKoreksi');
   if (P.diPokja(s, 'DATA')) tambah('inputAster');
   if (P.diPokja(s, 'KEPEGAWAIAN')) tambah('sdm');
-  if (P.diPokja(s, 'PERENCANAAN')) tambah('renja');
   if (P.diPokja(s, 'HUKUM')) tambah('hukum');
   if (P.diPokja(s, 'SUPERMONEV')) tambah('supermonev', 'verifBelanja');
   if (P.diPokja(s, 'SUPERMONEV', 'kapokja') || P.diPokja(s, 'TU', 'kapokja')) tambah('penugasan');
+  if (P.isPegawai(s) && !P.isSuperAdmin(s)) tambah('tugas');
   if (ws.length) grup.push({ judul: 'Workspace Saya' + (P.labelPokjaSaya(s) ? ` (${P.labelPokjaSaya(s)})` : ''), item: ws.map((k) => MODUL[k]) });
 
-  // Super Admin (tanpa simulasi) menjalankan semua tahap: tampilkan menu alur usulan agar tidak perlu simulasi peran
-  if (P.isSuperAdmin(s) && !ws.length) grup.push({ judul: 'Alur Usulan & Pencairan', item: ['wsBnba', 'antrean', 'usulanSk', 'tu', 'keuangan', 'keuKoreksi'].map((k) => MODUL[k]) });
+  // Super Admin (tanpa simulasi) menjalankan semua tahap: tampilkan menu kerja agar tidak perlu simulasi peran
+  if (P.isSuperAdmin(s) && !P.pokjaEfektif(s).length) {
+    grup.push({ judul: 'Alur Usulan & Pencairan', item: ['wsBnba', 'antrean', 'usulanSk', 'tu', 'keuangan', 'keuKoreksi'].map((k) => MODUL[k]) });
+    grup.push({ judul: 'Data, Dokumen & Koordinasi', item: ['inputLks', 'inputAster', 'sdm', 'renja', 'dokPokja', 'hukum', 'tugas'].map((k) => MODUL[k]) });
+  }
   if (P.isSuperAdmin(s)) grup.push({ judul: 'Pengaturan', item: ['pengguna', 'pokja', 'pengumuman', 'notif', 'migrasi', 'log', 'penyimpanan'].map((k) => MODUL[k]) });
   return grup;
 }

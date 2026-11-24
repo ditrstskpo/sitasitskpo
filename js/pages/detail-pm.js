@@ -3,10 +3,12 @@
 import { html, raw, angka, tanggal, tanggalJam, inisial, warnaDari } from '../core/util.js';
 import { ikon } from '../core/icons.js';
 import { api } from '../core/api.js';
-import { judulHalaman, kosong, kotakGalat, toast, pesanGalat, tombolMuat } from '../core/ui.js';
+import { judulHalaman, kosong, kotakGalat, toast, pesanGalat, tombolMuat, konfirmasi } from '../core/ui.js';
 import { tabs } from '../core/komp.js';
 import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_BNBA, STATUS_USULAN, badge, chipTahap, stepperMini, infoTahap, URUT_TAHAP, rupiah, usia, bolehPenuh } from '../core/bnba.js';
 import { pergi } from '../core/nav.js';
+import { galeriFoto, pasangUnggah, muatGambarMini } from '../core/unggah.js';
+import { panelDiskusi } from './_pesan.js';
 
 export async function render(el, { sesi: s, param: nik }) {
   let d, tab = 'bnba', penuh = null;
@@ -52,7 +54,8 @@ export async function render(el, { sesi: s, param: nik }) {
           ${!d.penyaluran.length ? html`<p class="redup">Belum ada petugas penyalur tercatat.</p>` : ''}
           <p class="help" style="margin-top:12px">Verifikasi belanja, BAST, dan inventaris aset usaha hadir pada Tahap 5 (Supermonev).</p></section></div>`;
     }
-    if (tab === 'dok') return html`<section class="card">${kosong({ ikonNama: 'folder', judul: 'Dokumentasi PM hadir di Tahap 4', teks: 'Kategori Sebelum Usaha, Saat Penyaluran, dan Supermonev (maks 2 foto per kategori, 500 KB per foto).' })}</section>`;
+    if (tab === 'dok') return html`<div data-dok-pm><div class="skel" style="height:260px;border-radius:20px"></div></div>`;
+    if (tab === 'diskusi') return html`<div data-diskusi></div>`;
     if (tab === 'smv') return html`<section class="card">${kosong({ ikonNama: 'clipboard-list', judul: 'Supermonev hadir di Tahap 5', teks: `Pembanding penilaian: laba bersih sebelum bantuan ${rupiah(b.laba_awal)} per bulan. Monitoring dijadwalkan setiap 3 bulan setelah pencairan.` })}</section>`;
     return html`<section class="card"><dl class="kv-baris"><div><dt>Diinput oleh</dt><dd>${b.dibuat_oleh_nama || '—'}</dd></div><div><dt>Tanggal input</dt><dd>${tanggalJam(b.dibuat_pada)}</dd></div>
       <div><dt>Perubahan terakhir</dt><dd>${tanggalJam(b.diubah_pada)}</dd></div><div><dt>Status verifikasi</dt><dd>${badge(STATUS_BNBA, b.status_verifikasi)}</dd></div></dl>
@@ -72,11 +75,52 @@ export async function render(el, { sesi: s, param: nik }) {
           <div><small>2. Posisi usulan</small>${u.status === 'proses' ? chipTahap(u.tahap_aktif, { kecil: true }) : badge(STATUS_USULAN, u.status)}</div>
           <div><small>3. Bantuan</small><b>${JENIS_BANTUAN[b.jenis_bantuan] || '—'}</b><span class="angka">${rupiah(b.nilai_bantuan)}</span></div></div>
       </section>
-      <div style="margin:24px 0 16px">${tabs([['bnba', 'BNBA (40 Kolom Standar)'], ['usulan', 'Usulan & SK (11 Tahap)'], ['cair', 'Pencairan & Rekening'], ['dok', 'Dokumentasi'], ['smv', 'Supermonev'], ['riwayat', 'Riwayat']], tab)}</div>
+      <div style="margin:24px 0 16px">${tabs([['bnba', 'BNBA (40 Kolom Standar)'], ['usulan', 'Usulan & SK (11 Tahap)'], ['cair', 'Pencairan & Rekening'], ['dok', 'Dokumentasi'], ['smv', 'Supermonev'], ['diskusi', 'Diskusi'], ['riwayat', 'Riwayat']], tab)}</div>
       <div>${isiTab()}</div>`);
+    lepasDiskusi(); lepasDiskusi = () => {};
+    if (tab === 'dok') muatDok();
+    if (tab === 'diskusi') panelDiskusi(el.querySelector('[data-diskusi]'), { tabel: 'bnba', ref: b.id }).then((f) => { lepasDiskusi = f; });
   }
+  let lepasDiskusi = () => {};
+  async function muatDok() {
+    const w = el.querySelector('[data-dok-pm]'); if (!w) return;
+    try {
+      const st = await api.statusDokPm(b.id);
+      const tanpaBtn = (k) => {
+        if (k.opsional || k.berkas.length) return '';
+        if (k.tanpa?.status === 'menunggu' && st.boleh_putuskan) return String(html`<div class="slot-aksi"><small class="redup">Pengajuan "tidak ada dokumentasi" menunggu keputusan Anda.</small>
+          <button class="btn btn-ghost btn-sm" data-tanpa-tolak="${k.tanpa.id}">Tolak</button><button class="btn btn-primary btn-sm" data-tanpa-setuju="${k.tanpa.id}">Setujui</button></div>`);
+        if (k.boleh && (!k.tanpa || k.tanpa.status === 'ditolak')) return String(html`<div class="slot-aksi"><button class="btn btn-ghost btn-sm" data-tanpa-ajukan="${k.kode}">${raw(ikon('image-off', 16))} Ajukan "tidak ada dokumentasi"</button>
+          ${k.tanpa?.status === 'ditolak' ? html`<small style="color:var(--merah)">Pengajuan sebelumnya ditolak${k.tanpa.catatan ? ': ' + k.tanpa.catatan : ''}.</small>` : ''}</div>`);
+        return '';
+      };
+      w.innerHTML = String(html`<div class="info-card biru" style="margin-bottom:16px">${raw(ikon('camera', 20, 'ik'))}<span>Unggah foto langsung dari kamera atau galeri (maks 2 foto per kategori, otomatis dikecilkan ≤ 500 KB).
+          <b>Sebelum Usaha</b> diisi Pokja pengusul; <b>Saat Penyaluran</b> oleh Pokja pengusul atau Pokja TU; <b>Supermonev</b> oleh Pokja Supermonev (opsional).
+          Status saat ini: <b>${st.status_cair === 'cair' ? 'sudah cair' : st.status_cair === 'belum_cair' ? 'SK terbit, belum cair' : 'dalam proses'}</b>.</span></div>
+        <div class="galeri-grid">${st.kategori.map((k) => galeriFoto({ konteks: 'dok_pm', ref: b.id, jenis: k.kode, judul: k.label + (k.opsional ? ' (opsional)' : ''), maks: k.maks, berkas: k.berkas, boleh: k.boleh,
+          wajib: !k.opsional && (k.kode === 'sebelum_usaha' || st.status_cair === 'cair'), tanpa: k.tanpa, aksiTanpa: tanpaBtn(k),
+          ket: k.boleh ? `Maks ${k.maks} foto · 500 KB per foto` : 'Hanya dapat dilihat' }))}</div>`);
+      muatGambarMini(w);
+    } catch (e) { w.innerHTML = String(kotakGalat(pesanGalat(e))); }
+  }
+  pasangUnggah(el, { muatUlang: muatDok, judulJenis: { sebelum_usaha: 'Foto Sebelum Usaha', saat_penyaluran: 'Foto Saat Penyaluran', supermonev: 'Foto Supermonev' } });
   el.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; return gambar(); }
+    const ta = e.target.closest('[data-tanpa-ajukan]');
+    if (ta) {
+      const k = await konfirmasi({ judul: 'Ajukan "tidak ada dokumentasi"', pesan: 'Kapokja pemilik usulan akan memutuskan pengecualian ini. Jelaskan alasannya (mis. PM pindah domisili, lokasi tidak terjangkau).', label: 'Ajukan', alasan: { label: 'Alasan', wajib: true } });
+      if (!k.ok) return;
+      try { await api.ajukanTanpaDok(b.id, ta.dataset.tanpaAjukan, k.alasan); toast('Pengajuan dikirim ke Kapokja.'); muatDok(); } catch (err) { toast(pesanGalat(err), 'galat'); }
+      return;
+    }
+    const tp = e.target.closest('[data-tanpa-setuju],[data-tanpa-tolak]');
+    if (tp) {
+      const setuju = tp.matches('[data-tanpa-setuju]');
+      let catatan = null;
+      if (!setuju) { const k = await konfirmasi({ judul: 'Tolak pengecualian', pesan: 'Pokja tetap wajib mengunggah foto untuk kategori ini.', label: 'Tolak', bahaya: true, alasan: { label: 'Catatan', wajib: true } }); if (!k.ok) return; catatan = k.alasan; }
+      try { await api.putuskanTanpaDok(tp.dataset.tanpaSetuju || tp.dataset.tanpaTolak, setuju, catatan); toast(setuju ? 'Pengecualian disetujui.' : 'Pengecualian ditolak.'); muatDok(); } catch (err) { toast(pesanGalat(err), 'galat'); }
+      return;
+    }
     if (e.target.closest('[data-kembali]')) return history.length > 1 ? history.back() : pergi('/master-bnba');
     if (e.target.closest('[data-cetak]')) return window.print();
     const bp = e.target.closest('[data-buka-penuh]');
@@ -88,4 +132,5 @@ export async function render(el, { sesi: s, param: nik }) {
     }
   });
   gambar();
+  return () => lepasDiskusi();
 }

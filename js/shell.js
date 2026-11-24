@@ -72,10 +72,14 @@ export function pasang(root, { prefetch } = {}) {
 
   renderSemua();
   muatPengumuman();
+  perbaruiPesan();
+  const jedaPesan = setInterval(() => { if (!document.hidden) perbaruiPesan(); }, 90_000);
   lepasBus = [
     bus.on('sesi', () => { renderSemua(); muatPengumuman(true); }),
-    bus.on('notif-baru', () => renderLonceng()),
+    bus.on('notif-baru', (n) => { renderLonceng(); if (/pesan/i.test(n?.judul || '')) perbaruiPesan(); }),
     bus.on('pengumuman', () => muatPengumuman(true)),
+    bus.on('pesan-berubah', () => perbaruiPesan()),
+    () => clearInterval(jedaPesan),
   ];
   return { setAktif, kontenBaru, lepas };
 }
@@ -108,6 +112,23 @@ function renderSemua() {
   if (!s || !el.root) return;
   renderSidebar(s); renderProfil(s); renderSim(s); renderLonceng(); renderBawah(s); aturTombolTeks();
   setAktif(pathAktif);
+  pasangJumlahPesan();
+}
+
+// ---------------------------------------------------------------- jumlah pesan belum dibaca (menu Pesan)
+let jumlahPesan = 0, janjiPesan = null;
+function pasangJumlahPesan() {
+  el.root?.querySelectorAll('[data-rute="/pesan"]').forEach((a) => {
+    let b = a.querySelector('.jumlah');
+    if (!jumlahPesan) { b?.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'jumlah'; a.appendChild(b); }
+    b.textContent = jumlahPesan > 99 ? '99+' : String(jumlahPesan);
+    b.setAttribute('aria-label', `${jumlahPesan} pesan belum dibaca`);
+  });
+}
+function perbaruiPesan() {
+  if (!state.sesi || !P.isPegawai(state.sesi) || janjiPesan) return;
+  janjiPesan = api.jumlahPesanBelum().then((n) => { jumlahPesan = Number(n) || 0; pasangJumlahPesan(); }).catch(() => {}).finally(() => { janjiPesan = null; });
 }
 
 function itemMenu(m) {

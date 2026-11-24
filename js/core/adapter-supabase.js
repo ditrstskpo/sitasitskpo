@@ -291,3 +291,99 @@ export const imporBnbaHistoris = (rows, uji = true, opsi = {}) => rpc('impor_bnb
 // ---------------------------------------------------------------- Penyimpanan berkas (v2.2.0)
 export const statusPenyimpanan = () => rpc('status_penyimpanan');
 export const aturPenyimpanan = (lokasi) => rpc('atur_penyimpanan', { p_lokasi: lokasi });
+
+// =====================================================================
+// TAHAP 3 & 4 (v2.3.0) — semua lewat fungsi RPC yang memeriksa peran di basis data
+// =====================================================================
+// berkas konteks baru (LKS, dokumen, dokumentasi PM, rencana kerja, produk hukum, OJT)
+export const berkasKonteks = (konteks, ref) => rpc('berkas_konteks', { p_konteks: konteks, p_ref: ref });
+export const tambahTautanKonteks = (konteks, ref, jenis, nama, url) =>
+  rpc('tambah_tautan_konteks', { p_konteks: konteks, p_ref: ref, p_jenis: jenis, p_nama: nama, p_url: url });
+// dashboard
+export const dashboardRealisasi = (f = {}) => rpc('dashboard_realisasi', { p_filter: f });
+export const progresPokja = () => rpc('progres_pokja');
+// LKS
+export const daftarLks = (f = {}) => rpc('daftar_lks', { p_filter: f });
+export const ringkasanLks = (f = {}) => rpc('ringkasan_lks', { p_filter: f });
+export const detailLks = (id) => rpc('detail_lks', { p_id: id });
+export const simpanLks = (d) => rpc('simpan_lks', { p_data: d });
+export const ajukanLks = (id) => rpc('ajukan_lks', { p_id: id });
+export const verifikasiLks = (id, setuju, catatan = null) => rpc('verifikasi_lks', { p_id: id, p_setuju: setuju, p_catatan: catatan });
+export const hapusLks = (id) => rpc('hapus_lks', { p_id: id });
+export const imporLks = (rows, uji = true, opsi = {}) => rpc('impor_lks', { p_rows: rows, p_uji: uji, p_opsi: opsi });
+// Aster
+export const daftarAster = (f = {}) => rpc('daftar_aster', { p_filter: f });
+export const ringkasanAster = (f = {}) => rpc('ringkasan_aster', { p_filter: f });
+export const simpanAster = (d) => rpc('simpan_aster', { p_data: d });
+export const ajukanAster = (ids) => rpc('ajukan_aster', { p_ids: ids });
+export const verifikasiAster = (ids, setuju, catatan = null) => rpc('verifikasi_aster', { p_ids: ids, p_setuju: setuju, p_catatan: catatan });
+export const hapusAster = (ids) => rpc('hapus_aster', { p_ids: ids });
+export const imporAster = (rows, uji = true, opsi = {}) => rpc('impor_aster', { p_rows: rows, p_uji: uji, p_opsi: opsi });
+// Kepegawaian & OJT
+export const daftarPegawai = (f = {}) => rpc('daftar_pegawai', { p_filter: f });
+export const simpanPegawai = (d) => rpc('simpan_pegawai', { p_data: d });
+export const hapusPegawai = (id) => rpc('hapus_pegawai', { p_id: id });
+export const sinkronPegawai = () => rpc('sinkron_pegawai');
+export const imporPegawai = (rows, uji = true) => rpc('impor_pegawai', { p_rows: rows, p_uji: uji });
+export const ringkasanPegawai = () => rpc('ringkasan_pegawai');
+export const daftarOjt = (f = {}) => rpc('daftar_ojt', { p_filter: f });
+export const simpanOjt = (d) => rpc('simpan_ojt', { p_data: d });
+export const hapusOjt = (id) => rpc('hapus_ojt', { p_id: id });
+// Jadwal
+export const jadwalBulan = (tahun, bulan) => rpc('jadwal_bulan', { p_tahun: tahun, p_bulan: bulan });
+export const simpanJadwal = (d) => rpc('simpan_jadwal', { p_data: d });
+export const ubahJadwal = (id, d, grup = true) => rpc('ubah_jadwal', { p_id: id, p_data: d, p_semua_grup: grup });
+export const hapusJadwal = (id, grup = false) => rpc('hapus_jadwal', { p_id: id, p_semua_grup: grup });
+export const aturHariLibur = (daftar) => rpc('atur_hari_libur', { p_daftar: daftar });
+// Rencana kerja
+export const daftarRenja = (f = {}) => rpc('daftar_renja', { p_filter: f });
+export const simpanRenja = (d) => rpc('simpan_renja', { p_data: d });
+export const ajukanRenja = (id) => rpc('ajukan_renja', { p_id: id });
+export const verifikasiRenja = (id, setuju, catatan = null) => rpc('verifikasi_renja', { p_id: id, p_setuju: setuju, p_catatan: catatan });
+export const hapusRenja = (id) => rpc('hapus_renja', { p_id: id });
+// Dokumen Pokja & Bersama
+export const daftarFolder = (pokja) => rpc('daftar_folder', { p_pokja: pokja });
+export const buatFolder = (pokja, nama) => rpc('buat_folder', { p_pokja: pokja, p_nama: nama });
+export const ubahFolder = (id, nama) => rpc('ubah_folder', { p_id: id, p_nama: nama });
+export const hapusFolder = (id) => rpc('hapus_folder', { p_id: id });
+export const daftarDokumen = (f = {}) => rpc('daftar_dokumen', { p_filter: f });
+export const ubahDokumen = (id, d) => rpc('ubah_dokumen', { p_id: id, p_data: d });
+export const ajukanPublikasi = (id, kategori) => rpc('ajukan_publikasi', { p_id: id, p_kategori: kategori });
+export const batalPublikasi = (id) => rpc('batal_publikasi', { p_id: id });
+export const verifikasiPublikasi = (id, setuju, kategori = null, catatan = null) =>
+  rpc('verifikasi_publikasi', { p_id: id, p_setuju: setuju, p_kategori: kategori, p_catatan: catatan });
+export const tarikPublikasi = (id, alasan) => rpc('tarik_publikasi', { p_id: id, p_alasan: alasan });
+// Produk hukum
+export const daftarProdukHukum = (f = {}) => rpc('daftar_produk_hukum', { p_filter: f });
+export const simpanProdukHukum = (d) => rpc('simpan_produk_hukum', { p_data: d });
+export const hapusProdukHukum = (id) => rpc('hapus_produk_hukum', { p_id: id });
+// Tugas
+export const daftarTugas = (f = {}) => rpc('daftar_tugas', { p_filter: f });
+export const penerimaTugas = () => rpc('penerima_tugas');
+export const simpanTugas = (d) => rpc('simpan_tugas', { p_data: d });
+export const ubahStatusTugas = (id, status, catatan = null) => rpc('ubah_status_tugas', { p_id: id, p_status: status, p_catatan: catatan });
+export const hapusTugas = (id) => rpc('hapus_tugas', { p_id: id });
+// Pesan
+export const daftarPercakapan = () => rpc('daftar_percakapan');
+export const jumlahPesanBelum = () => rpc('jumlah_pesan_belum');
+export const bukaPribadi = (penggunaId) => rpc('buka_pribadi', { p_pengguna: penggunaId });
+export const bukaDiskusi = (tabel, ref) => rpc('buka_diskusi', { p_tabel: tabel, p_ref: String(ref) });
+export const buatTopikLintas = (judul) => rpc('buat_topik_lintas', { p_judul: judul });
+export const pesanPercakapan = (id, sebelum = null, batas = 50) => rpc('pesan_percakapan', { p_id: id, p_sebelum: sebelum, p_batas: batas });
+export const kirimPesan = (id, isi) => rpc('kirim_pesan', { p_id: id, p_isi: isi });
+export const tandaiBacaPercakapan = (id) => rpc('tandai_baca_percakapan', { p_id: id });
+export const hapusPesan = (id) => rpc('hapus_pesan', { p_id: id });
+export const kontakPesan = (q = '') => rpc('kontak_pesan', { p_q: q });
+// Dokumentasi PM
+export const statusDokPm = (bnbaId) => rpc('status_dok_pm', { p_bnba: bnbaId });
+export const dokPmUsulan = (usulanId) => rpc('dok_pm_usulan', { p_usulan: usulanId });
+export const ajukanTanpaDok = (bnbaId, kategori, alasan) => rpc('ajukan_tanpa_dok', { p_bnba: bnbaId, p_kategori: kategori, p_alasan: alasan });
+export const putuskanTanpaDok = (id, setuju, catatan = null) => rpc('putuskan_tanpa_dok', { p_id: id, p_setuju: setuju, p_catatan: catatan });
+
+// Realtime khusus halaman (pesan baru, perubahan jadwal). Mengembalikan fungsi berhenti.
+export function langgananTabel(tabel, cb, filter = null) {
+  const ch = sb.channel('sitasi-' + tabel + '-' + Math.random().toString(36).slice(2, 8))
+    .on('postgres_changes', { event: '*', schema: 'public', table: tabel, ...(filter ? { filter } : {}) }, (p) => cb(p.new && Object.keys(p.new).length ? p.new : p.old, p.eventType))
+    .subscribe();
+  return () => sb.removeChannel(ch);
+}

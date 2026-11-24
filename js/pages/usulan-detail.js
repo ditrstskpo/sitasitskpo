@@ -10,6 +10,8 @@ import { STATUS_USULAN, STATUS_BNBA, MAK, badge, chipTahap, stepperBesar, infoTa
 import { unduhExcel } from '../core/xlsx.js';
 import { pergi } from '../core/nav.js';
 import * as P from '../core/peran.js';
+import { galeriFoto, pasangUnggah, muatGambarMini } from '../core/unggah.js';
+import { panelDiskusi } from './_pesan.js';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const JENIS_BERKAS = { draft_sk: 'Draft SK', nota_dinas: 'Nota Dinas', sk_final: 'Scan SK TTD Final', surat_burekol: 'Surat Penyampaian Data Bantuan ATENSI', lampiran_burekol: 'Lampiran Data BNBA PM' };
@@ -181,13 +183,54 @@ export async function render(el, { sesi: s, param: id, query }) {
     let isi;
     try {
       isi = tab === 'proses' ? tabProses() : tab === 'pm' ? await tabPM() : tab === 'penyalur' ? tabPenyalur() : tab === 'riwayat' ? tabRiwayat()
-        : html`<section class="card">${kosong({ ikonNama: 'folder', judul: 'Dokumentasi PM hadir di Tahap 4', teks: 'Foto Sebelum Usaha, Saat Penyaluran, dan Supermonev per PM (maks 2 foto per kategori, 500 KB) dibangun bersama modul Dokumen pada Tahap 4.' })}</section>`;
+        : tab === 'diskusi' ? html`<div data-diskusi></div>` : await tabDok();
     } catch (e) { isi = kotakGalat(pesanGalat(e)); }
     el.innerHTML = String(html`${kepala()}
-      <div style="margin:24px 0 16px">${tabs([['proses', '1. Proses & Stepper 11 Tahap'], ['pm', '2. Daftar PM', u.jumlah_pm], ['penyalur', '3. Log Petugas Penyalur', d.penyaluran.length], ['dok', '4. Dokumentasi PM'], ['riwayat', '5. Riwayat & Audit Trail']], tab)}</div>
+      <div style="margin:24px 0 16px">${tabs([['proses', '1. Proses & Stepper 11 Tahap'], ['pm', '2. Daftar PM', u.jumlah_pm], ['penyalur', '3. Log Petugas Penyalur', d.penyaluran.length], ['dok', '4. Dokumentasi PM'], ['riwayat', '5. Riwayat & Audit Trail'], ['diskusi', '6. Diskusi']], tab)}</div>
       <div data-isi>${isi}</div>`);
     pasangReveal(el, { segera: true });
     if (tab === 'proses') gambarDP();
+    lepasDiskusi(); lepasDiskusi = () => {};
+    if (tab === 'diskusi') panelDiskusi(el.querySelector('[data-diskusi]'), { tabel: 'usulan', ref: id }).then((f) => { lepasDiskusi = f; });
+  }
+  let lepasDiskusi = () => {};
+
+  // ---- Tab Dokumentasi PM: ringkasan kelengkapan foto per PM + unggah langsung per PM
+  async function tabDok() {
+    const r = await api.dokPmUsulan(id);
+    const sel = (pm, k, wajib) => {
+      const n = pm[k], t = pm.tanpa?.[k];
+      if (n) return html`<span class="badge b-ok kecil">${raw(ikon('camera', 14))} ${n}/2</span>`;
+      if (t?.status === 'disetujui') return html`<span class="badge b-draft kecil">Tidak ada (disetujui)</span>`;
+      if (t?.status === 'menunggu') return html`<span class="badge b-wait kecil">Pengecualian menunggu</span>`;
+      return wajib ? html`<span class="badge b-fix kecil">${raw(ikon('alert', 14))} Belum</span>` : html`<span class="badge b-draft kecil">—</span>`;
+    };
+    const cair = r.status_cair === 'cair';
+    const lengkapS = r.pm.filter((p) => p.sebelum_usaha || p.tanpa?.sebelum_usaha?.status === 'disetujui').length;
+    const lengkapP = r.pm.filter((p) => p.saat_penyaluran || p.tanpa?.saat_penyaluran?.status === 'disetujui').length;
+    return html`<section class="card">
+      <div class="card-head"><span class="ubin">${raw(ikon('camera', 22))}</span><div><h2 class="card-title">Dokumentasi PM</h2>
+        <p class="card-sub">Foto Sebelum Usaha ${lengkapS}/${r.pm.length} PM · Saat Penyaluran ${cair ? `${lengkapP}/${r.pm.length} PM` : 'diisi setelah cair'} · Supermonev opsional</p></div></div>
+      <div class="info-card biru" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span>Klik <b>Unggah / lihat foto</b> pada baris PM. Foto dari kamera atau galeri otomatis dikecilkan ≤ 500 KB, maks 2 foto per kategori.
+        Kelengkapan foto memengaruhi <b>Progres Pokja</b> di Dashboard.</span></div>
+      ${r.pm.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>PM</th><th>Sebelum Usaha</th><th>Saat Penyaluran</th><th>Supermonev</th><th></th></tr></thead><tbody>
+        ${r.pm.map((p) => html`<tr><td><div class="sel-utama"><b>${p.nama}</b><small class="mono">${p.nik}</small></div></td>
+          <td>${sel(p, 'sebelum_usaha', true)}</td><td>${sel(p, 'saat_penyaluran', cair)}</td><td>${sel(p, 'supermonev', false)}</td>
+          <td class="kanan"><button class="btn btn-sm btn-secondary" data-dok-pm="${p.bnba_id}" data-nama="${p.nama}" data-nik="${p.nik}">${raw(ikon('camera', 16))} Unggah / lihat foto</button></td></tr>`)}
+      </tbody></table></div>` : kosong({ ikonNama: 'users', judul: 'Belum ada PM terlihat' })}</section>`;
+  }
+  async function bukaDokPm(bid, nama, nik = '') {
+    const m = bukaModal({ judul: 'Dokumentasi · ' + nama, ukuran: 'besar', isi: '<div class="skel" style="height:260px;border-radius:16px"></div>', kaki: '<button class="btn btn-ghost" data-batal>Selesai</button>' });
+    const g = async () => {
+      const st = await api.statusDokPm(bid);
+      m.body.innerHTML = String(html`<div class="galeri-grid">${st.kategori.map((k) => galeriFoto({ konteks: 'dok_pm', ref: bid, jenis: k.kode, judul: k.label + (k.opsional ? ' (opsional)' : ''),
+        maks: k.maks, berkas: k.berkas, boleh: k.boleh, tanpa: k.tanpa, wajib: !k.opsional && (k.kode === 'sebelum_usaha' || st.status_cair === 'cair'), ket: k.boleh ? 'Maks 2 foto · 500 KB per foto' : 'Hanya dapat dilihat' }))}</div>
+        <p class="help" style="margin-top:12px">Pengajuan "tidak ada dokumentasi" dilakukan dari Detail PM (Master BNBA → klik PM → tab Dokumentasi).
+          <a href="#/pm/${nik}" data-batal>Buka Detail PM</a></p>`);
+      muatGambarMini(m.body);
+    };
+    pasangUnggah(m.body, { muatUlang: async () => { await g(); if (tab === 'dok') gambar(); }, judulJenis: { sebelum_usaha: 'Foto Sebelum Usaha', saat_penyaluran: 'Foto Saat Penyaluran', supermonev: 'Foto Supermonev' } });
+    try { await g(); } catch (e) { m.body.innerHTML = String(kotakGalat(pesanGalat(e))); }
   }
   const segar = async () => { await muat(); hapusCache('usulan'); await gambar(); };
 
@@ -237,6 +280,7 @@ export async function render(el, { sesi: s, param: id, query }) {
 
   el.addEventListener('click', async (e) => {
     const tb = e.target.closest('[data-tab]'); if (tb) { tab = tb.dataset.tab; history.replaceState(null, '', `#/usulan/${id}?tab=${tab}`); return gambar(); }
+    const dpm = e.target.closest('[data-dok-pm]'); if (dpm) return bukaDokPm(dpm.dataset.dokPm, dpm.dataset.nama, dpm.dataset.nik);
     const ak = e.target.closest('[data-aksi]'); if (ak) return aksiTahap(ak);
     const nk = e.target.closest('[data-nik]'); if (nk) return pergi('/pm/' + nk.dataset.nik);
     if (e.target.closest('[data-terap-semua]')) {
@@ -264,5 +308,6 @@ export async function render(el, { sesi: s, param: id, query }) {
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-nik]')) e.target.click(); });
   pasangSlotBerkas(el, { usulanId: id, tahap: null, judulJenis: JENIS_BERKAS, muatUlang: segar });
   await gambar();
-  return bus.on('usulan-berubah', (uid) => { if (!uid || uid === id) segar().catch(() => {}); });
+  const lepasBus = bus.on('usulan-berubah', (uid) => { if (!uid || uid === id) segar().catch(() => {}); });
+  return () => { lepasBus(); lepasDiskusi(); };
 }
