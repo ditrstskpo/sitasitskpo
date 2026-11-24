@@ -68,6 +68,8 @@ function field(c, v, ctx = {}) {
   return html`<div class="${kelas}"><label class="label" for="${id}">${label(c.x)}${w}${c.sensitif ? html` <span class="badge b-lock kecil">${raw(ikon('lock', 12))} Sensitif</span>` : ''}</label>${inp}<div class="err" hidden></div></div>`;
 }
 
+export { field, KOL_FORM, GRUP_FORM, NAV, barisRincian, fmtUang };
+
 export async function render(el, { sesi: s, query }) {
   const id = query.get('id');
   if (!id) return pergi('/workspace-bnba');

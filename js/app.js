@@ -13,6 +13,7 @@ import * as P from './core/peran.js';
 import { pergi } from './core/nav.js';
 import { pantauJaringan, preconnect } from './core/jaringan.js';
 import { mulaiPantauIdle } from './core/sesi-idle.js';
+import { mulaiGeserAtas } from './core/geser-atas.js';
 import { CONFIG } from './config.js';
 
 const root = document.getElementById('app');
@@ -93,6 +94,7 @@ async function muatSesi({ login = false } = {}) {
     simpanSesi(s);
     mulaiRealtime(s);
     mulaiPantauIdle();
+    mulaiGeserAtas();
     return s;
   }
   if (s.status === 'tanpa_sesi') { bersihkanSemua(); return null; }

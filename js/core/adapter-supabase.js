@@ -35,6 +35,18 @@ export async function masukGoogle() {
   });
   if (error) throw error;
 }
+/** Login tanpa Google: kode sekali pakai (OTP) dikirim ke email Kemensos. Hanya email terdaftar yang dapat masuk. */
+export async function kirimKodeEmail(email) {
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
+  if (error) throw error;
+  return { ok: true };
+}
+export async function masukDenganKode(email, kode) {
+  const { error } = await sb.auth.verifyOtp({ email, token: String(kode).replace(/\s/g, ''), type: 'email' });
+  if (error) throw error;
+  sessionStorage.setItem('sitasi:baru-login', '1');
+  location.replace(location.origin + location.pathname);
+}
 export async function keluar({ catatLog = true } = {}) {
   if (catatLog) { try { await rpc('catat_aktivitas', { p_aksi: 'LOGOUT', p_ringkasan: 'Keluar dari SITASI TSKPO' }); } catch {} }
   await sb.auth.signOut({ scope: 'local' });

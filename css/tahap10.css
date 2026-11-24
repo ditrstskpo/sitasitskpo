@@ -1,0 +1,31 @@
+/* v2.8.0 — anti-meluap: teks tidak boleh keluar kotak; geser tabel dari atas */
+
+/* lencana & chip: boleh turun baris, tidak melebihi kotak induknya */
+.badge, .chip-pokja { height: auto; min-height: 28px; max-width: 100%; white-space: normal; text-align: left; line-height: 1.25; padding-top: 5px; padding-bottom: 5px; overflow-wrap: break-word; word-break: normal; }
+.tbl td .badge, .tbl td .chip-pokja { white-space: nowrap; }
+.badge .ik, .chip-pokja::before { flex: none; }
+.badge > span, .badge > b { min-width: 0; }
+
+/* teks panjang di kartu, daftar, ringkasan, modal */
+.card, .info-card, .info-strip, .kpi, .kv dd, .modal, .modal-isi, .toast, .timeline li { overflow-wrap: anywhere; }
+.tbl td { overflow-wrap: break-word; word-break: normal; }
+.tbl td .badge, .tbl td .chip-pokja { vertical-align: middle; }
+.card > *, .info-card > *, .info-strip > *, .page-head > *, .baris-aksi > * { min-width: 0; }
+.btn { max-width: 100%; }
+.btn:not(.btn-ikon) { white-space: normal; text-align: center; height: auto; min-height: 44px; }
+.btn-sm:not(.btn-ikon) { min-height: 36px; }
+.input, .select, .textarea { max-width: 100%; }
+img, svg, video, canvas { max-width: 100%; }
+pre, code { max-width: 100%; overflow-x: auto; overflow-wrap: anywhere; }
+
+/* geser tabel dari atas (sinkron dengan bilah bawah) */
+.geser-atas { overflow-x: auto; overflow-y: hidden; height: 16px; margin: 0 0 4px; border-radius: 8px; background: var(--garis-halus, #eef1f4); scrollbar-width: auto; position: sticky; top: 0; z-index: 3; }
+.geser-atas > div { height: 1px; }
+.geser-atas[hidden] { display: none; }
+.geser-info { font-size: .8125rem; color: var(--redup, #66717E); margin: 0 0 4px; }
+
+/* chip tahap: boleh turun baris di layar sempit */
+.chip-tahap { white-space: normal; max-width: 100%; text-align: left; line-height: 1.25; }
+.chip-tahap b { flex: none; }
+.legenda-tahap .leg, .legenda-tahap .leg small { min-width: 0; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.legenda-tahap { min-width: 0; }

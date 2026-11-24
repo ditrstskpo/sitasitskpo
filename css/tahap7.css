@@ -5,18 +5,25 @@
 .input[data-otomatis] { font-weight: 800; }
 
 /* rincian barang */
-.ri-kepala, .ri-baris { display: grid; grid-template-columns: minmax(180px, 1fr) 96px 120px 180px 44px; gap: 10px; align-items: center; }
+[data-rincian] { container-type: inline-size; min-width: 0; }
+.ri-kepala, .ri-baris { display: grid; grid-template-columns: minmax(0, 1fr) 84px 104px minmax(130px, 190px) 44px; gap: 10px; align-items: center; }
+.ri-kepala > *, .ri-baris > * { min-width: 0; }
 .ri-kepala { font-size: .8125rem; font-weight: 700; color: var(--teks-redup, #5b6b7f); padding: 0 2px 6px; }
 .ri-baris { margin-bottom: 10px; }
-.ri-baris .input { min-height: 46px; }
+.ri-baris .input { min-height: 46px; width: 100%; min-width: 0; }
+.ri-baris .input-awalan { min-width: 0; }
+.ri-baris .input-awalan .input { text-align: right; }
 .ri-sub { font-weight: 800; text-align: right; color: var(--judul); font-variant-numeric: tabular-nums; }
 .ri-aksi { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--garis); }
-.ri-total { font-size: 1.0625rem; } .ri-total b { font-size: 1.25rem; color: var(--hijau-tekan); }
-@media (max-width: 760px) {
+.ri-total { font-size: 1.0625rem; overflow-wrap: anywhere; } .ri-total b { font-size: 1.25rem; color: var(--hijau-tekan); }
+/* wadah sempit (HP atau jendela kecil): tiap barang jadi kartu bersusun */
+@container (max-width: 640px) {
   .ri-kepala { display: none; }
-  .ri-baris { grid-template-columns: 1fr 1fr; padding: 12px; border: 1px solid var(--garis); border-radius: 14px; background: var(--kartu); }
+  .ri-baris { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; padding: 12px; border: 1px solid var(--garis); border-radius: 14px; background: var(--kartu); }
   .ri-baris [data-ri=nama], .ri-baris .input-awalan { grid-column: 1 / -1; }
+  .ri-baris [data-ri-hapus] { grid-column: 3; grid-row: 2; }
 }
+@media (max-width: 760px) { .ri-kepala { display: none; } }
 
 /* rekap Keuangan Tahap 5 */
 .rekap-tabel { overflow: auto; border: 1px solid var(--garis); border-radius: 16px; max-height: 62vh; }

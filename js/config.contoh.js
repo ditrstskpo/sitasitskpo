@@ -19,9 +19,12 @@ export const CONFIG = {
 
   NAMA_APLIKASI: 'SITASI TSKPO',
 
+  // Domain email yang boleh memakai login kode lewat email (tanpa Google).
+  DOMAIN_EMAIL: ['kemensos.go.id', 'kemsos.go.id'],
+
   // Keluar otomatis bila tidak ada aktivitas selama sekian jam (bawaan 4).
   IDLE_JAM: 4,
-  VERSI: '2.7.0',
+  VERSI: '2.8.0',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
   LOGO: 'assets/logo-sitasi.png',

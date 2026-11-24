@@ -18,8 +18,8 @@ export const LKS_OPSI = {
   wilayah_jangkauan: ['Kab/Kota', 'Provinsi', 'Nasional'],
   jenis_layanan: ['Rehabilitasi Sosial', 'Perlindungan Sosial', 'Pemberdayaan Sosial'],
 };
-export const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'SK', 'SOP', 'Perpres', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
-export const IKON_KAT = { 'SK ATENSI': 'award', 'SK Kegiatan': 'file-check', SK: 'scroll', SOP: 'list-checks', Perpres: 'gavel', KAK: 'file-text', 'Bahan Paparan': 'pie', 'Dokumentasi Kegiatan': 'camera', Lainnya: 'folder' };
+export const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'Produk Hukum', 'SOP', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
+export const IKON_KAT = { 'SK ATENSI': 'award', 'SK Kegiatan': 'file-check', 'Produk Hukum': 'gavel', SOP: 'list-checks', KAK: 'file-text', 'Bahan Paparan': 'pie', 'Dokumentasi Kegiatan': 'camera', Lainnya: 'folder' };
 export const JENIS_HUKUM = ['Peraturan Menteri', 'Keputusan Menteri', 'Keputusan Dirjen', 'Keputusan Direktur', 'Surat Edaran', 'SOP', 'Pedoman/Juknis', 'Lainnya'];
 
 /**

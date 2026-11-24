@@ -24,7 +24,7 @@ export function kartuDok(x, { aksi = '', pokja = false } = {}) {
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${badgeDok(x)}${pokja ? chipPokja({ nama_pendek: x.pokja_nama, warna: x.warna, warna_tint: x.warna_tint, warna_teks: x.warna_teks }) : x.kategori && x.status === 'privat' ? html`<span class="badge b-draft kecil">${raw(ikon('hash', 14))} ${x.kategori}</span>` : ''}</div>
     ${x.keterangan ? html`<p class="meta" style="color:var(--teks)">${x.keterangan}</p>` : ''}
     ${x.catatan_verifikasi ? html`<p class="meta" style="color:${x.status === 'ditolak' ? 'var(--merah)' : 'var(--teks)'}">${raw(ikon('msg', 14))} ${x.catatan_verifikasi}</p>` : ''}
-    <p class="meta">${x.status === 'terbit' && x.diverifikasi_pada ? `Terbit ${tanggal(x.diverifikasi_pada)} · diverifikasi ${x.diverifikasi_nama || 'TU'}` : `Diunggah ${x.dibuat_nama || ''} · ${relatif(x.dibuat_pada)}`}</p>
+    <p class="meta">${x.status === 'terbit' && x.diverifikasi_pada ? `Terbit ${tanggal(x.diverifikasi_pada)} · diverifikasi ${x.diverifikasi_nama || verifDok(x.kategori)}` : `Diunggah ${x.dibuat_nama || ''} · ${relatif(x.dibuat_pada)}`}</p>
     <div class="aksi"><button class="btn btn-secondary btn-sm" data-unduh-berkas="${x.berkas_id}">${raw(ikon(x.lokasi === 'tautan' ? 'external' : 'download', 16))} ${x.lokasi === 'tautan' ? 'Buka' : 'Unduh'}</button>${raw(aksi)}</div>
   </article>`;
 }
@@ -65,18 +65,19 @@ export function pasangZona(root, { saatUnggah }) {
 }
 
 /** Ajukan ke Dokumen Bersama. Kategori sudah dipilih saat unggah; bila belum (dokumen lama), ditanyakan sekali. */
+const verifDok = (kat) => (['Produk Hukum', 'SOP'].includes(kat) ? 'Pokja Hukum' : 'Pokja TU');
 export function ajukanDok(x, { onSelesai } = {}) {
   const foto = /^image\//.test(x.mime || '');
   if (x.kategori) {
-    return konfirmasi({ judul: 'Ajukan ke Dokumen Bersama?', pesan: `"${x.judul}" (kategori ${x.kategori}) dikirim ke Pokja TU untuk diverifikasi. Setelah terbit, semua pegawai dapat melihatnya.`, label: 'Ajukan' })
-      .then(async (k) => { if (!k.ok) return; try { await api.ajukanPublikasi(x.id, null); toast('Diajukan. Pokja TU mendapat notifikasi untuk memverifikasi.'); await onSelesai?.(); } catch (e) { toast(pesanGalat(e), 'galat'); } });
+    return konfirmasi({ judul: 'Ajukan ke Dokumen Bersama?', pesan: `"${x.judul}" (kategori ${x.kategori}) dikirim ke ${verifDok(x.kategori)} untuk diverifikasi. Setelah terbit, semua pegawai dapat melihatnya.`, label: 'Ajukan' })
+      .then(async (k) => { if (!k.ok) return; try { await api.ajukanPublikasi(x.id, null); toast(`Diajukan. ${verifDok(x.kategori)} mendapat notifikasi untuk memverifikasi.`); await onSelesai?.(); } catch (e) { toast(pesanGalat(e), 'galat'); } });
   }
   return bukaFormulir({
-    judul: 'Ajukan ke Dokumen Bersama', ukuran: 'kecil', label: 'Ajukan ke Pokja TU', data: { kategori: foto ? 'Dokumentasi Kegiatan' : '' },
-    atas: String(html`<p style="margin-bottom:14px"><b>${x.judul}</b><br><small class="redup">Dokumen tampil untuk semua pegawai setelah diverifikasi Pokja TU.
+    judul: 'Ajukan ke Dokumen Bersama', ukuran: 'kecil', label: 'Ajukan', data: { kategori: foto ? 'Dokumentasi Kegiatan' : '' },
+    atas: String(html`<p style="margin-bottom:14px"><b>${x.judul}</b><br><small class="redup">Dokumen tampil untuk semua pegawai setelah diverifikasi (Pokja TU; Produk Hukum & SOP oleh Pokja Hukum).
       ${foto ? 'Foto hanya dapat diterbitkan pada kategori Dokumentasi Kegiatan.' : 'Kategori Dokumentasi Kegiatan khusus untuk foto.'}</small></p>`),
     defs: [{ kolom: [{ k: 'kategori', l: 'Kategori', tipe: 'pilih', opsi: katUntuk(foto), wajib: true, lebar: true }] }],
-    simpan: async (o) => { await api.ajukanPublikasi(x.id, o.kategori); toast('Diajukan. Pokja TU mendapat notifikasi untuk memverifikasi.'); await onSelesai?.(); },
+    simpan: async (o) => { await api.ajukanPublikasi(x.id, o.kategori); toast(`Diajukan. ${verifDok(o.kategori)} mendapat notifikasi untuk memverifikasi.`); await onSelesai?.(); },
   });
 }
 
@@ -120,7 +121,7 @@ export function bukaTambahDokumen({ pokja, pokjaId, kategori = '', ajukan = fals
             <button type="button" role="radio" aria-checked="false" data-cara="tautan">${raw(ikon('link', 20))}<b>Tempel tautan</b><small>Google Drive / Docs</small></button></div></div>
         <div class="field penuh" data-isi-cara></div>
         <p class="help penuh" data-td-prog aria-live="polite" style="margin:0"></p>
-        ${ajukan ? '' : html`<label class="cek-baris penuh"><input type="checkbox" id="td-ajukan"><span>Langsung ajukan ke Dokumen Bersama (Pokja TU akan memverifikasi)</span></label>`}
+        ${ajukan ? '' : html`<label class="cek-baris penuh"><input type="checkbox" id="td-ajukan"><span>Langsung ajukan ke Dokumen Bersama (diverifikasi Pokja TU; Produk Hukum & SOP oleh Pokja Hukum)</span></label>`}
       </div>`),
     kaki: String(html`<button class="btn btn-ghost" data-batal>Batal</button><button class="btn btn-primary" data-td-ok>${raw(ikon(ajukan ? 'send' : 'save', 18))} ${ajukan ? 'Unggah & Ajukan' : 'Simpan'}</button>`),
   });
@@ -185,7 +186,7 @@ export function bukaTambahDokumen({ pokja, pokjaId, kategori = '', ajukan = fals
         } catch (err) { toast(`${r.nama}: ${pesanGalat(err)}`, 'galat', 'Belum lengkap'); }
       }
       pulih();
-      if (ok) { toast(langsung ? `${ok} dokumen diajukan ke Pokja TU.` : `${ok} dokumen tersimpan pada kategori ${kat}.`); m.tutup(); await onSelesai?.(pid, kat); }
+      if (ok) { toast(langsung ? `${ok} dokumen diajukan untuk diverifikasi.` : `${ok} dokumen tersimpan pada kategori ${kat}.`); m.tutup(); await onSelesai?.(pid, kat); }
     } catch (err) { pulih(); toast(pesanGalat(err), 'galat'); }
   };
   return m;

@@ -10,7 +10,7 @@ const PROV = { 'Aceh': '11', 'Sumatera Utara': '12', 'Sumatera Barat': '13', 'Ri
   'Sulawesi Utara': '71', 'Sulawesi Tengah': '72', 'Sulawesi Selatan': '73', 'Sulawesi Tenggara': '74', 'Gorontalo': '75', 'Sulawesi Barat': '76',
   'Maluku': '81', 'Maluku Utara': '82', 'Papua': '91-A', 'Papua Selatan': '91-C', 'Papua Tengah': '91-D', 'Papua Pegunungan': '91-B',
   'Papua Barat': '92-A', 'Papua Barat Daya': '92-B' };
-const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'SK', 'SOP', 'Perpres', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
+const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'Produk Hukum', 'SOP', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
 const LABEL_PM = { sebelum_usaha: 'Sebelum Usaha', saat_penyaluran: 'Saat Penyaluran', supermonev: 'Supermonev' };
 
 const d = () => I.db;
@@ -854,11 +854,13 @@ function pastikanFolder(pid) {
     if (!ada(nama)) D.dok_folder.push({ id: I.uid(), pokja_id: pid, nama, bawaan: true, urutan, dibuat_pada: I.sekarang() });
   });
 }
-const dokTerlihat = (x) => I.isPeg() && (x.status === 'terbit' || I.isSA() || I.idsPokja().includes(x.pokja_id) || (x.status === 'diajukan' && I.diPokja('TU')));
+const KAT_HUKUM = ['Produk Hukum', 'SOP'];
+const bolehVerifDok = (kat) => I.isSA() || (KAT_HUKUM.includes(kat) ? I.diPokja('HUKUM') : I.diPokja('TU'));
+const dokTerlihat = (x) => I.isPeg() && (x.status === 'terbit' || I.isSA() || I.idsPokja().includes(x.pokja_id) || (x.status === 'diajukan' && (I.diPokja('TU') || I.diPokja('HUKUM'))));
 const dokJson = (x) => { const b = d().berkas.find((y) => y.id === x.berkas_id) || {}; const f = d().dok_folder.find((y) => y.id === x.folder_id);
   return { ...I.salin(x), ...pokjaInfo(x.pokja_id), folder_nama: f?.nama || null, berkas_nama: b.nama, ukuran: b.ukuran, mime: b.mime, lokasi: b.lokasi, tautan: b.tautan,
     boleh_ubah: bolehPokja(x.pokja_id) && ['privat', 'ditolak'].includes(x.status), boleh_batal: bolehPokja(x.pokja_id) && x.status === 'diajukan',
-    boleh_verifikasi: x.status === 'diajukan' && (I.isSA() || I.diPokja('TU')), boleh_tarik: x.status === 'terbit' && (I.isSA() || I.diPokja('TU')) }; };
+    boleh_verifikasi: x.status === 'diajukan' && bolehVerifDok(x.kategori), boleh_tarik: x.status === 'terbit' && bolehVerifDok(x.kategori) }; };
 export async function daftarFolder(pid) {
   await jeda(); siapkan(); if (!bolehPokja(pid)) throw g('Repositori ini hanya untuk anggota Pokja pemiliknya.', '42501');
   pastikanFolder(pid); I.simpan();
@@ -887,16 +889,16 @@ export async function daftarDokumen(f = {}) {
   await jeda(); siapkan(); butuhPeg();
   const mode = f.mode || 'bersama', q = String(f.q || '').toLowerCase();
   if (mode === 'repo' && !bolehPokja(f.pokja)) throw g('Repositori ini hanya untuk anggota Pokja pemiliknya.', '42501');
-  if (mode === 'antrean' && !(I.isSA() || I.diPokja('TU'))) throw g('Antrean publikasi hanya untuk Pokja TU.', '42501');
+  if (mode === 'antrean' && !(I.isSA() || I.diPokja('TU') || I.diPokja('HUKUM'))) throw g('Antrean publikasi hanya untuk Pokja TU atau Pokja Hukum.', '42501');
   const rows = d().dokumen.filter((x) => !x.dihapus && dokTerlihat(x)
-    && (mode === 'repo' ? x.pokja_id === f.pokja && (!f.folder || x.folder_id === f.folder) : mode === 'antrean' ? x.status === 'diajukan'
+    && (mode === 'repo' ? x.pokja_id === f.pokja && (!f.folder || x.folder_id === f.folder) : mode === 'antrean' ? x.status === 'diajukan' && bolehVerifDok(x.kategori)
       : mode === 'pengajuan' ? I.idsPokja().includes(x.pokja_id) && ['diajukan', 'ditolak'].includes(x.status) : x.status === 'terbit')
     && (!f.kategori || x.kategori === f.kategori) && (!f.pokja || mode === 'repo' || x.pokja_id === f.pokja) && (!f.status || x.status === f.status)
     && (!q || x.judul.toLowerCase().includes(q) || String(x.keterangan || '').toLowerCase().includes(q)))
     .sort((a, b) => String(b.diverifikasi_pada || b.diubah_pada).localeCompare(String(a.diverifikasi_pada || a.diubah_pada)));
   const perKat = {}; d().dokumen.filter((x) => x.status === 'terbit' && !x.dihapus && x.kategori).forEach((x) => { perKat[x.kategori] = (perKat[x.kategori] || 0) + 1; });
   return { total: rows.length, baris: halaman(rows, f).map(dokJson), per_kategori: perKat,
-    antrean: I.isSA() || I.diPokja('TU') ? d().dokumen.filter((x) => x.status === 'diajukan' && !x.dihapus).length : null };
+    antrean: I.isSA() || I.diPokja('TU') || I.diPokja('HUKUM') ? d().dokumen.filter((x) => x.status === 'diajukan' && !x.dihapus && bolehVerifDok(x.kategori)).length : null };
 }
 const dokAmbil = (id) => { const x = d().dokumen.find((y) => y.id === id && !y.dihapus); if (!x) throw g('Dokumen tidak ditemukan.'); return x; };
 export async function ubahDokumen(id, v) {
@@ -920,7 +922,7 @@ export async function ajukanPublikasi(id, kat = null) {
   kat = teks(kat) || x.kategori;
   cekKategori(x, kat);
   Object.assign(x, { status: 'diajukan', kategori: kat, diajukan_nama: I.namaSaya(), diajukan_pada: I.sekarang(), catatan_verifikasi: null, diubah_pada: I.sekarang() });
-  beriTahu(pengurus('TU'), 'PUBLIKASI_DIAJUKAN', 'Dokumen diajukan ke Dokumen Bersama', `Pokja ${I.pokjaById(x.pokja_id).nama_pendek} mengajukan "${x.judul}" (kategori ${kat}).`, '#/dokumen-bersama?tab=antrean');
+  beriTahu(pengurus(KAT_HUKUM.includes(kat) ? 'HUKUM' : 'TU'), 'PUBLIKASI_DIAJUKAN', 'Dokumen diajukan ke Dokumen Bersama', `Pokja ${I.pokjaById(x.pokja_id).nama_pendek} mengajukan "${x.judul}" (kategori ${kat}).`, '#/dokumen-bersama?tab=antrean');
   I.simpan(); return dokJson(x);
 }
 export async function batalPublikasi(id) {
@@ -929,19 +931,21 @@ export async function batalPublikasi(id) {
   x.status = 'privat'; I.simpan(); return dokJson(x);
 }
 export async function verifikasiPublikasi(id, setuju, kat = null, catatan = null) {
-  await jeda(); siapkan(); if (!(I.isSA() || I.diPokja('TU'))) throw g('Verifikasi publikasi dilakukan Pokja TU.', '42501');
+  await jeda(); siapkan();
   const x = dokAmbil(id); if (x.status !== 'diajukan') throw g('Dokumen ini tidak sedang menunggu verifikasi.');
+  if (!bolehVerifDok(x.kategori)) throw g(`Kategori ${x.kategori} diverifikasi oleh ${KAT_HUKUM.includes(x.kategori) ? 'Pokja Hukum' : 'Pokja TU'}.`, '42501');
   if (!setuju && !teks(catatan)) throw g('Catatan wajib diisi saat menolak.');
-  const k = teks(kat) || x.kategori; if (setuju) cekKategori(x, k);
+  const k = teks(kat) || x.kategori; if (setuju) { if (!bolehVerifDok(k)) throw g(`Anda tidak berwenang menerbitkan kategori ${k}.`, '42501'); cekKategori(x, k); }
   Object.assign(x, { status: setuju ? 'terbit' : 'ditolak', kategori: k, catatan_verifikasi: teks(catatan), diverifikasi_nama: I.namaSaya(), diverifikasi_pada: I.sekarang(), diubah_pada: I.sekarang() });
   beriTahu([x.dibuat_oleh], setuju ? 'PUBLIKASI_TERBIT' : 'PUBLIKASI_DITOLAK', setuju ? 'Dokumen terbit di Dokumen Bersama' : 'Pengajuan publikasi ditolak',
     `"${x.judul}"` + (setuju ? ` terbit pada kategori ${k}.` : ' ditolak: ' + catatan), setuju ? '#/dokumen-bersama' : '#/dokumen-pokja');
   I.simpan(); return dokJson(x);
 }
 export async function tarikPublikasi(id, alasan) {
-  await jeda(); siapkan(); if (!(I.isSA() || I.diPokja('TU'))) throw g('Hanya Pokja TU atau Super Admin.', '42501');
+  await jeda(); siapkan();
   if (!teks(alasan)) throw g('Alasan wajib diisi.');
   const x = dokAmbil(id); if (x.status !== 'terbit') throw g('Dokumen ini tidak sedang terbit.');
+  if (!bolehVerifDok(x.kategori)) throw g(`Hanya Pokja ${KAT_HUKUM.includes(x.kategori) ? 'Hukum' : 'TU'} atau Super Admin.`, '42501');
   Object.assign(x, { status: 'privat', catatan_verifikasi: 'Ditarik dari Dokumen Bersama: ' + alasan, diubah_pada: I.sekarang() });
   beriTahu([x.dibuat_oleh], 'PUBLIKASI_DITARIK', 'Dokumen ditarik dari Dokumen Bersama', `"${x.judul}" ditarik: ${alasan}`, '#/dokumen-pokja');
   I.simpan(); return dokJson(x);

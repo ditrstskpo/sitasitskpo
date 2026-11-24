@@ -13,6 +13,8 @@ import { pergi } from '../core/nav.js';
 import * as P from '../core/peran.js';
 import { galeriFoto, pasangUnggah, muatGambarMini } from '../core/unggah.js';
 import { panelDiskusi } from './_pesan.js';
+import { field as fieldPM, KOL_FORM, GRUP_FORM, NAV as NAV_PM, barisRincian, fmtUang } from './usulan-edit.js';
+import { GRUP, totalRincian, usia as usiaPM } from '../core/bnba.js';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const JENIS_BERKAS = { draft_sk: 'Draft SK', nota_dinas: 'Nota Dinas', sk_final: 'SK TTD Final (berkas atau tautan)', surat_burekol: 'Surat Penyampaian Data Bantuan ATENSI', lampiran_burekol: 'Lampiran Data BNBA PM' };
@@ -225,6 +227,62 @@ export async function render(el, { sesi: s, param: id, query }) {
   }
 
   // Perbaiki satu PM (Keuangan di Tahap 5, atau Pokja untuk PM yang dikembalikan)
+  // Edit lanjutan memakai formulir LENGKAP yang sama dengan saat pertama input BNBA (termasuk desil dan rincian barang)
+  function modalLanjutan(b) {
+    const ctx = { b, jenisKunci: jenisDariKategori(d.usulan.kategori), kategori: d.usulan.kategori };
+    const m = bukaModal({ judul: 'Edit lanjutan PM · ' + b.nama, ukuran: 'besar', isi: String(html`
+      ${b.koreksi_bank_catatan ? html`<div class="galat" style="margin-bottom:16px">${raw(ikon('alert', 20))}<span><b>Catatan bank:</b> ${b.koreksi_bank_catatan}</span></div>` : ''}
+      <p class="help" style="margin:0 0 12px">Isian sama seperti saat pertama input BNBA. Hanya kolom yang Anda ubah yang disimpan. Setelah disimpan, Kapokja dan KTU diberi tahu lewat notifikasi dan WhatsApp.</p>
+      <form data-pm-lanjut novalidate>${GRUP_FORM.map((g, i) => html`<section class="form-section">
+        <div class="form-section-head"><span class="no">${i + 1}</span><h3>${GRUP[g]}</h3></div>
+        <div class="form-grid">${KOL_FORM.filter((c) => c.g === g).map((c) => fieldPM(c, c.k === 'usia' ? b.tgl_lahir : b[c.k], ctx))}</div></section>`)}</form>`),
+      kaki: String(html`<button class="btn btn-ghost" data-batal>Batal</button><button class="btn btn-primary" data-ok>${raw(ikon('save', 18))} Simpan perubahan</button>`) });
+    const root = m.el, form = root.querySelector('form');
+    const ambil = () => {
+      const o = {};
+      form.querySelectorAll('[name]').forEach((x) => { o[x.name] = x.matches('[data-uang]') ? x.value.replace(/[^\d]/g, '') : x.value.trim(); });
+      const ri = [...form.querySelectorAll('[data-ri-baris]')].map((r) => ({ nama: r.querySelector('[data-ri=nama]').value.trim(), jumlah: r.querySelector('[data-ri=jumlah]').value.trim(),
+        satuan: r.querySelector('[data-ri=satuan]').value.trim(), subtotal: r.querySelector('[data-ri=subtotal]').value.replace(/[^\d]/g, '') })).filter((x) => x.nama || x.subtotal || x.jumlah);
+      o.rincian_item = ri; if (ri.length) o.nilai_bantuan = String(totalRincian(ri));
+      return o;
+    };
+    const hitung = () => {
+      const rows = [...form.querySelectorAll('[data-ri-baris]')].map((r) => Number(r.querySelector('[data-ri=subtotal]').value.replace(/\D/g, '')) || 0), total = rows.reduce((x, y) => x + y, 0);
+      const tt = form.querySelector('[data-ri-total]'); if (tt) tt.textContent = rupiah(total);
+      const nv = form.querySelector('[name=nilai_bantuan]'); if (nv) { const ada = rows.some(Boolean); nv.readOnly = ada; nv.toggleAttribute('data-otomatis', ada); if (ada) nv.value = fmtUang(total); }
+    };
+    const segarKab = (sel) => form.querySelectorAll(`[data-kabkota="${sel.name}"]`).forEach((inp) => {
+      const dl = form.querySelector('#' + inp.getAttribute('list')); if (dl) dl.innerHTML = daftarKabKota(sel.value).map((n) => `<option value="${n}"></option>`).join('');
+    });
+    hitung();
+    const awal = ambil();
+    form.addEventListener('input', (e) => {
+      if (e.target.matches('[data-nik]')) e.target.value = e.target.value.replace(/\D/g, '').slice(0, 16);
+      if (e.target.name === 'tgl_lahir') { const x = form.querySelector('[data-usia]'); if (x) x.value = usiaPM(e.target.value) !== '' ? usiaPM(e.target.value) + ' tahun' : ''; }
+      if (e.target.closest('[data-rincian]')) hitung();
+    });
+    form.addEventListener('change', (e) => { if (e.target.matches('[data-prov]')) segarKab(e.target); });
+    form.addEventListener('focusout', (e) => {
+      if (e.target.matches('[data-kabkota]') && e.target.value) { const r = cocokKabKota(e.target.value, form.querySelector(`[name=${e.target.dataset.kabkota}]`)?.value); if (r.nilai) e.target.value = r.nilai; }
+      if (e.target.matches('[data-uang]')) e.target.value = fmtUang(e.target.value);
+    });
+    form.addEventListener('click', (e) => {
+      if (e.target.closest('[data-ri-tambah]')) { form.querySelector('[data-ri-daftar]').insertAdjacentHTML('beforeend', String(barisRincian({}))); form.querySelector('[data-ri-daftar] [data-ri-baris]:last-child [data-ri=nama]').focus(); hitung(); return; }
+      const rh = e.target.closest('[data-ri-hapus]'); if (rh) { rh.closest('[data-ri-baris]').remove(); hitung(); }
+    });
+    root.querySelector('[data-ok]').onclick = async (ev) => {
+      const skr = ambil(), v = {};
+      for (const k of Object.keys(skr)) { const a = k === 'rincian_item' ? JSON.stringify(awal[k]) : (awal[k] ?? ''), n = k === 'rincian_item' ? JSON.stringify(skr[k]) : skr[k]; if (a !== n) v[k] = skr[k]; }
+      delete v.usia;
+      if (v.nik && !/^\d{16}$/.test(v.nik)) return toast('NIK harus 16 digit angka.', 'galat');
+      if (v.desil && !/^(10|[1-9])$/.test(v.desil)) return toast('Desil harus angka 1 sampai 10.', 'galat');
+      if (!Object.keys(v).length) { m.tutup(); return toast('Tidak ada perubahan.', 'info'); }
+      const pulih = tombolMuat(ev.currentTarget);
+      try { await api.ubahPmLanjutan(b.id, v); m.tutup(); toast('Data PM diperbarui. Kapokja dan KTU diberi tahu.'); hapusCache('usulan'); dp = null; pm = null; await segar(); }
+      catch (err) { pulih(); toast(pesanGalat(err), 'galat'); }
+    };
+  }
+
   function modalPerbaikiPM(b, mode) {
     const kunci = jenisDariKategori(d.usulan.kategori);
     const fl = (lbl, nama, v, extra = '') => html`<div class="field"><label class="label">${lbl}</label><input class="input" name="${nama}" value="${v ?? ''}" ${raw(extra)}></div>`;
@@ -451,7 +509,7 @@ export async function render(el, { sesi: s, param: id, query }) {
     if (ep) {
       pm ||= await api.bnbaUsulan(id); let b = pm.find((x) => x.id === ep.dataset.editPmLanjutan);
       try { dp ||= await api.dataPencairan(id); const f = dp.baris.find((x) => x.id === ep.dataset.editPmLanjutan); if (f) b = { ...(b || {}), ...f }; } catch { /* pakai data yang tersedia */ }
-      return b && modalPerbaikiPM(b, 'lanjutan');
+      return b && modalLanjutan(b);
     }
     if (e.target.closest('[data-ke-tab-pm]')) { tab = 'pm'; history.replaceState(null, '', `#/usulan/${id}?tab=pm`); return gambar(); }
     if (e.target.closest('[data-edit-usulan-lanjutan]')) return modalUsulanLanjutan();

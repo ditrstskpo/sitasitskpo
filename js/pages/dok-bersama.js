@@ -14,14 +14,14 @@ import { tabs } from '../core/komp.js';
 import * as P from '../core/peran.js';
 
 export async function render(el, { sesi: s, query }) {
-  const tu = P.isSuperAdmin(s) || P.diPokja(s, 'TU');
+  const tu = P.isSuperAdmin(s) || P.diPokja(s, 'TU') || P.diPokja(s, 'HUKUM');
   const anggota = P.pokjaEfektif(s).length > 0;
   let tab = ['terbit', 'antrean', 'pengajuan', 'hukum'].includes(query?.get('tab')) ? query.get('tab') : 'terbit', kat = '', q = (query?.get('q') || '').slice(0, 80), antreanN = null;
   let baris = [];
   el.innerHTML = String(html`
     <div class="latar-hidup">
     ${judulHalaman({ pill: 'Repositori Terpadu Direktorat', sorot: 'Dokumen Bersama', sisa: '— Repositori Terpadu',
-      sub: 'Dokumen resmi lintas Pokja yang sudah diverifikasi Pokja TU: SK ATENSI, SK Kegiatan, KAK, Bahan Paparan, Dokumentasi Kegiatan, dan lainnya. Berkas tersimpan di Google Drive Super Admin dan diunduh lewat web.',
+      sub: 'Dokumen resmi lintas Pokja yang sudah diverifikasi Pokja TU atau Pokja Hukum: SK ATENSI, SK Kegiatan, KAK, Bahan Paparan, Dokumentasi Kegiatan, dan lainnya. Berkas tersimpan di Google Drive Super Admin dan diunduh lewat web.',
       aksi: anggota || P.isSuperAdmin(s) ? String(html`<button class="btn btn-primary" data-unggah-ajukan>${raw(ikon('upload', 18))} Unggah & Ajukan</button>`) : '' })}
     <div class="kat-grid rv-anak rv" data-kat style="margin-bottom:24px">${KAT_DOK.map(() => html`<div class="skel" style="height:96px;border-radius:18px"></div>`)}</div>
     </div>
@@ -55,7 +55,7 @@ export async function render(el, { sesi: s, query }) {
     if (tab === 'terbit') gKat(d.per_kategori || {});
     $('[data-isi]').innerHTML = String(d.baris.length ? html`<div class="dok-grid">${d.baris.map((x) => kartuDok(x, { pokja: true, aksi: aksiKartu(x) }))}</div>`
       : html`<section class="card">${kosong({ ikonNama: 'folder', judul: tab === 'antrean' ? 'Tidak ada pengajuan yang menunggu' : tab === 'pengajuan' ? 'Belum ada pengajuan' : 'Belum ada dokumen pada kategori ini',
-        teks: tab === 'terbit' ? 'Dokumen tampil di sini setelah Pokja mengajukan dan Pokja TU menerbitkannya.' : '' })}</section>`);
+        teks: tab === 'terbit' ? 'Dokumen tampil di sini setelah Pokja mengajukan dan Pokja TU / Pokja Hukum menerbitkannya.' : '' })}</section>`);
     muatGambarMini($('[data-isi]'));
     segarkanEfek(el);
   };

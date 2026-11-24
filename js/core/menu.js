@@ -27,7 +27,7 @@ export const MODUL = {
   jadwal: { label: 'Jadwal Pegawai', ikon: 'jadwal', rute: '/jadwal-pegawai', judul: ['Jadwal Pegawai', '(Kantor Pusat)'],
     ket: ['Kisi bulanan Perjadin, Fullday, Fullboard (Sabtu–Minggu tetap bisa diisi)', 'Warna sama untuk kegiatan yang sama di hari yang sama', 'Rekap per pegawai otomatis dan realtime'] },
   dokBersama: { label: 'Dokumen Bersama', ikon: 'folder', rute: '/dokumen-bersama', judul: ['Dokumen Bersama', '— Repositori Terpadu'],
-    ket: ['Satu pilihan Kategori: SK ATENSI, SK Kegiatan, SK, SOP, Perpres, KAK, Bahan Paparan, Dokumentasi Kegiatan, Lainnya', 'Terbit setelah diverifikasi Pokja TU', 'Berkas tersimpan di Google Drive Super Admin, diunduh lewat web'] },
+    ket: ['Satu pilihan Kategori: SK ATENSI, SK Kegiatan, Produk Hukum, SOP, KAK, Bahan Paparan, Dokumentasi Kegiatan, Lainnya', 'Terbit setelah diverifikasi Pokja TU (Produk Hukum & SOP: Pokja Hukum)', 'Berkas tersimpan di Google Drive Super Admin, diunduh lewat web'] },
   burekolBank: { label: 'Burekol — Petugas Bank', pendek: 'Burekol', ikon: 'landmark', rute: '/burekol-bank', judul: ['Burekol', '— Petugas Bank'],
     ket: ['Daftar SK bundle yang menunggu tindak lanjut bank', 'Isi nomor rekening per PM atau kirim koreksi NIK/nama', 'Setelah semua selesai, kirim kembali ke Keuangan untuk SP2D'] },
   pesan: { label: 'Pesan & Komunikasi', ikon: 'pesan', rute: '/pesan', judul: ['Pesan & Komunikasi', 'Internal'],

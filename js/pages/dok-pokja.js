@@ -19,7 +19,7 @@ export async function render(el, { sesi: s, query }) {
   let dok = [];
   el.innerHTML = String(html`
     ${judulHalaman({ pill: 'Workspace · Repositori', sorot: 'Dokumen Pokja', sisa: '— Repositori',
-      sub: 'Simpan SK, SOP, Perpres, KAK, dan berkas kegiatan Pokja, diatur dengan satu pilihan Kategori. Berkas hanya terlihat anggota Pokja sampai diajukan dan diterbitkan Pokja TU di Dokumen Bersama.',
+      sub: 'Simpan Produk Hukum, SOP, KAK, dan berkas kegiatan Pokja, diatur dengan satu pilihan Kategori. Berkas hanya terlihat anggota Pokja sampai diajukan dan diterbitkan di Dokumen Bersama (Pokja TU; khusus Produk Hukum & SOP oleh Pokja Hukum).',
       aksi: String(html`${milik.length > 1 ? html`<select class="select" data-pokja aria-label="Pilih Pokja" style="min-width:220px">${opsi(milik.map((p) => [p.id, 'Pokja ' + p.nama_pendek]), pokjaId)}</select>` : ''}
         <button class="btn btn-primary" data-tambah>${raw(ikon('plus', 18))} Tambah Dokumen</button>
         <a class="btn btn-secondary" href="#/dokumen-bersama">${raw(ikon('folder', 18))} Dokumen Bersama</a>`) })}

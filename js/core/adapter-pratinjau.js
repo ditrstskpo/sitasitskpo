@@ -146,6 +146,13 @@ export async function masukGoogle(email) {
   sessionStorage.setItem('sitasi:baru-login', '1');
   location.replace(location.pathname + '?pratinjau=masuk');
 }
+// Login email Kemensos (pratinjau): kode contoh selalu 123456
+export async function kirimKodeEmail() { await tunggu(300); return { ok: true }; }
+export async function masukDenganKode(email, kode) {
+  await tunggu(300);
+  if (String(kode).trim() !== '123456') throw galat('Kode salah atau sudah kedaluwarsa. Di mode pratinjau kodenya 123456.');
+  return masukGoogle(email);
+}
 export async function keluar({ catatLog = true } = {}) {
   if (catatLog && sayaAktif()) { log('LOGOUT', null, null, 'Keluar dari SITASI TSKPO'); simpan(); }
   sessionStorage.removeItem(KUNCI_AUTH);
@@ -545,7 +552,9 @@ function bukaT(id, t) {
   beriTahu(penerimaTahap(u.pokja_id, t), t === '2' ? 'USULAN_MENUNGGU_KAPOKJA' : 'TAHAP_BARU',
     t === '2' ? 'Usulan menunggu verifikasi Kapokja' : `Tahap ${t} menunggu Anda: ${NAMA_T[t]}`,
     `Usulan "${u.judul}" (${u.no_register}) kini berada di Tahap ${t} — ${NAMA_T[t]}.`, '#/usulan/' + u.id);
+  if (t === '2') beriTahu(kapokjaTU(), 'USULAN_MENUNGGU_KAPOKJA', 'Usulan BNBA baru diajukan', `Pokja pengusul mengajukan "${u.judul}" (${u.no_register}). Saat ini menunggu verifikasi Kapokja pokja pengusul.`, '#/usulan/' + u.id);
 }
+const kapokjaTU = () => db.pengguna.filter((u) => u.aktif && db.pengguna_pokja.some((pp) => pp.pengguna_id === u.id && pp.jabatan === 'kapokja' && pokjaById(pp.pokja_id)?.kode === 'TU')).map((u) => u.id);
 
 // ---------------------------------------------------------------- data contoh
 const NAMA_PM = ['Ahmad Fauzi', 'Siti Aminah', 'Dedi Kurniawan', 'Ratnasari', 'Ahmad Supriyadi', 'Neneng Hasanah', 'Bambang Irawan', 'Dewi Anggraini',
@@ -1327,6 +1336,8 @@ export async function ubahPmLanjutan(bnbaId, data) {
     Object.assign(b, { koreksi_bank_catatan: null, koreksi_bank_oleh: null, koreksi_bank_pada: null });
     beriTahu(penerimaTahap(u.pokja_id, '7b'), 'PM_DIKOREKSI', 'Koreksi bank sudah diperbaiki', `PM ${b.nama} pada usulan "${u.judul}" (${u.no_register}) sudah diperbaiki Pokja. Silakan lanjutkan pengisian rekening.`, '#/usulan/' + u.id);
   }
+  const kp = db.pengguna.filter((p) => p.aktif && db.pengguna_pokja.some((pp) => pp.pengguna_id === p.id && pp.pokja_id === u.pokja_id && pp.jabatan === 'kapokja')).map((p) => p.id);
+  beriTahu([...new Set([...kp, ...kapokjaTU()])], 'PM_DIKOREKSI', 'Data BNBA diedit', `Data PM ${b.nama} pada usulan "${u.judul}" (${u.no_register}) diedit lanjutan.`, '#/usulan/' + u.id);
   simpan(); return { ok: true };
 }
 export async function ubahUsulanLanjutan(id, d) {
