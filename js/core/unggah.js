@@ -14,10 +14,11 @@ export const MIME_DOK = ['application/pdf', 'application/msword', 'image/jpeg', 
   'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
 export const TERIMA_DOK = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png';
 
-/** Unggah ke konteks baru (lks | dokumen | dok_pm | renja | hukum | ojt). ref = ID data (atau ID folder untuk dokumen). */
+/** Unggah ke konteks (lks | dokumen | dok_pm | renja | hukum | ojt | smv | belanja). ref = ID data (atau ID folder untuk dokumen). */
 export async function unggahKonteks({ konteks, ref, jenis, file, foto = false }) {
   let f = file;
   if (foto) f = await kecilkanFoto(file);
+  else if (konteks === 'belanja' && /^image\/(jpeg|png|webp|heic|heif)/i.test(file.type || '')) f = await kecilkanFoto(file);   // foto nota/barang ≤ 500 KB
   else {
     if (f.size > 10 * 1024 * 1024) throw new Error('Ukuran dokumen maksimal 10 MB.');
     if (f.type && !MIME_DOK.includes(f.type)) throw new Error('Jenis berkas tidak diizinkan. Gunakan PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX, JPG, atau PNG.');

@@ -14,6 +14,14 @@ const EVENT = {
   USULAN_DIKEMBALIKAN: ['Usulan dikembalikan beserta alasan', 'Anggota & Kapokja Pokja pemilik usulan'],
   USULAN_DITOLAK: ['Usulan ditolak beserta alasan', 'Anggota & Kapokja Pokja pemilik usulan'],
   USULAN_SELESAI: ['Bantuan sudah cair (Tahap 11)', 'Anggota & Kapokja Pokja pemilik usulan'],
+  SMV_JATUH_TEMPO: ['Jadwal Supermonev jatuh tempo', 'Kapokja Supermonev & Kapokja TU'],
+  SMV_DITUGASKAN: ['Tugas Supermonev baru / dipindahkan', 'Petugas Supermonev yang ditugaskan'],
+  SMV_MENUNGGU: ['Isian Supermonev menunggu verifikasi', 'Kapokja Supermonev'],
+  SMV_DIKEMBALIKAN: ['Isian Supermonev dikembalikan', 'Petugas pengisi'],
+  SMV_TERVERIFIKASI: ['Isian Supermonev terverifikasi', 'Petugas pengisi'],
+  BELANJA_MENUNGGU: ['Bukti belanja/BAST menunggu verifikasi', 'Kapokja Supermonev'],
+  BELANJA_DIKEMBALIKAN: ['Bukti belanja/BAST dikembalikan', 'Pengunggah bukti belanja'],
+  BELANJA_TERVERIFIKASI: ['Bukti belanja/BAST terverifikasi', 'Pengunggah bukti belanja'],
 };
 const STATUS = { antri: ['b-wait', 'clock', 'Antri'], proses: ['b-proc', 'refresh', 'Diproses'], terkirim: ['b-ok', 'check-circle', 'Terkirim'], gagal: ['b-no', 'circle-x', 'Gagal'], batal: ['b-lock', 'ban', 'Batal'] };
 

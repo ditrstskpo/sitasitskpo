@@ -9,6 +9,7 @@ import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_BNBA, STATUS_USULAN, 
 import { pergi } from '../core/nav.js';
 import { galeriFoto, pasangUnggah, muatGambarMini } from '../core/unggah.js';
 import { panelDiskusi } from './_pesan.js';
+import { lencanaHasil, lencanaStatus, STATUS_SMV, STATUS_BELANJA, sisaHari, bukaFormSmv, bukaBelanja } from './_smv.js';
 
 export async function render(el, { sesi: s, param: nik }) {
   let d, tab = 'bnba', penuh = null;
@@ -52,11 +53,11 @@ export async function render(el, { sesi: s, param: nik }) {
         <section class="card"><div class="card-head"><span class="ubin">${raw(ikon('user-check', 20))}</span><h3 class="card-title">Petugas Penyalur</h3></div>
           ${d.penyaluran.filter((p) => p.semua_pm || p.nik_pm.includes(b.nik)).map((p) => html`<div class="berkas-baris"><span class="ik">${raw(ikon('user', 18))}</span><span class="nm"><b>${p.nama_petugas}</b><small>${p.instansi || ''} · ${p.kabkota || ''} · ${tanggal(p.tanggal)}</small></span></div>`)}
           ${!d.penyaluran.length ? html`<p class="redup">Belum ada petugas penyalur tercatat.</p>` : ''}
-          <p class="help" style="margin-top:12px">Verifikasi belanja, BAST, dan inventaris aset usaha hadir pada Tahap 5 (Supermonev).</p></section></div>`;
+        </section></div><div data-belanja-pm style="margin-top:20px"></div>`;
     }
     if (tab === 'dok') return html`<div data-dok-pm><div class="skel" style="height:260px;border-radius:20px"></div></div>`;
     if (tab === 'diskusi') return html`<div data-diskusi></div>`;
-    if (tab === 'smv') return html`<section class="card">${kosong({ ikonNama: 'clipboard-list', judul: 'Supermonev hadir di Tahap 5', teks: `Pembanding penilaian: laba bersih sebelum bantuan ${rupiah(b.laba_awal)} per bulan. Monitoring dijadwalkan setiap 3 bulan setelah pencairan.` })}</section>`;
+    if (tab === 'smv') return html`<div data-smv-pm><div class="skel" style="height:260px;border-radius:20px"></div></div>`;
     return html`<section class="card"><dl class="kv-baris"><div><dt>Diinput oleh</dt><dd>${b.dibuat_oleh_nama || '—'}</dd></div><div><dt>Tanggal input</dt><dd>${tanggalJam(b.dibuat_pada)}</dd></div>
       <div><dt>Perubahan terakhir</dt><dd>${tanggalJam(b.diubah_pada)}</dd></div><div><dt>Status verifikasi</dt><dd>${badge(STATUS_BNBA, b.status_verifikasi)}</dd></div></dl>
       <p class="help" style="margin-top:12px">Riwayat perubahan per kolom (nilai sebelum dan sesudah) tercatat di audit log dan dapat dibuka Super Admin di Log Aktivitas.</p></section>`;
@@ -79,9 +80,37 @@ export async function render(el, { sesi: s, param: nik }) {
       <div>${isiTab()}</div>`);
     lepasDiskusi(); lepasDiskusi = () => {};
     if (tab === 'dok') muatDok();
+    if (tab === 'smv' || tab === 'cair') muatSmv();
     if (tab === 'diskusi') panelDiskusi(el.querySelector('[data-diskusi]'), { tabel: 'bnba', ref: b.id }).then((f) => { lepasDiskusi = f; });
   }
   let lepasDiskusi = () => {};
+  async function muatSmv() {
+    const w = el.querySelector('[data-smv-pm]'), wb = el.querySelector('[data-belanja-pm]');
+    let r;
+    try { r = await api.smvRiwayatPm(b.id); } catch (e) { if (w) w.innerHTML = String(kotakGalat(pesanGalat(e))); return; }
+    const bl = r.belanja, kartuBelanja = r.belanja_layak ? html`<section class="card"><div class="card-head"><span class="ubin emas">${raw(ikon('receipt', 20))}</span>
+        <div><h3 class="card-title">Verifikasi Belanja, BAST &amp; Inventaris</h3><p class="card-sub">Bantuan barang / aset usaha · diverifikasi Kapokja Supermonev</p></div><span class="spacer"></span>${lencanaStatus(STATUS_BELANJA, bl?.status || 'belum')}</div>
+      ${bl?.inventaris?.length ? html`<div class="table-wrap"><table class="tbl ringkas"><thead><tr><th>Barang</th><th>Jumlah</th><th class="kanan">Nilai</th></tr></thead><tbody>${bl.inventaris.map((x) => html`<tr><td>${x.nama}</td><td>${x.jumlah} ${x.satuan || ''}</td><td class="kanan">${rupiah(x.nilai)}</td></tr>`)}
+        <tr><td colspan="2"><b>Total</b></td><td class="kanan"><b>${rupiah(bl.total_nilai)}</b></td></tr></tbody></table></div>` : html`<p class="redup">Daftar inventaris belum diisi.</p>`}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px"><small class="redup">${bl ? `${angka(bl.jumlah_berkas)} berkas · ${bl.diverifikasi_nama && bl.status === 'terverifikasi' ? 'diverifikasi ' + bl.diverifikasi_nama : bl.diisi_nama ? 'diisi ' + bl.diisi_nama : ''}` : 'Belum ada berkas'}</small>
+        <button class="btn btn-secondary btn-sm" data-buka-belanja>${raw(ikon('receipt', 16))} Buka bukti belanja</button></div></section>` : '';
+    if (wb) wb.innerHTML = String(kartuBelanja || html`<p class="help">${raw(ikon('info', 15))} PM ini tidak memerlukan verifikasi belanja (bukan bantuan barang/aset usaha, atau belum cair).</p>`);
+    if (!w) return;
+    w.innerHTML = String(html`<div class="grid grid-2" style="margin-bottom:20px">
+        <section class="card"><div class="card-head"><span class="ubin">${raw(ikon('scale', 20))}</span><div><h3 class="card-title">Pendapatan sebelum bantuan</h3><p class="card-sub">Pembanding penilaian Supermonev (laba bersih per bulan)</p></div></div>
+          <p class="angka-besar">${r.dasar == null ? '—' : rupiah(r.dasar)}</p><p class="redup">${r.dasar_sumber === 'bnba' ? `Dari BNBA: pendapatan ${rupiah(r.dasar_kotor)} − biaya ${rupiah(r.dasar_biaya)}` : r.dasar_sumber === 'isian' ? 'Dicatat petugas pada monitoring pertama' : 'Belum tercatat — akan ditanyakan petugas saat monitoring pertama.'}</p></section>
+        ${kartuBelanja || html`<section class="card"><div class="card-head"><span class="ubin biru">${raw(ikon('calendar-clock', 20))}</span><h3 class="card-title">Jadwal monitoring</h3></div><p class="redup">${r.dimonitor ? 'Setiap 3 bulan setelah bantuan cair.' : 'Jenis bantuan PM ini tidak termasuk yang dimonitor Supermonev (pengaturan Super Admin).'}</p></section>`}</div>
+      ${r.putaran.length ? html`<ol class="linimasa-smv">${r.putaran.map((p) => { const i = p.isian, t = sisaHari(p.jatuh_tempo); return html`<li class="${i?.status || (t.n > 0 ? 'nanti' : 'tertunda')}">
+          <span class="lm-titik">${raw(ikon(i?.status === 'terverifikasi' ? 'check' : i ? 'pencil' : 'calendar', 16))}</span>
+          <div class="lm-isi"><div class="lm-atas"><b>Putaran ${p.putaran}</b><small>jatuh tempo ${tanggal(p.jatuh_tempo)}${!i && t.n != null ? ' · ' + t.teks : ''}</small><span class="spacer"></span>
+            ${i?.hasil ? lencanaHasil(i.hasil) : i ? lencanaStatus(STATUS_SMV, i.status) : p.petugas_nama ? lencanaStatus(STATUS_SMV, 'ditugaskan') : t.n > 0 ? html`<span class="badge b-proc">${raw(ikon('calendar', 15))} Terjadwal</span>` : lencanaStatus(STATUS_SMV, 'belum_ditugaskan')}</div>
+            ${i ? html`<p>Kunjungan ${tanggal(i.tgl_kunjungan)} · pendapatan bersih <b>${rupiah(i.pendapatan_bersih)}</b>${i.kenaikan != null ? html` <span class="${i.kenaikan > 0 ? 'naik' : 'turun'}">(${i.kenaikan > 0 ? '+' : ''}${angka(i.kenaikan)}%)</span>` : ''} · kondisi barang ${i.kondisi_barang || '—'}</p>
+              ${i.ringkasan_kendala ? html`<p class="ringkas-kendala">${raw(ikon('sparkles', 15))} <span>${i.ringkasan_kendala}</span></p>` : ''}
+              <div class="lm-aksi"><small class="redup">Diisi ${i.petugas_nama || '—'}${i.diverifikasi_nama && i.status === 'terverifikasi' ? ' · diverifikasi ' + i.diverifikasi_nama : ''}</small>
+                <button class="btn btn-ghost btn-sm" data-buka-smv="${p.putaran}">${raw(ikon('eye', 16))} Lihat isian</button></div>`
+              : html`<p class="redup">${p.petugas_nama ? 'Ditugaskan kepada ' + p.petugas_nama : t.n > 0 ? 'Belum jatuh tempo' : 'Belum ditugaskan'}.</p>`}</div></li>`; })}</ol>`
+        : html`<section class="card">${kosong({ ikonNama: 'calendar-clock', judul: r.dimonitor ? 'Belum ada jadwal monitoring' : 'Tidak dimonitor Supermonev', teks: r.dimonitor ? 'Jadwal muncul otomatis 3 bulan setelah bantuan cair.' : 'Jenis bantuan PM ini tidak termasuk yang dimonitor (Super Admin dapat mengubahnya di menu Supermonev → Pengaturan Jadwal).' })}</section>`}`);
+  }
   async function muatDok() {
     const w = el.querySelector('[data-dok-pm]'); if (!w) return;
     try {
@@ -106,6 +135,8 @@ export async function render(el, { sesi: s, param: nik }) {
   pasangUnggah(el, { muatUlang: muatDok, judulJenis: { sebelum_usaha: 'Foto Sebelum Usaha', saat_penyaluran: 'Foto Saat Penyaluran', supermonev: 'Foto Supermonev' } });
   el.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; return gambar(); }
+    const sv = e.target.closest('[data-buka-smv]'); if (sv) return bukaFormSmv({ bnba_id: b.id, putaran: Number(sv.dataset.bukaSmv), onSelesai: muatSmv });
+    if (e.target.closest('[data-buka-belanja]')) return bukaBelanja({ bnba_id: b.id, onSelesai: muatSmv });
     const ta = e.target.closest('[data-tanpa-ajukan]');
     if (ta) {
       const k = await konfirmasi({ judul: 'Ajukan "tidak ada dokumentasi"', pesan: 'Kapokja pemilik usulan akan memutuskan pengecualian ini. Jelaskan alasannya (mis. PM pindah domisili, lokasi tidak terjangkau).', label: 'Ajukan', alasan: { label: 'Alasan', wajib: true } });

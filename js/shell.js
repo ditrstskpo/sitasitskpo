@@ -28,6 +28,7 @@ export function pasang(root, { prefetch } = {}) {
             <kbd>/</kbd>
           </form>
           <span class="tb-spacer"></span>
+          <button type="button" class="rt-chip" data-rt data-st="menyambung" aria-live="polite" title="Status pembaruan langsung"><i aria-hidden="true"></i><span>Menyambung…</span></button>
           <div class="tb-teks" role="group" aria-label="Ukuran teks">
             <button type="button" data-teks="100" title="Ukuran teks normal">A</button>
             <button type="button" data-teks="naik" title="Perbesar teks">A+</button>
@@ -74,7 +75,15 @@ export function pasang(root, { prefetch } = {}) {
   muatPengumuman();
   perbaruiPesan();
   const jedaPesan = setInterval(() => { if (!document.hidden) perbaruiPesan(); }, 90_000);
+  // status realtime (Tahap 6): chip di bilah atas; saat pulih setelah terputus/jeda → data disegarkan
+  let rtLama = null, lepasRt = () => {};
+  Promise.resolve(api.pantauRealtime((st) => {
+    renderRt(st);
+    if ((rtLama === 'terputus' || rtLama === 'jeda') && st === 'tersambung') { hapusCache(); bus.emit('realtime-pulih'); if (rtLama === 'terputus') toast('Sambungan pulih. Data di layar diperbarui.', 'sukses'); }
+    rtLama = st;
+  })).then((f) => { lepasRt = typeof f === 'function' ? f : () => {}; }).catch(() => renderRt('pratinjau'));
   lepasBus = [
+    () => lepasRt(),
     bus.on('sesi', () => { renderSemua(); muatPengumuman(true); }),
     bus.on('notif-baru', (n) => { renderLonceng(); if (/pesan/i.test(n?.judul || '')) perbaruiPesan(); }),
     bus.on('pengumuman', () => muatPengumuman(true)),
@@ -159,6 +168,10 @@ function renderProfil(s) {
     <div class="menu-list">
       ${P.isSuperAdminAsli(s) ? html`<button type="button" data-ganti-peran>${raw(ikon('repeat', 18))} Ganti Peran</button>` : ''}
       <a href="#/notifikasi">${raw(ikon('bell', 18))} Semua Notifikasi</a>
+      <a href="#/bantuan">${raw(ikon('life-buoy', 18))} Pusat Bantuan &amp; Pelatihan</a>
+      <div class="menu-sub">Kenyamanan tampilan</div>
+      <button type="button" data-kenyamanan="kontras" aria-pressed="${document.documentElement.classList.contains('kontras-tinggi')}">${raw(ikon('contrast', 18))} Kontras tinggi<span class="sakelar-mini" aria-hidden="true"></span></button>
+      <button type="button" data-kenyamanan="gerak" aria-pressed="${document.documentElement.classList.contains('gerak-kurang')}">${raw(ikon('pause', 18))} Kurangi gerakan<span class="sakelar-mini" aria-hidden="true"></span></button>
       <button type="button" class="bahaya" data-keluar>${raw(ikon('logout', 18))} Keluar</button>
     </div>`);
 }
@@ -170,6 +183,20 @@ function renderSim(s) {
     : '';
 }
 
+const LABEL_RT = {
+  tersambung: ['Langsung', 'Pembaruan langsung aktif: perubahan data tampil otomatis tanpa memuat ulang halaman.'],
+  menyambung: ['Menyambung…', 'Sedang menyambung ke server untuk pembaruan langsung.'],
+  terputus: ['Terputus', 'Pembaruan langsung terputus (periksa internet). Ketuk untuk menyambung ulang; data tetap dapat dibuka dari cache.'],
+  jeda: ['Dijeda', 'Pembaruan langsung dijeda karena tab lama tidak dibuka (hemat kuota). Ketuk untuk menyambung ulang.'],
+  pratinjau: ['Pratinjau', 'Mode pratinjau: tidak ada server, data contoh tersimpan di browser ini.'],
+};
+function renderRt(st) {
+  const b = el.root?.querySelector('[data-rt]'); if (!b) return;
+  const [l, t] = LABEL_RT[st] || LABEL_RT.menyambung;
+  b.dataset.st = st; b.title = t; b.setAttribute('aria-label', 'Status pembaruan langsung: ' + l);
+  b.querySelector('span').textContent = l;
+}
+
 function renderLonceng() {
   if (!el.jml) return;
   const n = state.notifBelum || 0;
@@ -179,7 +206,7 @@ function renderLonceng() {
 }
 
 function renderBawah(s) {
-  el.bawah.innerHTML = String(html`${menuBawah(s).map((m) => html`<a href="#${m.rute}" data-rute="${m.rute}">${raw(ikon(m.ikon, 22))}<span>${m.label.replace(' / Dashboard', '').replace(' Pencairan', '').replace(' & Komunikasi', '').replace(' & Hak Akses', '')}</span></a>`)}
+  el.bawah.innerHTML = String(html`${menuBawah(s).map((m) => html`<a href="#${m.rute}" data-rute="${m.rute}">${raw(ikon(m.ikon, 22))}<span>${m.pendek || m.label.replace(' / Dashboard', '').replace(' Pencairan', '').replace(' & Komunikasi', '').replace(' & Hak Akses', '')}</span></a>`)}
     <button type="button" data-buka-sb>${raw(ikon('grid', 22))}<span>Lainnya</span></button>`);
   el.bawah.style.gridTemplateColumns = `repeat(${menuBawah(s).length + 1}, 1fr)`;
 }
@@ -249,6 +276,20 @@ async function klik(e) {
   if (t.matches('[data-buka-sb]')) return bukaSidebar();
   if (t.closest('.popover a')) tutupSemuaPopover();
   if (t.matches('[data-teks]')) return ubahTeks(t.dataset.teks);
+  if (t.matches('[data-rt]')) {
+    if (['terputus', 'jeda'].includes(t.dataset.st)) { api.sambungUlangRealtime(); toast('Menyambung ulang pembaruan langsung…', 'info'); }
+    else toast(t.title, 'info');
+    return;
+  }
+  if (t.matches('[data-kenyamanan]')) {
+    const [kls, kunci] = t.dataset.kenyamanan === 'kontras' ? ['kontras-tinggi', 'sitasi:kontras'] : ['gerak-kurang', 'sitasi:gerak'];
+    const on = !document.documentElement.classList.contains(kls);
+    document.documentElement.classList.toggle(kls, on);
+    try { localStorage.setItem(kunci, on ? '1' : '0'); } catch {}
+    t.setAttribute('aria-pressed', String(on));
+    toast(`${t.dataset.kenyamanan === 'kontras' ? 'Kontras tinggi' : 'Kurangi gerakan'} ${on ? 'dinyalakan' : 'dimatikan'}.`, 'info');
+    return;
+  }
   if (t.matches('[data-ganti-peran]')) {
     tutupSemuaPopover(); tutupSidebar();
     const m = await import('./pages/ganti-peran.js');

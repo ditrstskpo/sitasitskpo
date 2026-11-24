@@ -2,7 +2,7 @@
 
 **Sistem Integrasi Data dan Informasi TSKPO** — portal internal Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI.
 
-Versi **2.3.0 · Tahap 1 (Fondasi) + Tahap 2 (BNBA & Alur Pencairan 11 Tahap) + Tahap 3 (Dashboard & Data Pendukung) + Tahap 4 (Dokumen & Koordinasi)**, sesuai PRD Final v2.2 dan Design System v4.
+Versi **2.4.0 · Tahap 1 (Fondasi) + Tahap 2 (BNBA & Alur Pencairan 11 Tahap) + Tahap 3 (Dashboard & Data Pendukung) + Tahap 4 (Dokumen & Koordinasi) + Tahap 5 (Supermonev) + Tahap 6 (Integrasi & Penyempurnaan)**, sesuai PRD Final v2.2 dan Design System v4.
 
 ## Arsitektur
 
@@ -33,6 +33,9 @@ ketentuan.html          Ketentuan Layanan
 css/style.css           Design System v4: token warna, komponen, shell, gerak, responsif
 css/tahap2.css          komponen Tahap 2: stepper 11 tahap, editor BNBA, antrean, rekap, berkas
 css/landing.css         W-00 Halaman Depan
+css/tahap34.css         komponen Tahap 3 & 4
+css/tahap56.css         komponen Tahap 5 & 6: wizard Supermonev, panggung slide, perisai keamanan, tur, kontras tinggi
+js/vendor/              pptxgenjs 4.0.1 (MIT) untuk ekspor PPTX, dimuat hanya saat diperlukan
 js/config.js            ← isi SUPABASE_URL, kunci publik, dan GAS_URL di sini
 js/app.js               titik masuk & router
 js/shell.js             sidebar, top bar, lonceng, pengumuman, nav bawah ponsel
@@ -92,6 +95,23 @@ assets/                 favicon; letakkan logo & foto gedung resmi (lihat PETUNJ
 
 Efek visual: kartu KPI miring 3D mengikuti kursor, peta miring 3D dengan tebal, kolom 3D, ornamen cincin 3D, latar berpendar (aurora, kisi bergerak), teks/kartu muncul saat digulir. Semua gerak mati otomatis bila "kurangi gerakan" aktif di perangkat.
 
+## Halaman Tahap 5 & 6 (v2.4.0)
+
+| Rute | Halaman | Akses |
+|---|---|---|
+| `#/supermonev` | Supermonev: tugas saya (petugas), antrean verifikasi, semua isian, pengaturan jadwal. Formulir 5 langkah (Kunjungan, Usaha, Keuangan, Barang & Kendala, Periksa & Ajukan) dengan penilaian otomatis | Petugas Supermonev (hanya PM yang ditugaskan), Pokja Supermonev, Super Admin |
+| `#/penugasan-supermonev` | Penugasan petugas per kab/kota, pindah tugas sebelum diisi, tercatat & bernotifikasi | Kapokja Supermonev, Kapokja TU, Super Admin |
+| `#/dashboard-supermonev` | Dashboard: KPI, distribusi hasil, kinerja verifikator, peta, hasil per Pokja/putaran/klaster, kendala terbanyak, ringkasan kendala, kinerja petugas | Pegawai |
+| `#/ekspor-supermonev` | Panggung pratinjau slide; unduh PPTX (1 sampul + 2 slide per PM, NIK tersamar), Excel, Cetak/PDF | Pegawai |
+| `#/verifikasi-belanja` | Verifikasi bukti belanja, BAST, dan inventaris (foto ≤ 500 KB, dokumen ≤ 10 MB) | Petugas (unggah), Pokja Supermonev & TU (verifikasi) |
+| `#/pengaturan/keamanan` | Pemeriksaan Keamanan (14 butir) dan Kesehatan Sistem | Super Admin |
+| `#/pengaturan/cadangan` | Cadangan data (berkas JSON bersidik SHA-256), Uji Pulih, Pulihkan (hanya menambah baris yang hilang) | Super Admin |
+| `#/bantuan` | Pusat Bantuan & Pelatihan: panduan per peran, latihan, tanya-jawab, tur sorot | Semua |
+
+Aturan penilaian otomatis (PRD): usaha berjalan + jenis sama + laba bersih naik = **Berhasil**; berjalan + jenis berubah = **Berhasil dengan catatan**; berjalan + sama + tidak naik = **Perlu pendampingan**; tidak berjalan = **Tidak berhasil**. Pembanding = laba bersih sebelum bantuan. Jadwal monitoring otomatis tiap 3 bulan sejak cair (data impor 2026 memakai TGL SP2D), bisa diubah di **Supermonev → Pengaturan Jadwal**.
+
+Efek visual: pita "fajar" berpendar dengan sinar berputar, cincin progres bercahaya, panggung slide bersorot lampu, pemindai pada perisai keamanan, kilau tombol utama. Huruf ≥ 16 px, tombol ≥ 44 px, label kata (bukan ikon saja). Tersedia saklar **Kontras tinggi** dan **Kurangi gerakan** di menu profil; status sambungan realtime tampil di bilah atas.
+
 ## Skema basis data (Tahap 1)
 
 | Tabel | Isi |
@@ -150,13 +170,14 @@ Untuk login Google lokal, tambahkan `http://localhost:8080/` ke *Redirect URLs* 
 - Apps Script (`uji_gas.cjs`, tiruan layanan Google): 26 cek — autentikasi, token tersamar, batch Fonnte + cadangan, email, unggah/unduh/hapus Drive dengan izin dari basis data, idempotensi unggah.
 - Browser (Playwright, mode pratinjau): alur lintas peran (anggota → Kapokja → Super Admin → TU/Keuangan/Direktur), seluruh rute, desktop 1440, tablet 1024, ponsel 390.
 - Tahap 3 & 4: 88 cek SQL (`40_uji_tahap34.sql`), 45 cek fungsi pratinjau (`uji_pratinjau_t34.mjs`), 36 cek browser (`uji_tahap34.mjs`: unggah foto 4 MB → ≤ 500 KB, unggah banyak dokumen, jadwal, pesan, verifikasi lintas peran, ponsel, kurangi gerakan).
+- Tahap 5 & 6: 104 cek SQL (`50_uji_tahap56.sql`: jadwal, penugasan, RLS petugas, penilaian, verifikasi, belanja, keamanan, cadangan & pulih), uji cadangan → pulih ke proyek baru (`55_uji_pulih.sh`), 47 cek fungsi pratinjau, 64 cek browser (`uji_tahap56.mjs`: alur petugas → Kapokja, ekspor PPTX diperiksa python-pptx, ponsel, kontras tinggi).
 
 ## Instalasi
 
 Lihat **PANDUAN-INSTALASI.md**.
 
-## Tahapan berikutnya (PRD 8)
+## Tahapan (PRD 8)
 
-5. Supermonev · 6. Integrasi & penyempurnaan.
+Keenam tahap sudah terpasang. Rutinitas Tahap 6 setelah aplikasi berjalan: Pemeriksaan Keamanan bulanan, Cadangan mingguan, Uji Pulih tiap 3 bulan, pelatihan pengguna lewat Pusat Bantuan.
 
 © Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI

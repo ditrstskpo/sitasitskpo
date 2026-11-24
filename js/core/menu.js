@@ -16,7 +16,7 @@ export const MODUL = {
     ket: ['Format sesuai 2026-DATA ATENSI RSTSKPO.xlsx, terisi otomatis dari BNBA', 'Koreksi oleh Pokja Keuangan dengan nilai asli tetap tersimpan', 'Rekap per jenis bantuan, provinsi, kab/kota, dan bulan SP2D'] },
   master: { label: 'Master BNBA', ikon: 'database', rute: '/master-bnba', judul: ['Master BNBA', '(Basis Data Tunggal Penerima Manfaat)'],
     ket: ['BNBA lintas Pokja dengan NIK sebagai kunci tunggal', 'Data sensitif tersamar sesuai hak akses', 'Detail PM per NIK: BNBA, Usulan & SK, Pencairan, Dokumentasi, Supermonev, Riwayat'] },
-  dashSupermonev: { label: 'Dashboard Supermonev', ikon: 'chart', rute: '/dashboard-supermonev', tahap: 5, judul: ['Dashboard Supermonev', '— Evaluasi Hasil Pascapenyaluran'],
+  dashSupermonev: { label: 'Dashboard Supermonev', ikon: 'chart', rute: '/dashboard-supermonev', judul: ['Dashboard Supermonev', '— Evaluasi Hasil Pascapenyaluran'],
     ket: ['Ringkasan status hasil evaluasi lapangan', 'Ringkasan kendala dan grafik distribusi', 'Ekspor PPTX (2 slide per PM) dan Excel'] },
   lks: { label: 'Data LKS', ikon: 'lks', rute: '/data-lks', judul: ['Data LKS', 'TSKPO'],
     ket: ['Peta Indonesia 38 provinsi dengan jumlah LKS per provinsi', 'Formulir LKS untuk semua Pokja, verifikasi oleh Pokja Data atau TU', 'Unduhan dengan filter wilayah, klaster, akreditasi'] },
@@ -56,11 +56,11 @@ export const MODUL = {
   tugas: { label: 'Tugas & Penugasan', ikon: 'tugas', rute: '/tugas', judul: ['Tugas', '& Penugasan'] },
   hukum: { label: 'Produk Hukum & SOP', ikon: 'scale', rute: '/produk-hukum', judul: ['Produk Hukum', '& SOP'],
     ket: ['Kelola produk hukum dan SOP Direktorat'] },
-  supermonev: { label: 'Supermonev (Formulir & Verifikasi)', ikon: 'clipboard-list', rute: '/supermonev', tahap: 5, judul: ['Supermonev', '— Formulir & Verifikasi'],
+  supermonev: { label: 'Supermonev (Formulir & Verifikasi)', pendek: 'Supermonev', ikon: 'clipboard-list', rute: '/supermonev', judul: ['Supermonev', '— Formulir & Verifikasi'],
     ket: ['Jadwal monitoring otomatis 3 bulan setelah pencairan', 'Penilaian otomatis: Berhasil, Berhasil dengan Catatan, Perlu Pendampingan, Tidak Berhasil', 'Verifikasi oleh Kapokja Supermonev'] },
-  penugasan: { label: 'Penugasan Petugas', ikon: 'user-check', rute: '/penugasan-supermonev', tahap: 5, judul: ['Penugasan Petugas', 'Supermonev'],
+  penugasan: { label: 'Penugasan Petugas', ikon: 'user-check', rute: '/penugasan-supermonev', judul: ['Penugasan Petugas', 'Supermonev'],
     ket: ['Kapokja Supermonev dan Kapokja TU menugaskan petugas per periode', 'Petugas hanya melihat PM yang ditugaskan kepadanya'] },
-  verifBelanja: { label: 'Verifikasi Belanja & BAST', ikon: 'file-text', rute: '/verifikasi-belanja', tahap: 5, judul: ['Verifikasi Belanja', '& BAST'],
+  verifBelanja: { label: 'Verifikasi Belanja & BAST', pendek: 'Belanja & BAST', ikon: 'receipt', rute: '/verifikasi-belanja', judul: ['Verifikasi Belanja', '& BAST'],
     ket: ['Unggah bukti belanja, BAST, dan daftar inventaris per PM', 'Diverifikasi Kapokja Supermonev'] },
 
   // ---- Pengaturan (Super Admin) dan pengumuman (Super Admin + TU)
@@ -70,6 +70,9 @@ export const MODUL = {
   notif: { label: 'Notifikasi WA & Email', ikon: 'send', rute: '/pengaturan/notifikasi', judul: ['Notifikasi', 'WhatsApp & Email'] },
   migrasi: { label: 'Migrasi Data 2026', ikon: 'upload', rute: '/pengaturan/migrasi', judul: ['Migrasi Data', '2026'] },
   log: { label: 'Log Aktivitas', ikon: 'history', rute: '/pengaturan/log-aktivitas', judul: ['Log Aktivitas', '& Audit'] },
+  keamanan: { label: 'Pemeriksaan Keamanan', ikon: 'shield', rute: '/pengaturan/keamanan', judul: ['Pemeriksaan Keamanan', '& Kesehatan Sistem'] },
+  cadangan: { label: 'Cadangan & Pemulihan', ikon: 'database-backup', rute: '/pengaturan/cadangan', judul: ['Cadangan', '& Pemulihan Data'] },
+  bantuan: { label: 'Pusat Bantuan & Pelatihan', pendek: 'Bantuan', ikon: 'life-buoy', rute: '/bantuan', judul: ['Pusat Bantuan', '& Pelatihan'] },
   penyimpanan: { label: 'Penyimpanan Berkas', ikon: 'hard-drive', rute: '/pengaturan/penyimpanan', judul: ['Penyimpanan Berkas', '(Google Drive)'],
     ket: ['Tujuan penyimpanan aktif: Drive Super Admin 1 atau 2', 'Tombol "Alihkan Penyimpanan" dan "Hubungkan Drive Saya"', 'Struktur folder "SITASI TSKPO" dibuat otomatis'] },
 };
@@ -81,7 +84,7 @@ const BERSAMA = ['beranda', 'rekonsiliasi', 'rekap', 'master', 'dashSupermonev',
 
 /** Daftar grup menu sesuai peran efektif. */
 export function grupMenu(s) {
-  if (P.isPetugas(s)) return [{ judul: 'Supermonev Lapangan', item: ['supermonev', 'verifBelanja'].map((k) => MODUL[k]) }];
+  if (P.isPetugas(s)) return [{ judul: 'Supermonev Lapangan', item: ['supermonev', 'verifBelanja', 'bantuan'].map((k) => MODUL[k]) }];
   const grup = [{ judul: 'Menu Bersama', item: BERSAMA.map((k) => MODUL[k]) }];
 
   const ws = [];
@@ -91,7 +94,7 @@ export function grupMenu(s) {
     if (P.isKapokja(s) || P.diPokja(s, 'TU')) tambah('antrean');
     tambah('usulanSk', 'dokPokja', 'inputLks', 'renja');
   }
-  if (P.diPokja(s, 'TU')) tambah('tu', 'pengumuman', 'sdm');
+  if (P.diPokja(s, 'TU')) tambah('tu', 'pengumuman', 'sdm', 'verifBelanja');
   if (P.diPokja(s, 'KEUANGAN')) tambah('keuangan', 'keuKoreksi');
   if (P.diPokja(s, 'DATA')) tambah('inputAster');
   if (P.diPokja(s, 'KEPEGAWAIAN')) tambah('sdm');
@@ -105,8 +108,10 @@ export function grupMenu(s) {
   if (P.isSuperAdmin(s) && !P.pokjaEfektif(s).length) {
     grup.push({ judul: 'Alur Usulan & Pencairan', item: ['wsBnba', 'antrean', 'usulanSk', 'tu', 'keuangan', 'keuKoreksi'].map((k) => MODUL[k]) });
     grup.push({ judul: 'Data, Dokumen & Koordinasi', item: ['inputLks', 'inputAster', 'sdm', 'renja', 'dokPokja', 'hukum', 'tugas'].map((k) => MODUL[k]) });
+    grup.push({ judul: 'Supermonev', item: ['supermonev', 'penugasan', 'verifBelanja'].map((k) => MODUL[k]) });
   }
-  if (P.isSuperAdmin(s)) grup.push({ judul: 'Pengaturan', item: ['pengguna', 'pokja', 'pengumuman', 'notif', 'migrasi', 'log', 'penyimpanan'].map((k) => MODUL[k]) });
+  if (P.isSuperAdmin(s)) grup.push({ judul: 'Pengaturan', item: ['pengguna', 'pokja', 'pengumuman', 'notif', 'migrasi', 'log', 'penyimpanan', 'keamanan', 'cadangan'].map((k) => MODUL[k]) });
+  grup.push({ judul: 'Bantuan', item: [MODUL.bantuan] });
   return grup;
 }
 
@@ -115,7 +120,7 @@ export const ruteBoleh = (s) => new Set(grupMenu(s).flatMap((g) => g.item.map((m
 
 /** Menu navigasi bawah (ponsel): 4 menu utama + "Lainnya". */
 export function menuBawah(s) {
-  if (P.isPetugas(s)) return [MODUL.supermonev, MODUL.verifBelanja];
+  if (P.isPetugas(s)) return [MODUL.supermonev, MODUL.verifBelanja, MODUL.bantuan];
   const pilihan = [MODUL.beranda, MODUL.rekonsiliasi, MODUL.master];
   pilihan.push(P.isSuperAdmin(s) ? MODUL.pengguna : MODUL.pesan);
   return pilihan;

@@ -17,7 +17,7 @@ import { kepalaPita, kartuGrafik } from './_t34.js';
 import * as P from '../core/peran.js';
 
 /** Tahap pembangunan terakhir yang sudah selesai dan siap diuji. */
-const TAHAP_SIAP = 4;
+const TAHAP_SIAP = 6;
 
 function salam() {
   const j = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', hour12: false }).format(new Date()));
@@ -110,7 +110,8 @@ export async function render(el, { sesi: s }) {
       <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
       <span class="pill">Peta Jalan Pembangunan</span>
       <h2 style="font-size:1.5rem;font-weight:800;margin-top:12px"><span class="hl hl-sapu">Progres Pembangunan</span> SITASI TSKPO</h2>
-      <p style="max-width:72ch;margin-top:8px">Tahap 1–4 siap diuji. Tahap 5 (Supermonev) dan 6 (integrasi & penyempurnaan) menyusul; menu bertanda T5 akan aktif sesuai tahapnya.</p>
+      <p style="max-width:72ch;margin-top:8px">Keenam tahap siap diuji: termasuk Supermonev (penugasan petugas, formulir, verifikasi, dashboard, ekspor PPTX) dan penyempurnaan (pemeriksaan keamanan, cadangan & pemulihan, pusat bantuan).
+        <a href="#/bantuan" style="color:#F2C94C;font-weight:700">Buka Pusat Bantuan &amp; Pelatihan →</a></p>
       <div class="tahapan">${Object.entries(TAHAP).map(([n, nama]) => html`<div class="tahap-item kaca-gelap ${Number(n) <= TAHAP_SIAP ? '' : 'nanti'}">
         <span class="no">${Number(n) <= TAHAP_SIAP ? raw(ikon('check', 20)) : n}</span><b>Tahap ${n}</b><small>${nama}</small>
         <span class="status">${Number(n) <= TAHAP_SIAP ? 'Siap diuji' : Number(n) === TAHAP_SIAP + 1 ? 'Berikutnya' : 'Direncanakan'}</span></div>`)}</div>

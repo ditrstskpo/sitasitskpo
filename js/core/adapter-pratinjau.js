@@ -5,6 +5,7 @@
 import { tunggu } from './util.js';
 import { barisEkspor } from './bnba.js';
 import { unggahKonteksP, hapusBerkasKonteksP, berkasTerlihatP, fotoContoh, siapkanT34 } from './pratinjau-t34.js';
+import { siapkanT56 } from './pratinjau-t56.js';
 
 const KUNCI_DB = 'sitasi:pratinjau-db';
 const KUNCI_AUTH = 'sitasi:pratinjau-auth';
@@ -79,6 +80,7 @@ export async function init() {
   if (!db || !db.pokja) { db = benih(); simpan(); }
   if (!db.usulan) { benihT2(); simpan(); }
   siapkanT34();
+  siapkanT56();
 }
 
 // ---------------------------------------------------------------- pembantu peran (meniru schema app)
@@ -1139,6 +1141,7 @@ export async function gasTiruan(action, d = {}) {
 
 // ---------------------------------------------------------------- Tahap 3 & 4 (v2.3.0): fungsi di pratinjau-t34.js memakai isi berikut
 export * from './pratinjau-t34.js';
+export * from './pratinjau-t56.js';
 export const _dalam = {
   get db() { return db; }, simpan, log, galat, uid, sekarang, salin, tunggu, isSA, diPokja, pokjaEf, peran, isPeg, idsPokja, namaSaya,
   sayaAktif, pokjaById, beriTahu, anggotaPokja, penerimaTahap, usulanTerlihat, bnbaTerlihat, ambilU, tahapU, samarAngka, samarAlamat, pen,

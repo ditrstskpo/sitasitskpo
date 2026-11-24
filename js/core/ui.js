@@ -4,7 +4,8 @@ import { html, raw, esc, angka } from './util.js';
 import { ikon } from './icons.js';
 import { CONFIG } from '../config.js';
 
-export const gerakDikurangi = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Gerak dikurangi: pilihan perangkat ATAU pilihan pengguna di menu profil ("Kurangi gerakan")
+export const gerakDikurangi = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('gerak-kurang');
 
 // ---------------------------------------------------------------- toast
 let tumpukan;
@@ -163,12 +164,13 @@ export function hitungNaik(root) {
   for (const x of el) {
     if (x.dataset.dihitung) continue;
     x.dataset.dihitung = '1';
-    const target = Number(x.dataset.hitung) || 0;
-    if (gerakDikurangi() || target === 0) { x.textContent = angka(target); continue; }
+    const target = Number(x.dataset.hitung) || 0, des = Number(x.dataset.desimal) || 0, k = 10 ** des;
+    const tulis = (v) => (des ? new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: des }).format(v) : angka(v));
+    if (gerakDikurangi() || target === 0) { x.textContent = tulis(target); continue; }
     const mulai = performance.now();
     const langkah = (t) => {
       const p = Math.min(1, (t - mulai) / 400);
-      x.textContent = angka(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      x.textContent = tulis(Math.round(target * (1 - Math.pow(1 - p, 3)) * k) / k);
       if (p < 1) requestAnimationFrame(langkah);
     };
     requestAnimationFrame(langkah);

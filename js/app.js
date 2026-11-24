@@ -57,6 +57,16 @@ const RUTE = {
   '/produk-hukum': { judul: 'Produk Hukum & SOP', muat: () => import('./pages/hukum.js'), izin: P.isPegawai },
   '/tugas': { judul: 'Tugas & Penugasan', muat: () => import('./pages/tugas.js'), izin: P.isPegawai },
   '/pesan': { judul: 'Pesan & Komunikasi', muat: () => import('./pages/pesan.js'), izin: P.isPegawai },
+  // Tahap 5 — Supermonev
+  '/supermonev': { judul: 'Supermonev', muat: () => import('./pages/supermonev.js'), izin: (s) => P.isPetugas(s) || P.isPegawai(s) },
+  '/penugasan-supermonev': { judul: 'Penugasan Petugas Supermonev', muat: () => import('./pages/penugasan.js'), izin: P.isPegawai },
+  '/dashboard-supermonev': { judul: 'Dashboard Supermonev', muat: () => import('./pages/dash-supermonev.js'), izin: P.isPegawai },
+  '/ekspor-supermonev': { judul: 'Ekspor PPTX & Laporan Supermonev', induk: '/dashboard-supermonev', muat: () => import('./pages/smv-ekspor.js'), izin: P.isPegawai },
+  '/verifikasi-belanja': { judul: 'Verifikasi Belanja & BAST', muat: () => import('./pages/verif-belanja.js'), izin: (s) => P.isPetugas(s) || P.isPegawai(s) },
+  // Tahap 6 — integrasi & penyempurnaan
+  '/pengaturan/keamanan': { judul: 'Pemeriksaan Keamanan', muat: () => import('./pages/keamanan.js'), izin: P.isSuperAdmin },
+  '/pengaturan/cadangan': { judul: 'Cadangan & Pemulihan', muat: () => import('./pages/cadangan.js'), izin: P.isSuperAdmin },
+  '/bantuan': { judul: 'Pusat Bantuan & Pelatihan', muat: () => import('./pages/bantuan.js') },
 };
 // Rute berparameter: #/usulan/<id> dan #/pm/<nik>
 const RUTE_PARAM = [

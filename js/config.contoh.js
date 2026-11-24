@@ -1,3 +1,5 @@
+// CONTOH. Instalasi baru: salin file ini menjadi js/config.js lalu isi nilainya.
+// Upgrade: JANGAN timpa js/config.js milik Anda; file contoh ini tidak dipakai aplikasi.
 // =====================================================================
 // KONFIGURASI SITASI TSKPO
 // Isi dua nilai di bawah dari Supabase → Project Settings → Data API / API Keys.
@@ -8,15 +10,15 @@
 // (data contoh di browser, tanpa basis data) untuk mengecek tampilan.
 // =====================================================================
 export const CONFIG = {
-  SUPABASE_URL: 'https://uitjfvaocyhkqoegxqqo.supabase.co',
-  SUPABASE_ANON_KEY: 'sb_publishable_79FUFa2tkCROiV4skA-H7A_CxvaA472',
+  SUPABASE_URL: '',          // contoh: 'https://abcdefghijkl.supabase.co'
+  SUPABASE_ANON_KEY: '',     // contoh: 'eyJhbGciOi...' atau 'sb_publishable_...'
 
   // Alamat Web App Apps Script (berakhiran /exec) untuk berkas Google Drive, notifikasi WA/email,
   // dan migrasi dari Google Sheets. Boleh dikosongkan dulu; fitur lain tetap berjalan.
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbycK-4p_vFD8n9NQaUUapodZTvC1CdhpYbVwLrJf5-Mu3ITrU9tLmsUg3pP80TFwMq3/exec',
+  GAS_URL: '',
 
   NAMA_APLIKASI: 'SITASI TSKPO',
-  VERSI: '2.1.0 · Tahap 2',
+  VERSI: '2.4.0 · Tahap 6',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
   LOGO: 'assets/logo-sitasi.png',

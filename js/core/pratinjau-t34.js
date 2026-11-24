@@ -244,8 +244,13 @@ export function fotoContoh(r) {
 // =====================================================================================
 // BERKAS KONTEKS
 // =====================================================================================
+// Konteks tambahan (mis. Supermonev "smv" & "belanja" dari Tahap 5) didaftarkan modul lain: { cek, terlihat, hapus }
+const KONTEKS_LAIN = {};
+export function daftarKonteksP(nama, def) { KONTEKS_LAIN[nama] = def; }
 function cekKonteks(konteks, ref, jenis) {
-  siapkan(); butuhPeg();
+  siapkan();
+  if (KONTEKS_LAIN[konteks]) return KONTEKS_LAIN[konteks].cek(ref, jenis);
+  butuhPeg();
   const D = d();
   if (konteks === 'lks') {
     const l = D.lks.find((x) => x.id === ref); if (!l) throw g('Data LKS tidak ditemukan.');
@@ -283,8 +288,9 @@ export function unggahKonteksP(x, lokasi) {
     if (!['image/jpeg', 'image/png'].includes(x.mime)) throw g('Bagian ini hanya menerima foto JPG atau PNG.');
     if (ukuran > 512000) throw g('Ukuran foto maksimal 500 KB. Aplikasi mengecilkan foto otomatis; pilih ulang fotonya.');
   } else if (ukuran > 10 * 1024 * 1024) throw g('Ukuran dokumen maksimal 10 MB.');
+  else if (c.gambar500 && /^image\//.test(x.mime || '') && ukuran > 512000) throw g('Ukuran foto maksimal 500 KB. Aplikasi mengecilkan foto otomatis; pilih ulang fotonya.');
   if (c.maks && d().berkas.filter((b) => b.konteks === konteks && b.ref_id === x.usulan_id && b.jenis === x.jenis && !b.dihapus).length >= c.maks) {
-    throw g(c.maks === 1 ? 'Foto ini sudah ada. Hapus foto lama lebih dulu bila ingin menggantinya.' : `Maksimal ${c.maks} foto untuk kategori ini. Hapus salah satu foto lama bila ingin menggantinya.`);
+    throw g(c.maks === 1 ? 'Foto ini sudah ada. Hapus foto lama lebih dulu bila ingin menggantinya.' : `Maksimal ${c.maks} foto untuk bagian ini. Hapus salah satu foto lama bila ingin menggantinya.`);
   }
   const r = { id: I.uid(), usulan_id: null, tahap: null, jenis: x.jenis, nama: x.nama, ukuran, mime: x.mime, lokasi, tautan: null, diunggah_oleh: sayaId(),
     diunggah_nama: I.namaSaya(), dibuat_pada: I.sekarang(), dihapus: false, konteks, ref_id: x.usulan_id, pokja_id: c.pokja };
@@ -303,6 +309,7 @@ function setelahBerkas(b) {
 export function berkasTerlihatP(b) {
   siapkan();
   const D = d();
+  if (KONTEKS_LAIN[b.konteks]) return KONTEKS_LAIN[b.konteks].terlihat(b);
   if (!b.konteks || b.konteks === 'usulan') { const u = D.usulan.find((x) => x.id === b.usulan_id); return !!u && I.usulanTerlihat(u); }
   if (b.konteks === 'lks') { const l = D.lks.find((x) => x.id === b.ref_id); return !!l && lksTerlihat(l); }
   if (b.konteks === 'dokumen') { const x = D.dokumen.find((y) => y.id === b.ref_id); return !!x && !x.dihapus && dokTerlihat(x); }
@@ -313,7 +320,8 @@ export function berkasTerlihatP(b) {
 export function hapusBerkasKonteksP(r) {
   const D = d();
   let ok = false;
-  if (r.konteks === 'lks') { const l = D.lks.find((x) => x.id === r.ref_id); ok = I.isSA() || (I.idsPokja().includes(l?.pokja_id) && ['draft', 'perlu_perbaikan'].includes(l?.status_verifikasi)); }
+  if (KONTEKS_LAIN[r.konteks]) ok = KONTEKS_LAIN[r.konteks].hapus(r);
+  else if (r.konteks === 'lks') { const l = D.lks.find((x) => x.id === r.ref_id); ok = I.isSA() || (I.idsPokja().includes(l?.pokja_id) && ['draft', 'perlu_perbaikan'].includes(l?.status_verifikasi)); }
   else if (r.konteks === 'dokumen') {
     const x = D.dokumen.find((y) => y.id === r.ref_id);
     if (['diajukan', 'terbit'].includes(x?.status) && !I.isSA()) throw g('Dokumen yang sedang diajukan atau sudah terbit tidak dapat dihapus. Batalkan atau tarik publikasinya lebih dulu.');
@@ -1126,7 +1134,7 @@ export async function statusDokPm(bid) {
   const u = d().usulan.find((x) => x.id === b.usulan_id);
   return { bnba_id: b.id, nama: b.nama, usulan_id: u?.id, no_register: u?.no_register, status_cair: statusCair(b.usulan_id), boleh_putuskan: I.isSA() || kapokjaDi(b.pokja_id),
     kategori: ['sebelum_usaha', 'saat_penyaluran', 'supermonev'].map((k) => ({ kode: k, label: LABEL_PM[k], maks: 2, boleh: bolehDokPm(b.pokja_id, k), opsional: k === 'supermonev',
-      berkas: berkasDari('dok_pm', b.id).filter((x) => x.jenis === k), tanpa: I.salin(d().dok_tanpa.find((t) => t.bnba_id === b.id && t.kategori === k) || null) })) };
+      berkas: berkasDari('dok_pm', b.id).filter((x) => x.jenis === k).concat(k === 'supermonev' ? (d().supermonev || []).filter((s) => s.bnba_id === b.id).flatMap((s) => berkasDari('smv', s.id)) : []), tanpa: I.salin(d().dok_tanpa.find((t) => t.bnba_id === b.id && t.kategori === k) || null) })) };
 }
 export async function dokPmUsulan(uid) {
   await jeda(); siapkan();
@@ -1162,9 +1170,11 @@ export async function putuskanTanpaDok(id, setuju, catatan = null) {
 }
 
 // ---------------------------------------------------------------- realtime tiruan (antar halaman di tab yang sama)
+const PENDENGAR_LAIN = {};
+/** Kabari halaman lain di tab yang sama bahwa tabel berubah (tiruan realtime). */
+export function siarkanP(tabel, x) { (PENDENGAR_LAIN[tabel] || new Set()).forEach((f) => { try { f(x); } catch {} }); }
 export function langgananTabel(tabel, cb) {
-  const set = tabel === 'pesan' ? pendengarPesan : tabel === 'jadwal' ? pendengarJadwal : null;
-  if (!set) return () => {};
+  const set = tabel === 'pesan' ? pendengarPesan : tabel === 'jadwal' ? pendengarJadwal : (PENDENGAR_LAIN[tabel] ||= new Set());
   const f = (x) => cb(x || {}, 'INSERT');
   set.add(f);
   return () => set.delete(f);

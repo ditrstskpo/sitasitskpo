@@ -1,4 +1,7 @@
-# Panduan Instalasi SITASI TSKPO (versi 2.2.0: Tahap 1 Fondasi + Tahap 2 BNBA & Alur Pencairan)
+# Panduan Instalasi SITASI TSKPO (versi 2.4.0: Tahap 1–6)
+
+> Panduan ini untuk **pemasangan baru**. Bila SITASI sudah berjalan, pakai **PANDUAN-UPGRADE-2.4.0.md**.
+> Penyimpanan berkas ke Google Drive lewat Edge Function `berkas` dipasang dengan bagian A, C, D, E, dan G pada **PANDUAN-UPGRADE-2.2.0.md** setelah langkah 1–6 di bawah.
 
 Panduan ini untuk pemula. Ikuti **berurutan** dan jangan melompat. Setiap langkah punya tanda **✅ Berhasil jika…** supaya Anda tahu kapan boleh lanjut.
 

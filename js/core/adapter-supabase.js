@@ -137,15 +137,78 @@ export async function auditLogSemua(f = {}, batas = 5000) {
   return semua;
 }
 
-// ---------------------------------------------------------------- realtime
+// ---------------------------------------------------------------- realtime terkelola (Tahap 6)
+// Satu kanal dipakai bersama oleh semua halaman yang memantau tabel yang sama (hemat koneksi).
+// Status sambungan dipantau (chip di bilah atas); saat tab disembunyikan > 5 menit sambungan dijeda,
+// lalu disambung ulang otomatis begitu tab dibuka lagi.
+const KANAL = new Map();          // kunci → { ch, cbs, pasang, status }
+const PEMANTAU = new Set();
+let statusRT = 'menyambung', jedaRT = false, timerJeda = null;
+function hitungStatus() {
+  if (jedaRT) return 'jeda';
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'terputus';
+  const st = [...KANAL.values()].map((k) => k.status);
+  if (!st.length || st.every((x) => x === 'SUBSCRIBED')) return 'tersambung';
+  if (st.some((x) => ['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(x))) return 'terputus';
+  return 'menyambung';
+}
+function segarkanStatus() {
+  const s = hitungStatus();
+  if (s === statusRT) return;
+  statusRT = s;
+  PEMANTAU.forEach((f) => { try { f(s); } catch {} });
+}
+function bukaKanal(kunci, k) {
+  k.status = 'menyambung';
+  k.ch = k.pasang(sb.channel('sitasi-' + kunci + '-' + Math.random().toString(36).slice(2, 7)), (...a) => k.cbs.forEach((f) => { try { f(...a); } catch {} }));
+  k.ch.subscribe((st) => { k.status = st; segarkanStatus(); });
+}
+function ikut(kunci, pasang, cb) {
+  let k = KANAL.get(kunci);
+  if (!k) { k = { cbs: new Set(), pasang }; KANAL.set(kunci, k); if (!jedaRT) bukaKanal(kunci, k); }
+  k.cbs.add(cb);
+  segarkanStatus();
+  return () => {
+    k.cbs.delete(cb);
+    if (!k.cbs.size) { if (k.ch) sb.removeChannel(k.ch); KANAL.delete(kunci); segarkanStatus(); }
+  };
+}
+/** Pantau status realtime: tersambung | menyambung | terputus | jeda. */
+export function pantauRealtime(cb) { PEMANTAU.add(cb); try { cb(statusRT); } catch {} return () => PEMANTAU.delete(cb); }
+/** Sambung ulang semua kanal (setelah jeda / jaringan kembali). */
+export function sambungUlangRealtime() {
+  jedaRT = false;
+  KANAL.forEach((k, kunci) => { if (k.ch) sb.removeChannel(k.ch); bukaKanal(kunci, k); });
+  segarkanStatus();
+}
+function jedaRealtime() {
+  if (jedaRT) return;
+  jedaRT = true;
+  KANAL.forEach((k) => { if (k.ch) sb.removeChannel(k.ch); k.ch = null; });
+  segarkanStatus();
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(timerJeda);
+    if (document.hidden) timerJeda = setTimeout(jedaRealtime, 5 * 60 * 1000);
+    else if (jedaRT) sambungUlangRealtime();
+  });
+  addEventListener('online', () => { if (!jedaRT) sambungUlangRealtime(); });
+  addEventListener('offline', segarkanStatus);
+}
+
 export function langganan({ penggunaId, onNotif, onPengumuman, onAkun, onUsulan }) {
-  const ch = sb.channel('sitasi-' + penggunaId)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifikasi', filter: `penerima_id=eq.${penggunaId}` }, (p) => onNotif?.(p.new))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'pengumuman' }, () => onPengumuman?.())
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pengguna', filter: `id=eq.${penggunaId}` }, (p) => onAkun?.(p.new))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'usulan' }, (p) => onUsulan?.(p.new?.id || p.old?.id))
-    .subscribe();
-  return () => sb.removeChannel(ch);
+  return ikut('inti-' + penggunaId, (ch, kirim) => ch
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifikasi', filter: `penerima_id=eq.${penggunaId}` }, (p) => kirim('notif', p.new))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pengumuman' }, () => kirim('pengumuman'))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pengguna', filter: `id=eq.${penggunaId}` }, (p) => kirim('akun', p.new))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'usulan' }, (p) => kirim('usulan', p.new?.id || p.old?.id)),
+  (jenis, x) => {
+    if (jenis === 'notif') onNotif?.(x);
+    else if (jenis === 'pengumuman') onPengumuman?.();
+    else if (jenis === 'akun') onAkun?.(x);
+    else if (jenis === 'usulan') onUsulan?.(x);
+  });
 }
 
 // =====================================================================
@@ -380,10 +443,41 @@ export const dokPmUsulan = (usulanId) => rpc('dok_pm_usulan', { p_usulan: usulan
 export const ajukanTanpaDok = (bnbaId, kategori, alasan) => rpc('ajukan_tanpa_dok', { p_bnba: bnbaId, p_kategori: kategori, p_alasan: alasan });
 export const putuskanTanpaDok = (id, setuju, catatan = null) => rpc('putuskan_tanpa_dok', { p_id: id, p_setuju: setuju, p_catatan: catatan });
 
-// Realtime khusus halaman (pesan baru, perubahan jadwal). Mengembalikan fungsi berhenti.
+// Realtime khusus halaman (pesan baru, jadwal, Supermonev). Kanal dipakai bersama. Mengembalikan fungsi berhenti.
 export function langgananTabel(tabel, cb, filter = null) {
-  const ch = sb.channel('sitasi-' + tabel + '-' + Math.random().toString(36).slice(2, 8))
-    .on('postgres_changes', { event: '*', schema: 'public', table: tabel, ...(filter ? { filter } : {}) }, (p) => cb(p.new && Object.keys(p.new).length ? p.new : p.old, p.eventType))
-    .subscribe();
-  return () => sb.removeChannel(ch);
+  return ikut('t-' + tabel + '|' + (filter || ''), (ch, kirim) => ch.on('postgres_changes', { event: '*', schema: 'public', table: tabel, ...(filter ? { filter } : {}) },
+    (p) => kirim(p.new && Object.keys(p.new).length ? p.new : p.old, p.eventType)), cb);
 }
+
+// =====================================================================
+// TAHAP 5 — Supermonev, penugasan petugas, verifikasi belanja
+// =====================================================================
+export const smvPetugas = () => rpc('smv_petugas');
+export const smvPenugasan = (f = {}) => rpc('smv_penugasan', { p_filter: f });
+export const smvTugaskan = (items, petugas, catatan = null) => rpc('smv_tugaskan', { p_item: items, p_petugas: petugas, p_catatan: catatan });
+export const smvBatalTugas = (items) => rpc('smv_batal_tugas', { p_item: items });
+export const smvTugasSaya = (f = {}) => rpc('smv_tugas_saya', { p_filter: f });
+export const smvFormulir = (bnba, putaran) => rpc('smv_formulir', { p_bnba: bnba, p_putaran: Number(putaran) });
+export const smvSimpan = (data, ajukan = false) => rpc('smv_simpan', { p_data: data, p_ajukan: !!ajukan });
+export const smvVerifikasi = (id, setuju, hasil = null, ringkasan = null, catatan = null) =>
+  rpc('smv_verifikasi', { p_id: id, p_setuju: setuju, p_hasil: hasil, p_ringkasan: ringkasan, p_catatan: catatan });
+export const smvUbahRingkasan = (id, ringkasan) => rpc('smv_ubah_ringkasan', { p_id: id, p_ringkasan: ringkasan });
+export const smvDaftar = (f = {}) => rpc('smv_daftar', { p_filter: f });
+export const smvRiwayatPm = (bnba) => rpc('smv_riwayat_pm', { p_bnba: bnba });
+export const smvDashboard = (f = {}) => rpc('smv_dashboard', { p_filter: f });
+export const smvEkspor = (f = {}) => rpc('smv_ekspor', { p_filter: f });
+export const aturSupermonev = (cfg) => rpc('atur_supermonev', { p_cfg: cfg });
+export const belanjaDaftar = (f = {}) => rpc('belanja_daftar', { p_filter: f });
+export const belanjaDetail = (bnba) => rpc('belanja_detail', { p_bnba: bnba });
+export const belanjaSimpan = (bnba, data, ajukan = false) => rpc('belanja_simpan', { p_bnba: bnba, p_data: data, p_ajukan: !!ajukan });
+export const belanjaVerifikasi = (bnba, setuju, catatan = null) => rpc('belanja_verifikasi', { p_bnba: bnba, p_setuju: setuju, p_catatan: catatan });
+
+// =====================================================================
+// TAHAP 6 — Pemeriksaan keamanan, kesehatan sistem, cadangan & pemulihan (Super Admin)
+// =====================================================================
+export const periksaKeamanan = () => rpc('periksa_keamanan');
+export const kesehatanSistem = () => rpc('kesehatan_sistem');
+export const cadanganDaftar = () => rpc('cadangan_daftar');
+export const cadanganTabel = (tabel, offset = 0, batas = 1000) => rpc('cadangan_tabel', { p_tabel: tabel, p_offset: offset, p_batas: batas });
+export const catatCadangan = (ringkasan) => rpc('catat_cadangan', { p_ringkasan: ringkasan });
+export const pulihkanTabel = (tabel, baris, uji = true, peta = {}) => rpc('pulihkan_tabel', { p_tabel: tabel, p_baris: baris, p_uji: !!uji, p_peta: peta || {} });
