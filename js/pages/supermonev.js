@@ -223,6 +223,11 @@ export async function render(el, { sesi: s, query }) {
   try { lepas.push(await api.langgananTabel('smv_tugas', segar)); } catch {}
   lepas.push(bus.on('realtime-pulih', segar));
   if (pegawai && verif && tab !== 'antrean') api.smvDaftar({ mode: 'antrean', per: 1 }).then((d) => { jml.antrean = d.total || null; gSeg(); }).catch(() => {});
+  if (pegawai && !anggotaSmv && !lapangan) {   // pegawai biasa yang ditugaskan turun lapangan
+    const dt = await api.smvTugasSaya().catch(() => null); jml.tugas = dt?.ringkas?.total || null;
+    if (jml.tugas && !query?.get('tab')) tab = 'tugas';
+    gSeg();
+  }
   await muat();
   return () => lepas.forEach((x) => { try { x?.(); } catch {} });
 }

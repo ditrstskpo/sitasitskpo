@@ -99,7 +99,7 @@ function siapkan() {
   D.pengguna.filter((u) => u.aktif && u.jenis_akses === 'pegawai').forEach((u, i) => {
     const pp = D.pengguna_pokja.find((x) => x.pengguna_id === u.id);
     D.pegawai.push({ id: 'pgw-' + (i + 1), jenis: 'pusat', nama: u.nama, nip: '19' + (80 + i) + '0101200' + (i % 9) + '01' + (1000 + i), jabatan: u.peran_sistem === 'direktur' ? 'Direktur' : pp?.jabatan === 'kapokja' ? 'Ketua Pokja' : 'Penyuluh Sosial',
-      golongan: ['III/a', 'III/b', 'III/c', 'IV/a'][i % 4], pokja_id: pp?.pokja_id || null, pengguna_id: u.id, provinsi: null, kabkota: null, no_hp: u.no_hp, email: u.email, status: 'Aktif',
+      golongan: ['III/a', 'III/b', 'III/c', 'IV/a'][i % 6], pokja_id: pp?.pokja_id || null, pengguna_id: u.id, ...[{ provinsi: 'Jawa Timur', kabkota: 'Kota Surabaya' }, { provinsi: 'Sulawesi Selatan', kabkota: 'Kota Makassar' }, { provinsi: 'Jawa Barat', kabkota: 'Kab. Cianjur' }, { provinsi: 'Lampung', kabkota: 'Kota Bandar Lampung' }, { provinsi: 'DKI Jakarta', kabkota: 'Kota Jakarta Timur' }, { provinsi: null, kabkota: null }][i % 4], no_hp: u.no_hp, email: u.email, status: 'Aktif',
       mulai_tugas: '2019-0' + (1 + (i % 9)) + '-01', urutan: i, catatan: null, dibuat_pada: lalu(90), diubah_pada: lalu(90) });
   });
   [['Rina Oktaviani', 'Jawa Barat', 'Kab. Bogor'], ['Ahmad Faisal', 'Jawa Barat', 'Kab. Cianjur'], ['Dian Puspita', 'DKI Jakarta', 'Kota Jakarta Timur'], ['Yoga Pratama', 'Jawa Tengah', 'Kota Semarang'],
@@ -413,6 +413,13 @@ export async function detailLks(id) {
 export async function simpanLks(x) {
   await jeda(120); siapkan(); butuhPeg();
   let l;
+  const lamaL = x.id ? d().lks.find((y) => y.id === x.id) : null, nilai = (k) => (k in x ? x[k] : lamaL?.[k]);
+  const isi = (k) => String(nilai(k) ?? '').trim();
+  if (!isi('provinsi')) throw g('Provinsi wajib diisi.');
+  if (!isi('kabkota')) throw g('Kabupaten/Kota wajib diisi.');
+  if (!isi('ketua')) throw g('Nama ketua LKS wajib diisi.');
+  if (!isi('telepon')) throw g('Nomor HP / telepon LKS wajib diisi.');
+  if (!arr(nilai('klaster')).length) throw g('Klaster layanan wajib dipilih (minimal satu).');
   if (x.id) {
     l = d().lks.find((y) => y.id === x.id); if (!l) throw g('LKS tidak ditemukan.');
     if (!(I.isSA() || (I.idsPokja().includes(l.pokja_id) && ['draft', 'perlu_perbaikan'].includes(l.status_verifikasi)))) throw g('LKS hanya dapat diubah oleh Pokja penginput selama berstatus Draft atau Perlu Perbaikan.', '42501');

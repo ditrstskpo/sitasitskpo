@@ -38,6 +38,8 @@ export const MODUL = {
     ket: ['Usulan berjudul berisi BNBA per PM (40 kolom) dan link profil asesmen', 'Draft, submit ke Kapokja, perbaiki pada record yang sama', 'Impor Excel sesuai template BNBA PENGAJUAN'] },
   antrean: { label: 'Antrean Verifikasi', ikon: 'inbox', rute: '/antrean-verifikasi', judul: ['Antrean Verifikasi', 'Kapokja'],
     ket: ['Kapokja memverifikasi usulan BNBA Pokja-nya (Setujui / Kembalikan)', 'Kapokja Data atau Kapokja TU memverifikasi LKS', 'Notifikasi in-app saat ada usulan baru'] },
+  petugasVerif: { label: 'Petugas Verif Pokja', ikon: 'user-check', rute: '/petugas-verif', judul: ['Petugas Verif', 'Pokja'],
+    ket: ['Kapokja menunjuk anggota Pokja sebagai Petugas Verif', 'Petugas Verif memverifikasi BNBA dan SK/Nota Dinas usulan Pokjanya', 'Hanya selama masih anggota Pokja pengusul dan ditunjuk Kapokja'] },
   usulanSk: { label: 'Usulan & SK Pokja', ikon: 'file-check', rute: '/usulan-sk', judul: ['Pengusulan SK', '— Monitoring Penerbitan SK'],
     ket: ['Daftar usulan beserta posisi tahap 3–11', 'Draft SK dan Nota Dinas, status TU, Direktur, Sekretariat', 'Tombol "Unduh Excel Bundle Ini" di detail usulan'] },
   dokPokja: { label: 'Dokumen Pokja', ikon: 'folder', rute: '/dokumen-pokja', judul: ['Dokumen Pokja', '— Repositori'],
@@ -94,7 +96,8 @@ export function grupMenu(s) {
   const tambah = (...k) => k.forEach((x) => { if (!ws.includes(x)) ws.push(x); });
   if (P.pokjaEfektif(s).length) {
     tambah('wsBnba');
-    if (P.isKapokja(s) || P.diPokja(s, 'TU')) tambah('antrean');
+    if (P.bisaVerifikasi(s) || P.diPokja(s, 'TU')) tambah('antrean');
+    if (P.isKapokja(s) || P.isVerifikator(s)) tambah('petugasVerif');
     tambah('usulanSk', 'dokPokja', 'inputLks', 'renja');
   }
   if (P.diPokja(s, 'TU')) tambah('tu', 'pengumuman', 'sdm', 'verifBelanja');
@@ -103,13 +106,14 @@ export function grupMenu(s) {
   if (P.diPokja(s, 'KEPEGAWAIAN')) tambah('sdm');
   if (P.diPokja(s, 'HUKUM')) tambah('hukum');
   if (P.diPokja(s, 'SUPERMONEV') || P.jugaSupermonev(s)) tambah('supermonev', 'verifBelanja');
+  else if (P.isPegawai(s)) tambah('supermonev');   // pegawai mana pun dapat ditugaskan turun lapangan; tugasnya muncul di sini
   if (P.diPokja(s, 'SUPERMONEV', 'kapokja') || P.diPokja(s, 'TU', 'kapokja')) tambah('penugasan');
   if (P.isPegawai(s) && !P.isSuperAdmin(s)) tambah('tugas');
   if (ws.length) grup.push({ judul: 'Workspace Saya' + (P.labelPokjaSaya(s) ? ` (${P.labelPokjaSaya(s)})` : ''), item: ws.map((k) => MODUL[k]) });
 
   // Super Admin (tanpa simulasi) menjalankan semua tahap: tampilkan menu kerja agar tidak perlu simulasi peran
   if (P.isSuperAdmin(s) && !P.pokjaEfektif(s).length) {
-    grup.push({ judul: 'Alur Usulan & Pencairan', item: ['wsBnba', 'antrean', 'usulanSk', 'tu', 'keuangan', 'keuKoreksi'].map((k) => MODUL[k]) });
+    grup.push({ judul: 'Alur Usulan & Pencairan', item: ['wsBnba', 'antrean', 'petugasVerif', 'usulanSk', 'tu', 'keuangan', 'keuKoreksi'].map((k) => MODUL[k]) });
     grup.push({ judul: 'Data, Dokumen & Koordinasi', item: ['inputLks', 'inputAster', 'sdm', 'renja', 'dokPokja', 'hukum', 'tugas'].map((k) => MODUL[k]) });
     grup.push({ judul: 'Supermonev', item: ['supermonev', 'penugasan', 'verifBelanja'].map((k) => MODUL[k]) });
   }

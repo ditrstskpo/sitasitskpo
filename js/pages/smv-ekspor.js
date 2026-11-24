@@ -51,7 +51,7 @@ function slide2(r) {
 
 // ---------------------------------------------------------------- PPTX
 let janjiPptx;
-function muatPptx() {
+export function muatPptx() {
   janjiPptx ||= new Promise((ok, gagal) => {
     if (window.PptxGenJS) return ok(window.PptxGenJS);
     const sc = document.createElement('script');
@@ -62,8 +62,8 @@ function muatPptx() {
   });
   return janjiPptx;
 }
-const blobKeData = (blob) => new Promise((ok, gagal) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = gagal; r.readAsDataURL(blob); });
-async function fotoData(id) {
+export const blobKeData = (blob) => new Promise((ok, gagal) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = gagal; r.readAsDataURL(blob); });
+export async function fotoData(id) {
   const r = await ambilBerkas(id);
   if (!r.blob) return null;
   let url = await blobKeData(r.blob);

@@ -29,3 +29,21 @@ pre, code { max-width: 100%; overflow-x: auto; overflow-wrap: anywhere; }
 .chip-tahap b { flex: none; }
 .legenda-tahap .leg, .legenda-tahap .leg small { min-width: 0; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
 .legenda-tahap { min-width: 0; }
+
+/* penugasan Supermonev: lokasi penyaluran & rekomendasi petugas */
+.bt-lokasi { display: flex; align-items: flex-start; gap: 5px; margin-top: 2px; color: var(--teks); font-size: .8125rem; overflow-wrap: anywhere; }
+.bt-lokasi .ik { flex: none; margin-top: 2px; }
+.rekom-grup { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; background: var(--hijau-latar, #eef8f2); border-bottom: 1px solid var(--garis); font-size: .875rem; }
+.rekom-chip { height: auto; min-height: 36px; flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 12px; border: 1px solid var(--hijau-garis, #bfe3cf); background: #fff; text-align: left; }
+.rekom-chip small { color: var(--teks); font-size: .75rem; font-weight: 500; }
+.pp-judul { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; font-size: .9375rem; color: var(--judul); }
+.pp-kartu.rekom { border-color: var(--hijau-garis, #bfe3cf); background: var(--hijau-latar, #eef8f2); }
+.pp-kartu .pp-nm { min-width: 0; overflow-wrap: anywhere; }
+.pp-kartu .pp-nm small { display: block; }
+.pp-kartu .chips { margin-top: 6px; }
+.pp-kartu[hidden] { display: none; }
+
+/* Petugas Verif */
+.verif-daftar { display: grid; gap: 8px; }
+.verif-baris { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 10px 14px; border: 1px solid var(--garis); border-radius: 14px; background: var(--kartu); }
+.verif-nm { min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; } .verif-nm b { display: block; color: var(--judul); } .verif-nm small { color: var(--teks); }

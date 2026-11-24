@@ -104,7 +104,7 @@ function pokjaEf(p = sayaAktif()) {
     return ['kapokja', 'anggota'].includes(p.simulasi.peran) ? [{ pokja_id: p.simulasi.pokja_id, jabatan: p.simulasi.peran }] : [];
   }
   if (p.jenis_akses !== 'pegawai') return [];
-  return db.pengguna_pokja.filter((x) => x.pengguna_id === p.id).map((x) => ({ pokja_id: x.pokja_id, jabatan: x.jabatan }));
+  return db.pengguna_pokja.filter((x) => x.pengguna_id === p.id).map((x) => ({ pokja_id: x.pokja_id, jabatan: x.jabatan, verifikator: !!x.verifikator }));
 }
 const isSA = () => peran() === 'super_admin';
 const diPokja = (kode) => pokjaEf().some((e) => pokjaById(e.pokja_id)?.kode === kode);
@@ -135,7 +135,7 @@ function log(aksi, tabel, record_id, ringkasan, perubahan = null, alasan = null)
 function kirimNotif(penerima_id, jenis, judul, isi, tautan) {
   db.notifikasi.unshift({ id: uid(), penerima_id, jenis, judul, isi, tautan, dibaca_pada: null, dibuat_pada: sekarang() });
 }
-const pokjaLengkap = (e) => { const k = pokjaById(e.pokja_id); return { ...salin(k), jabatan: e.jabatan }; };
+const pokjaLengkap = (e) => { const k = pokjaById(e.pokja_id); return { ...salin(k), jabatan: e.jabatan, verifikator: !!e.verifikator }; };
 const butuhSesi = () => { if (!sayaAktif()) throw galat('Sesi tidak aktif.', '42501'); };
 
 // ---------------------------------------------------------------- autentikasi
@@ -484,8 +484,7 @@ function bolehTahapP(pokjaId, t) {
   if (isSA()) return true;
   const ef = pokjaEf(), milik = ef.some((e) => e.pokja_id === pokjaId);
   if (['1', '3'].includes(t)) return milik;
-  if (t === '2') return ef.some((e) => e.pokja_id === pokjaId && e.jabatan === 'kapokja');
-  if (t === '3b') return ef.some((e) => e.pokja_id === pokjaId && e.jabatan === 'kapokja');
+  if (t === '2' || t === '3b') return ef.some((e) => e.pokja_id === pokjaId && (e.jabatan === 'kapokja' || e.verifikator));
   if (t === '7b') return diPokja('KEUANGAN') || peran() === 'petugas_bank';
   if (['4a', '4b'].includes(t)) return diPokja('TU');
   if (['4c', '6'].includes(t)) return diPokja('TU') || milik;
@@ -522,7 +521,7 @@ function penerimaTahap(pokjaId, t) {
   if (t === '7') { const bk = db.pengguna.filter((u) => u.aktif && u.jenis_akses === 'petugas_bank').map((u) => u.id); if (bk.length) return bk; }
   return db.pengguna.filter((u) => !penerimaPilih || penerimaPilih.includes(u.id)).filter((u) => u.aktif && u.jenis_akses === 'pegawai' && db.pengguna_pokja.some((pp) => pp.pengguna_id === u.id && (
     ['1', '3'].includes(t) ? pp.pokja_id === pokjaId
-      : ['2', '3b'].includes(t) ? pp.pokja_id === pokjaId && pp.jabatan === 'kapokja'
+      : ['2', '3b'].includes(t) ? pp.pokja_id === pokjaId && (pp.jabatan === 'kapokja' || pp.verifikator)
         : ['4a', '4b', '4c', '6'].includes(t) ? pokjaById(pp.pokja_id)?.kode === 'TU'
           : pokjaById(pp.pokja_id)?.kode === 'KEUANGAN'))).map((u) => u.id);
 }
@@ -636,7 +635,7 @@ function benihT2() {
     }
     if (posisi > URUT.indexOf('3') || status === 'selesai') {
       ['draft_sk', 'nota_dinas'].forEach((j) => db.berkas.push({ id: uid(), usulan_id: u.id, tahap: '3', jenis: j, nama: (j === 'draft_sk' ? 'Draft_SK_' : 'Nota_Dinas_') + u.no_register + '.docx', ukuran: 240000, mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', lokasi: 'tautan', tautan: 'https://docs.google.com/document/d/contoh', diunggah_nama: 'Bambang Wijaya', dibuat_pada: t0 }));
-      db.penyaluran.push({ id: uid(), usulan_id: u.id, nama_petugas: ['Taufik Hidayat', 'Rian Hendrawan', 'Dewi Lestari', 'Yoseph Fernandez'][idx % 4], instansi: k.nama_pendek, no_hp: '0812-3456-78' + idx, tanggal: '2026-11-20', kabkota: kab[kode][0], semua_pm: true, nik_pm: [], dibuat_pada: t0, diubah_pada: t0 });
+      db.penyaluran.push({ id: uid(), usulan_id: u.id, nama_petugas: ['Bambang Wijaya', 'Rian Hendrawan', 'Maya Puspita', 'Yoseph Fernandez'][idx % 4], instansi: k.nama_pendek, no_hp: '0812-3456-78' + idx, tanggal: '2026-11-20', kabkota: kab[kode][0], semua_pm: true, nik_pm: [], dibuat_pada: t0, diubah_pada: t0 });
     }
     if (posisi > URUT.indexOf('4c') || status === 'selesai') tahapU(u.id, '4c').data = { tgl_kirim: '2026-11-10', pengirim: 'Anggota Pokja TU', penerima: 'Bpk. Bambang', hp_penerima: '0812-9876-5432' };
   });
@@ -1338,6 +1337,28 @@ export async function ubahPmLanjutan(bnbaId, data) {
   }
   const kp = db.pengguna.filter((p) => p.aktif && db.pengguna_pokja.some((pp) => pp.pengguna_id === p.id && pp.pokja_id === u.pokja_id && pp.jabatan === 'kapokja')).map((p) => p.id);
   beriTahu([...new Set([...kp, ...kapokjaTU()])], 'PM_DIKOREKSI', 'Data BNBA diedit', `Data PM ${b.nama} pada usulan "${u.judul}" (${u.no_register}) diedit lanjutan.`, '#/usulan/' + u.id);
+  simpan(); return { ok: true };
+}
+// Petugas Verif: anggota Pokja ditunjuk Kapokja untuk memverifikasi BNBA (tahap 2) dan SK/Nota Dinas (tahap 3b) pokjanya
+export async function daftarVerifikator(pokjaId = null) {
+  await tunggu(80); if (!isPeg()) throw galat('Akses ditolak.', '42501');
+  const lihatSemua = isSA() || diPokja('TU');
+  return db.pengguna_pokja.filter((x) => (!pokjaId || x.pokja_id === pokjaId) && pokjaById(x.pokja_id)?.kelompok === 'teknis' && (lihatSemua || idsPokja().includes(x.pokja_id)))
+    .map((x) => ({ x, u: db.pengguna.find((p) => p.id === x.pengguna_id), k: pokjaById(x.pokja_id) })).filter(({ u }) => u && u.aktif && u.jenis_akses === 'pegawai')
+    .sort((a, b) => a.k.urutan - b.k.urutan || (b.x.jabatan === 'kapokja') - (a.x.jabatan === 'kapokja') || a.u.nama.localeCompare(b.u.nama))
+    .map(({ x, u, k }) => ({ pokja_id: k.id, pokja: k.nama_pendek, pengguna_id: u.id, nama: u.nama, email: u.email, jabatan: x.jabatan, verifikator: !!x.verifikator, boleh_atur: isSA() || kapokjaDi(k.id) }));
+}
+const kapokjaDi = (pokjaId) => pokjaEf().some((e) => e.pokja_id === pokjaId && e.jabatan === 'kapokja');
+export async function aturVerifikator(pokjaId, penggunaId, aktif) {
+  await tunggu(120);
+  if (!(isSA() || kapokjaDi(pokjaId))) throw galat('Petugas Verif ditunjuk oleh Kapokja Pokja yang bersangkutan atau Super Admin.', '42501');
+  const x = db.pengguna_pokja.find((y) => y.pokja_id === pokjaId && y.pengguna_id === penggunaId && y.jabatan === 'anggota');
+  if (!x) throw galat('Petugas Verif dipilih dari anggota Pokja ini (bukan Kapokja).');
+  x.verifikator = !!aktif;
+  const u = db.pengguna.find((p) => p.id === penggunaId);
+  log('UPDATE', 'pengguna_pokja', penggunaId, (aktif ? 'Menunjuk ' : 'Mencabut ') + u.nama + ' sebagai Petugas Verif');
+  beriTahu([penggunaId], 'PETUGAS_VERIF', aktif ? 'Anda ditunjuk sebagai Petugas Verif' : 'Penunjukan Petugas Verif dicabut',
+    aktif ? 'Anda dapat memverifikasi BNBA dan SK/Nota Dinas usulan Pokja Anda, sebagaimana Kapokja.' : 'Anda tidak lagi memverifikasi BNBA dan SK/Nota Dinas usulan Pokja.', '#/antrean-verifikasi');
   simpan(); return { ok: true };
 }
 export async function ubahUsulanLanjutan(id, d) {

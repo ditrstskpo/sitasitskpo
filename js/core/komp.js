@@ -3,6 +3,7 @@ import { html, raw, angka, tanggalJam, hariIni, esc } from './util.js';
 import { ikon } from './icons.js';
 import { api } from './api.js';
 import { unggahBerkas, ambilBerkas, hapusBerkas, simpanBlob } from './berkas.js';
+import { siapkanGambar } from './foto.js';
 import { toast, konfirmasi, pesanGalat, tombolMuat, bukaModal } from './ui.js';
 
 /** Kartu KPI. nilai angka → hitung naik; rp → awalan "Rp" kecil. */
@@ -44,7 +45,7 @@ export function slotBerkas({ judul, ket = '', jenis, berkas = [], boleh = false 
       ${boleh ? html`<button type="button" class="btn btn-icon" data-hapus-berkas="${b.id}" title="Hapus berkas" aria-label="Hapus ${b.nama}">${raw(ikon('trash', 18))}</button>` : ''}</div>`)}
     ${boleh ? html`<div class="slot-aksi">
       <label class="btn btn-secondary btn-sm">${raw(ikon('upload', 16))} ${ada.length ? 'Ganti / tambah berkas' : 'Unggah berkas'}
-        <input type="file" hidden data-file="${jenis}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"></label>
+        <input type="file" hidden data-file="${jenis}" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.heic,.heif"></label>
       <button type="button" class="btn btn-ghost btn-sm" data-tautan="${jenis}">${raw(ikon('link', 16))} Tempel tautan</button>
       <small class="redup">PDF, DOC/DOCX, XLS/XLSX, JPG/PNG · maks 10 MB</small></div>` : ''}
   </div>`;
@@ -55,8 +56,9 @@ export function pasangSlotBerkas(root, { usulanId, tahap, judulJenis = {}, muatU
   root.addEventListener('change', async (e) => {
     const inp = e.target.closest('input[data-file]');
     if (!inp || !inp.files?.[0]) return;
-    const f = inp.files[0], jenis = inp.dataset.file, tahapX = inp.closest('[data-panel]')?.dataset.panel || tahap;
+    let f = inp.files[0]; const jenis = inp.dataset.file, tahapX = inp.closest('[data-panel]')?.dataset.panel || tahap;
     inp.value = '';
+    try { f = await siapkanGambar(f); } catch (err) { return toast(pesanGalat(err), 'galat', 'Foto tidak terbaca'); }
     if (f.size > 10 * 1024 * 1024) return toast('Ukuran dokumen maksimal 10 MB.', 'galat');
     if (f.type && !MIME_OK.includes(f.type)) return toast('Jenis berkas tidak diizinkan. Gunakan PDF, DOC/DOCX, XLS/XLSX, JPG, atau PNG.', 'galat');
     const lbl = inp.closest('label');

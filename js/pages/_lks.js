@@ -18,9 +18,9 @@ export function defsLks({ pokjaPilihan = null } = {}) {
     { judul: 'Identitas LKS', kolom: [
       { k: 'nama', l: 'Nama LKS', wajib: true, lebar: true, ph: 'mis. Yayasan Pelita Harapan' },
       { k: 'alamat', l: 'Alamat lengkap', tipe: 'area', lebar: true, baris: 2 },
-      { k: 'provinsi', l: 'Provinsi', tipe: 'pilih', opsi: PROVINSI, help: 'Wajib sebelum diajukan' },
-      { k: 'kabkota', l: 'Kabupaten/Kota', tipe: 'kabkota', help: 'Wajib sebelum diajukan' },
-      { k: 'ketua', l: 'Nama ketua LKS' }, { k: 'telepon', l: 'Nomor telepon / HP LKS', tipe: 'tel' },
+      { k: 'provinsi', l: 'Provinsi', tipe: 'pilih', opsi: PROVINSI, wajib: true },
+      { k: 'kabkota', l: 'Kabupaten/Kota', tipe: 'kabkota', wajib: true },
+      { k: 'ketua', l: 'Nama ketua LKS', wajib: true }, { k: 'telepon', l: 'Nomor HP ketua / LKS', tipe: 'tel', wajib: true },
       { k: 'tahun_berdiri', l: 'Tahun berdiri', tipe: 'angka', ph: 'mis. 2007' }, { k: 'no_induk', l: 'Nomor induk LKS' },
     ] },
     { judul: 'Legalitas & Akreditasi', kolom: [
@@ -30,7 +30,7 @@ export function defsLks({ pokjaPilihan = null } = {}) {
       { k: 'akreditasi_tahun', l: 'Tahun akreditasi', tipe: 'angka' },
     ] },
     { judul: 'Layanan', ket: 'Pilih klaster TSKPO yang benar-benar dilayani LKS ini.', kolom: [
-      { k: 'klaster', l: 'Klaster TSKPO yang dilayani', tipe: 'multi', opsi: KLASTER, lebar: true },
+      { k: 'klaster', l: 'Klaster TSKPO yang dilayani', tipe: 'multi', opsi: KLASTER, lebar: true, wajib: true },
       { k: 'non_tskpo', l: 'LKS juga melayani di luar TSKPO (anak, lansia, disabilitas, dll.) — multi layanan', tipe: 'sakelar', lebar: true },
       { k: 'jenis_layanan', l: 'Jenis layanan', tipe: 'multi', opsi: LKS_OPSI.jenis_layanan, lebar: true },
       { k: 'bentuk_layanan', l: 'Bentuk layanan', tipe: 'pilih', opsi: LKS_OPSI.bentuk_layanan },

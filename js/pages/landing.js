@@ -57,10 +57,11 @@ export async function render(el) {
         <div class="rv">
           <span class="pill">Portal Kerja Internal RSTSKPO</span>
           <h1><span class="hl hl-sapu">Satu data</span> untuk setiap langkah pelayanan.</h1>
-          <p class="lead">Sistem Integrasi Data dan Informasi Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang. Terpadu dari asesmen, usulan BNBA, pengusulan SK, pencairan bantuan ATENSI, hingga Supermonev.</p>
+          <p class="lead"><strong>Sistem Integrasi Data dan Informasi Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang.</strong> Terpadu dari asesmen, usulan BNBA, pengusulan SK, pencairan bantuan ATENSI, hingga Supermonev.</p>
           <div class="lp-hero-aksi">
             <button type="button" class="btn btn-primary btn-lg" data-masuk>${logoGoogle} Masuk dengan Google</button>
-            <button type="button" class="btn btn-secondary btn-lg" data-gulir="waktu">Pelajari Alur 11 Tahap ${raw(ikon('arrow-right', 18, 'arah'))}</button>
+            <button type="button" class="btn btn-secondary btn-lg" data-gulir="profil-pm">Profil 1 Orang 1 Profil ${raw(ikon('arrow-right', 18, 'arah'))}</button>
+            <button type="button" class="btn btn-ghost btn-lg" data-gulir="waktu">Alur 11 Tahap</button>
           </div>
           <p class="lp-catatan">${raw(ikon('lock', 18))} Akses internal terbatas — hanya untuk pegawai dan petugas yang terdaftar di Direktorat.</p>
         </div>
@@ -73,6 +74,26 @@ export async function render(el) {
           </div>
           <div class="lp-apung a1"><span class="ubin" style="width:38px;height:38px;border-radius:12px">${raw(ikon('database', 20))}</span><span><b>Satu Data Terpadu</b><small>Central Database BNBA</small></span></div>
           <div class="lp-apung a2"><span class="ubin biru" style="width:38px;height:38px;border-radius:12px">${raw(ikon('workflow', 20))}</span><span><b>11 Tahap Terpantau</b><small>Asesmen s.d. Pencairan</small></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="lp-profil" id="profil-pm" aria-labelledby="judul-profil">
+      <div class="lp-wadah">
+        <div class="lp-profil-kartu rv">
+          <div class="lp-profil-teks">
+            <span class="pill">Unggulan</span>
+            <h2 id="judul-profil"><span class="hl hl-sapu">1 Orang 1 Profil</span> — dari BNBA sampai Supermonev</h2>
+            <p>Setiap penerima manfaat punya satu profil yang menyatukan seluruh perjalanannya: data BNBA, 11 tahap pengusulan SK, pencairan dan petugas penyalur, foto dokumentasi, hingga hasil monitoring pascapenyaluran. Cukup satu tombol di <b>Detail PM</b> untuk mengunduhnya sebagai <b>PowerPoint (PPTX)</b> atau <b>PDF</b>.</p>
+            <div class="lp-profil-ekspor"><span class="badge b-gold">${raw(ikon('presentation', 15))} PPTX</span><span class="badge b-ok">${raw(ikon('printer', 15))} PDF</span><span class="badge b-draft">${raw(ikon('eye-off', 15))} NIK disamarkan</span></div>
+          </div>
+          <ol class="lp-profil-alur" aria-label="Perjalanan satu profil">
+            <li><b>BNBA</b><small>Profil, alamat, ekonomi awal</small></li>
+            <li><b>11 Tahap SK</b><small>Verifikasi sampai tanda tangan</small></li>
+            <li><b>Pencairan</b><small>SP2D, rekening, penyalur</small></li>
+            <li><b>Dokumentasi</b><small>Foto sebelum &amp; saat penyaluran</small></li>
+            <li><b>Supermonev</b><small>Hasil monitoring tiap 3 bulan</small></li>
+          </ol>
         </div>
       </div>
     </section>

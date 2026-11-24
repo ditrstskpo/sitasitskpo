@@ -3,7 +3,7 @@
 import { html, raw, angka, tanggal, tanggalJam, inisial, warnaDari } from '../core/util.js';
 import { ikon } from '../core/icons.js';
 import { api } from '../core/api.js';
-import { judulHalaman, kosong, kotakGalat, toast, pesanGalat, tombolMuat, konfirmasi } from '../core/ui.js';
+import { judulHalaman, kosong, kotakGalat, toast, pesanGalat, tombolMuat, konfirmasi, bukaModal } from '../core/ui.js';
 import { tabs } from '../core/komp.js';
 import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_BNBA, STATUS_USULAN, badge, chipTahap, stepperMini, infoTahap, URUT_TAHAP, rupiah, usia, bolehPenuh } from '../core/bnba.js';
 import { pergi } from '../core/nav.js';
@@ -65,7 +65,7 @@ export async function render(el, { sesi: s, param: nik }) {
   function gambar() {
     el.innerHTML = String(html`
       ${judulHalaman({ pill: 'Profil Penerima Manfaat · Telusur per NIK', sorot: 'Detail PM', sisa: '— ' + b.nama,
-        aksi: String(html`<button class="btn btn-ghost" data-kembali>${raw(ikon('arrow-left', 18))} Kembali</button><button class="btn btn-secondary" data-cetak>${raw(ikon('printer', 18))} Cetak Ringkasan</button>`) })}
+        aksi: String(html`<button class="btn btn-ghost" data-kembali>${raw(ikon('arrow-left', 18))} Kembali</button><button class="btn btn-secondary" data-cetak>${raw(ikon('printer', 18))} Cetak / PDF</button><button class="btn btn-primary" data-unduh-profil>${raw(ikon('presentation', 18))} Unduh Profil PPTX</button>`) })}
       <section class="card identitas">
         <span class="avatar besar" style="--c:${warnaDari(b.nama)}">${inisial(b.nama)}</span>
         <div class="id-utama"><small class="redup">Nomor Induk Kependudukan</small><div class="mono nik-besar">${b.nik}</div><h2>${b.nama}</h2>
@@ -82,6 +82,29 @@ export async function render(el, { sesi: s, param: nik }) {
     if (tab === 'dok') muatDok();
     if (tab === 'smv' || tab === 'cair') muatSmv();
     if (tab === 'diskusi') panelDiskusi(el.querySelector('[data-diskusi]'), { tabel: 'bnba', ref: b.id }).then((f) => { lepasDiskusi = f; });
+  }
+  // Ekspor profil lengkap (1 orang 1 profil): PPTX atau cetak/PDF. Data sensitif disamarkan; NIK lengkap hanya bila dipilih.
+  async function bukaEkspor(jenis) {
+    const m = bukaModal({ judul: jenis === 'pptx' ? 'Unduh Profil PM (PowerPoint)' : 'Cetak / Simpan PDF Profil PM', ukuran: 'kecil',
+      isi: String(html`<p class="redup" style="margin-top:0">Berisi data dari awal sampai Supermonev: BNBA, 11 tahap SK, pencairan &amp; penyalur, dokumentasi, dan hasil monitoring.</p>
+        ${jenis === 'pptx' ? html`<label class="cek-pil" style="margin:6px 0"><input type="checkbox" data-ek-foto checked><span>Sertakan foto dokumentasi</span></label>` : ''}
+        <label class="cek-pil" style="margin:6px 0"><input type="checkbox" data-ek-nik><span>Tampilkan NIK lengkap (bawaan: disamarkan)</span></label>
+        <div class="galat" data-ek-progres hidden style="margin-top:12px"></div>`),
+      kaki: String(html`<button type="button" class="btn btn-ghost" data-batal>Batal</button><button type="button" class="btn btn-primary" data-ek-ok>${raw(ikon(jenis === 'pptx' ? 'download' : 'printer', 18))} ${jenis === 'pptx' ? 'Unduh PPTX' : 'Cetak / PDF'}</button>`) });
+    m.el.querySelector('[data-ek-ok]').onclick = async (ev) => {
+      const pulih = tombolMuat(ev.currentTarget, 'Menyiapkan…');
+      const nikPenuh = m.el.querySelector('[data-ek-nik]').checked, foto = !!m.el.querySelector('[data-ek-foto]')?.checked;
+      try {
+        const [smv, dok] = await Promise.all([api.smvRiwayatPm(b.id).catch(() => null), (jenis === 'pptx' && foto ? api.statusDokPm(b.id) : Promise.resolve(null)).catch(() => null)]);
+        if (nikPenuh) await api.bnbaLengkap(nik).catch(() => null);   // tercatat di audit log
+        if (jenis === 'pptx') {
+          const { unduhProfilPptx } = await import('./profil-pm-pptx.js');
+          const pg = m.el.querySelector('[data-ek-progres]');
+          await unduhProfilPptx({ d, smv, dok, foto, nikPenuh, progres: (n, t, ket) => { pg.hidden = false; pg.textContent = `${ket || 'Menyusun'} (${n}/${t})`; } });
+          toast('Profil PM (PPTX) terunduh.', 'sukses', 'Ekspor selesai'); m.tutup();
+        } else { const { cetakProfil } = await import('./profil-pm-cetak.js'); m.tutup(); cetakProfil({ d, smv, nikPenuh }); toast('Pada jendela cetak, pilih "Simpan sebagai PDF" bila ingin berkas PDF.', 'info'); }
+      } catch (err) { pulih(); toast(pesanGalat(err), 'galat', 'Ekspor gagal'); }
+    };
   }
   let lepasDiskusi = () => {};
   async function muatSmv() {
@@ -153,7 +176,8 @@ export async function render(el, { sesi: s, param: nik }) {
       return;
     }
     if (e.target.closest('[data-kembali]')) return history.length > 1 ? history.back() : pergi('/master-bnba');
-    if (e.target.closest('[data-cetak]')) return window.print();
+    const pr = e.target.closest('[data-cetak], [data-unduh-profil]');
+    if (pr) return bukaEkspor(pr.matches('[data-unduh-profil]') ? 'pptx' : 'pdf');
     const bp = e.target.closest('[data-buka-penuh]');
     if (bp) {
       if (penuh) { penuh = null; return gambar(); }

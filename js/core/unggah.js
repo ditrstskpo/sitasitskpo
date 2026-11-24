@@ -8,14 +8,16 @@ import { unggahBerkas, ambilBerkas, hapusBerkas, simpanBlob } from './berkas.js'
 import { kecilkanFoto } from './foto.js';
 import { toast, konfirmasi, pesanGalat, tombolMuat, bukaModal } from './ui.js';
 import { ukuranTeks } from './komp.js';
+import { siapkanGambar } from './foto.js';
 
 export const MIME_DOK = ['application/pdf', 'application/msword', 'image/jpeg', 'image/png', 'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
-export const TERIMA_DOK = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png';
+export const TERIMA_DOK = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.heic,.heif,.webp';
 
 /** Unggah ke konteks (lks | dokumen | dok_pm | renja | hukum | ojt | smv | belanja). ref = ID data (atau ID folder untuk dokumen). */
 export async function unggahKonteks({ konteks, ref, jenis, file, foto = false }) {
+  file = await siapkanGambar(file);   // HEIC iPhone → JPG
   let f = file;
   if (foto) f = await kecilkanFoto(file);
   else if (konteks === 'belanja' && /^image\/(jpeg|png|webp|heic|heif)/i.test(file.type || '')) f = await kecilkanFoto(file);   // foto nota/barang ≤ 1 MB
@@ -58,6 +60,8 @@ export function galeriFoto({ konteks, ref, jenis, judul, ket = '', berkas = [], 
     <div class="galeri-kepala"><span class="ubin ${merah ? 'merah' : ''}">${raw(ikon('camera', 20))}</span>
       <div><b>${judul}</b><small>${ket || `Maks ${maks} foto · 1 MB per foto (dikecilkan otomatis)`}</small></div>
       <span class="spacer"></span>
+      ${boleh && kosong ? html`<label class="btn btn-secondary btn-sm btn-kamera">${raw(ikon('camera', 16))} Ambil dengan kamera
+        <input type="file" accept="image/*" capture="environment" hidden data-unggah-kamera data-konteks="${konteks}" data-ref="${ref}" data-jenis="${jenis}"></label>` : ''}
       ${berkas.length ? html`<span class="badge b-ok">${raw(ikon('check-circle', 15))} ${berkas.length}/${maks}</span>`
         : tanpa?.status === 'disetujui' ? html`<span class="badge b-draft">Tidak ada dokumentasi (disetujui)</span>`
           : tanpa?.status === 'menunggu' ? html`<span class="badge b-wait">${raw(ikon('clock', 15))} Pengecualian menunggu</span>`
@@ -68,7 +72,7 @@ export function galeriFoto({ konteks, ref, jenis, judul, ket = '', berkas = [], 
         <figcaption>${b.diunggah_nama || ''}<br><small>${tanggalJam(b.dibuat_pada)}</small></figcaption>
         ${boleh ? html`<button type="button" class="foto-hapus" data-hapus-berkas="${b.id}" aria-label="Hapus foto ${b.nama}">${raw(ikon('trash', 16))}</button>` : ''}</figure>`)}
       ${boleh && kosong ? Array.from({ length: kosong }, () => html`<label class="foto foto-tambah">${raw(ikon('camera', 26))}<span>Tambah foto</span>
-        <input type="file" accept="image/*" hidden data-unggah-foto data-konteks="${konteks}" data-ref="${ref}" data-jenis="${jenis}"></label>`)
+        <input type="file" accept="image/*,.heic,.heif" hidden data-unggah-foto data-konteks="${konteks}" data-ref="${ref}" data-jenis="${jenis}"></label>`)
         : !berkas.length ? html`<div class="foto foto-kosong">${raw(ikon('image-off', 24))}<span>${boleh ? '' : 'Belum ada foto'}</span></div>` : ''}
     </div>
     ${tanpa?.alasan ? html`<p class="galeri-catatan">${raw(ikon('info', 15))} Alasan tidak ada dokumentasi: ${tanpa.alasan}${tanpa.catatan ? ' · Catatan: ' + tanpa.catatan : ''}</p>` : ''}
@@ -136,7 +140,7 @@ export function pasangUnggah(root, { muatUlang, judulJenis = {} } = {}) {
     } catch (err) { toast(pesanGalat(err), 'galat', 'Unggah gagal'); pulih(); }
   };
   root.addEventListener('change', (e) => {
-    const f = e.target.closest('input[data-unggah-foto]');
+    const f = e.target.closest('input[data-unggah-foto], input[data-unggah-kamera]');
     if (f) return ubah(f, true);
     const d = e.target.closest('input[data-unggah-dok]');
     if (d) return ubah(d, false);

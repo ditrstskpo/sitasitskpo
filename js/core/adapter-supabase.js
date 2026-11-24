@@ -477,6 +477,8 @@ export function langgananTabel(tabel, cb, filter = null) {
 // TAHAP 5 — Supermonev, penugasan petugas, verifikasi belanja
 // =====================================================================
 export const smvPetugas = () => rpc('smv_petugas');
+export const daftarVerifikator = (pokja = null) => rpc('daftar_verifikator', { p_pokja: pokja });
+export const aturVerifikator = (pokja, pengguna, aktif) => rpc('atur_verifikator', { p_pokja: pokja, p_pengguna: pengguna, p_aktif: aktif });
 export const smvPenugasan = (f = {}) => rpc('smv_penugasan', { p_filter: f });
 export const smvTugaskan = (items, petugas, catatan = null) => rpc('smv_tugaskan', { p_item: items, p_petugas: petugas, p_catatan: catatan });
 export const smvBatalTugas = (items) => rpc('smv_batal_tugas', { p_item: items });

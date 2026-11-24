@@ -86,7 +86,8 @@ export function kolom3d(data, { label = 'label', nilai = 'n', format = angka, wa
   const dx = Math.round(lebarK * 0.42), dy = Math.round(lebarK * 0.3);
   const top = maksNilai || Math.max(...d.map((x) => Number(x[nilai]) || 0), 1);
   const putar = putarLabel ?? n > 7;
-  const bawah = putar ? 86 : 44, atas = 34, kiri = 12;
+  const panjang = Math.min(24, Math.max(...d.map((x) => String(x[label] ?? '').length), 1));   // label miring -38°: lebar ≈ 5,4 px/huruf, tinggi ≈ 4,2 px/huruf
+  const bawah = putar ? Math.round(panjang * 4.3 + 30) : 44, atas = 34, kiri = putar ? Math.max(12, Math.round(panjang * 5.5 - lebarK / 2 + 10)) : 12;
   const W = kiri + n * (lebarK + jarak) + dx + 12, H = tinggi + atas + bawah, dasar = atas + tinggi;
   const gelapkan = (hex, f) => {
     const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex;
@@ -106,7 +107,7 @@ export function kolom3d(data, { label = 'label', nilai = 'n', format = angka, wa
       </g>
       <text class="g-k3-nilai" x="${x0 + lebarK / 2 + dx / 2}" y="${y0 - dy - 8}" text-anchor="middle">${teks}</text>
       ${putar
-        ? html`<text class="g-k3-label" transform="translate(${x0 + lebarK / 2},${dasar + 14}) rotate(-38)" text-anchor="end">${String(x[label]).slice(0, 22)}</text>`
+        ? html`<text class="g-k3-label" transform="translate(${x0 + lebarK / 2},${dasar + 14}) rotate(-38)" text-anchor="end">${potongLabel(x[label], 24)}</text>`
         : html`<text class="g-k3-label" x="${x0 + lebarK / 2 + dx / 2}" y="${dasar + 20}" text-anchor="middle">${potongLabel(x[label], Math.max(6, Math.floor((lebarK + jarak) / 6.6)))}</text>`}
     </g>`;
   });

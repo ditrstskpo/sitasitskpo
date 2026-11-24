@@ -14,6 +14,7 @@ import { pergi } from './core/nav.js';
 import { pantauJaringan, preconnect } from './core/jaringan.js';
 import { mulaiPantauIdle } from './core/sesi-idle.js';
 import { mulaiGeserAtas } from './core/geser-atas.js';
+import { mulaiPaskan } from './core/paskan.js';
 import { CONFIG } from './config.js';
 
 const root = document.getElementById('app');
@@ -36,7 +37,8 @@ const RUTE = {
   // Tahap 2 — BNBA & alur pencairan
   '/workspace-bnba': { judul: 'Workspace BNBA Pokja', muat: () => import('./pages/ws-bnba.js'), izin: (s) => P.isSuperAdmin(s) || P.pokjaEfektif(s).length > 0 },
   '/workspace-bnba/usulan': { judul: 'Formulir Usulan BNBA', induk: '/workspace-bnba', muat: () => import('./pages/usulan-edit.js'), izin: (s) => P.isSuperAdmin(s) || P.pokjaEfektif(s).length > 0 },
-  '/antrean-verifikasi': { judul: 'Antrean Verifikasi', muat: () => import('./pages/antrean.js'), izin: (s) => P.isSuperAdmin(s) || P.isKapokja(s) || P.diPokja(s, 'TU') },
+  '/antrean-verifikasi': { judul: 'Antrean Verifikasi', muat: () => import('./pages/antrean.js'), izin: (s) => P.isSuperAdmin(s) || P.bisaVerifikasi(s) || P.diPokja(s, 'TU') },
+  '/petugas-verif': { judul: 'Petugas Verif Pokja', muat: () => import('./pages/petugas-verif.js'), izin: (s) => P.isSuperAdmin(s) || P.isKapokja(s) || P.isVerifikator(s) || P.diPokja(s, 'TU') },
   '/usulan-sk': { judul: 'Pengusulan SK', muat: () => import('./pages/pengusulan-sk.js'), izin: P.isPegawai },
   '/tata-usaha': { judul: 'Workspace Tata Usaha', muat: () => import('./pages/antrean-tahap.js'), izin: (s) => P.isSuperAdmin(s) || P.diPokja(s, 'TU') },
   '/keuangan': { judul: 'Workspace Keuangan', muat: () => import('./pages/antrean-tahap.js'), izin: (s) => P.isSuperAdmin(s) || P.diPokja(s, 'KEUANGAN') },
@@ -94,7 +96,7 @@ async function muatSesi({ login = false } = {}) {
     simpanSesi(s);
     mulaiRealtime(s);
     mulaiPantauIdle();
-    mulaiGeserAtas();
+    mulaiGeserAtas(); mulaiPaskan();
     return s;
   }
   if (s.status === 'tanpa_sesi') { bersihkanSemua(); return null; }

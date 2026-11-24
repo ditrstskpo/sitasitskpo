@@ -13,6 +13,9 @@ export const isPegawai = (s) => ['super_admin', 'direktur', 'pegawai'].includes(
 export const pokjaEfektif = (s) => s?.efektif?.pokja || [];
 export const diPokja = (s, kode, jabatan) => pokjaEfektif(s).some((p) => p.kode === kode && (!jabatan || p.jabatan === jabatan));
 export const isKapokja = (s) => pokjaEfektif(s).some((p) => p.jabatan === 'kapokja');
+/** Petugas Verif: anggota Pokja yang ditunjuk Kapokja untuk memverifikasi BNBA dan SK/Nota Dinas pokjanya. */
+export const isVerifikator = (s) => pokjaEfektif(s).some((p) => p.verifikator);
+export const bisaVerifikasi = (s) => isKapokja(s) || isVerifikator(s);
 export const bolehKelolaPengumuman = (s) => isSuperAdmin(s) || diPokja(s, 'TU');
 export const halamanAwal = (s) => (isBank(s) ? '/burekol-bank' : isPetugas(s) ? '/supermonev' : '/beranda');
 

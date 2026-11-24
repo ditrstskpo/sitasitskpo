@@ -9,7 +9,7 @@ import { rupiah, usia, barisEkspor, chipPokjaU, JENIS_BANTUAN } from '../core/bn
 import * as P from '../core/peran.js';
 
 export async function render(el, { sesi: s, query }) {
-  const kapokjaIds = P.isSuperAdmin(s) ? [] : P.pokjaEfektif(s).filter((p) => p.jabatan === 'kapokja').map((p) => p.id);
+  const kapokjaIds = P.isSuperAdmin(s) ? [] : P.pokjaEfektif(s).filter((p) => p.jabatan === 'kapokja' || p.verifikator).map((p) => p.id);
   const bisaBnba = P.isSuperAdmin(s) || kapokjaIds.length > 0;
   let pilihId = query.get('id') || null, cari = '', daftar = [];
 
@@ -17,7 +17,7 @@ export async function render(el, { sesi: s, query }) {
     ${judulHalaman({ pill: 'Otorisasi Satu Pintu · Tahap 2 Verifikasi Kapokja', sorot: 'Antrean Verifikasi', sisa: 'Kapokja — Pemeriksaan Bundel Usulan BNBA',
       sub: 'Periksa seluruh BNBA (40 kolom) dan link profil asesmen dalam satu usulan, lalu Setujui atau Kembalikan dengan catatan. Verifikasi dilakukan satu kali.',
       aksi: String(html`<button class="btn btn-secondary" data-cetak>${raw(ikon('printer', 18))} Cetak Lembar Verifikasi</button>`) })}
-    ${!bisaBnba ? html`<div class="info-card biru">${raw(ikon('info', 20, 'ik'))}<span>Verifikasi usulan BNBA hanya untuk Kapokja Pokja pemilik usulan.
+    ${!bisaBnba ? html`<div class="info-card biru">${raw(ikon('info', 20, 'ik'))}<span>Verifikasi usulan BNBA hanya untuk Kapokja atau Petugas Verif Pokja pemilik usulan.
       Antrean verifikasi Data LKS untuk Pokja TU dan Pokja Data aktif pada Tahap 3 pembangunan.</span></div>` : html`
     <div class="antrean-grid">
       <aside>

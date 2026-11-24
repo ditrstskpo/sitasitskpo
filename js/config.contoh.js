@@ -24,7 +24,7 @@ export const CONFIG = {
 
   // Keluar otomatis bila tidak ada aktivitas selama sekian jam (bawaan 4).
   IDLE_JAM: 4,
-  VERSI: '2.8.0',
+  VERSI: '2.9.0',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
   LOGO: 'assets/logo-sitasi.png',

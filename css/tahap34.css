@@ -129,7 +129,7 @@ a.mini-stat:hover { transform: translateY(-3px); box-shadow: var(--bayang-2); }
 .band .g-legenda span, .band .g-legenda b { color: var(--gelap-teks); } .band .g-legenda small { color: var(--gelap-teks2); }
 
 .g-kolom3d { width: 100%; overflow-x: auto; color: var(--judul); }
-.g-kolom3d svg { width: 100%; min-width: 300px; height: auto; display: block; }
+.g-kolom3d svg { width: 100%; min-width: 300px; height: auto; display: block; overflow: visible; }
 .g-k3 { outline: none; cursor: default; }
 .g-k3-badan { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0); transition: transform .9s var(--ease); transition-delay: calc(var(--i, 0) * 70ms); }
 .rv.on .g-k3-badan, .g-kolom3d.on .g-k3-badan, .segar .g-k3-badan { transform: scaleY(1); }

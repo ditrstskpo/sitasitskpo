@@ -272,13 +272,20 @@ function pengingat() {
 const bebanPetugas = (pid) => d().smv_tugas.filter((t) => t.petugas_id === pid && !d().supermonev.some((s) => s.bnba_id === t.bnba_id && s.putaran === t.putaran && s.status === 'terverifikasi')).length;
 export async function smvPetugas() {
   await jeda(); siapkan(); butuhPeg();
-  return d().pengguna.filter((u) => u.aktif && (u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev || anggotaSmv(u.id))).sort((a, b) => a.nama.localeCompare(b.nama))
-    .map((u) => ({ id: u.id, nama: u.nama, email: u.email, jenis: u.jenis_akses === 'petugas_supermonev' ? 'Petugas lapangan' : 'Pokja Supermonev', beban: bebanPetugas(u.id) }));
+  const peg = d().pegawai || [];
+  return d().pengguna.filter((u) => u.aktif && ['pegawai', 'petugas_supermonev'].includes(u.jenis_akses)).sort((a, b) => a.nama.localeCompare(b.nama))
+    .map((u) => { const pg = peg.find((x) => x.status === 'Aktif' && (x.pengguna_id === u.id || (x.email && x.email.toLowerCase() === u.email.toLowerCase())));
+      return { id: u.id, nama: u.nama, email: u.email, jenis: u.jenis_akses === 'petugas_supermonev' ? 'Petugas lapangan' : u.peran_sistem === 'super_admin' ? 'Super Admin' : u.peran_sistem === 'direktur' ? 'Direktur' : 'Pegawai',
+        peran: d().pengguna_pokja.filter((x) => x.pengguna_id === u.id).map((x) => (x.jabatan === 'kapokja' ? 'Kapokja ' : 'Anggota ') + I.pokjaById(x.pokja_id).nama_pendek).join(', '),
+        domisili_provinsi: pg?.provinsi || null, domisili_kabkota: pg?.kabkota || null,
+        kab_salur: [...new Set((d().penyaluran || []).filter((l) => l.kabkota && String(l.nama_petugas).trim().toLowerCase() === u.nama.trim().toLowerCase()).map((l) => l.kabkota))],
+        beban: bebanPetugas(u.id) }; });
 }
 function barisPenugasan() {
   return jadwal().map((j) => {
     const b = bnba(j.bnba_id), t = d().smv_tugas.find((x) => x.bnba_id === j.bnba_id && x.putaran === j.putaran), s = d().supermonev.find((x) => x.bnba_id === j.bnba_id && x.putaran === j.putaran);
-    return { ...pmJson(b), putaran: j.putaran, jatuh_tempo: j.jatuh_tempo, status: s ? s.status : t ? 'ditugaskan' : 'belum_ditugaskan', petugas_id: t?.petugas_id || null,
+    const lu = (d().penyaluran || []).filter((l) => l.usulan_id === b.usulan_id && (l.semua_pm || (l.nik_pm || []).includes(b.nik)));
+    return { ...pmJson(b), kab_penyaluran: b.kota_kab_penyaluran || null, prov_penyaluran: b.prov_penyaluran || null, penyalur: [...new Set(lu.map((l) => l.nama_petugas))], putaran: j.putaran, jatuh_tempo: j.jatuh_tempo, status: s ? s.status : t ? 'ditugaskan' : 'belum_ditugaskan', petugas_id: t?.petugas_id || null,
       petugas_nama: t ? namaPengguna(t.petugas_id) : null, ditugaskan_pada: t?.ditugaskan_pada || null, isian_id: s?.id || null, hasil: s?.hasil || null };
   });
 }
@@ -300,8 +307,8 @@ export async function smvPenugasan(f = {}) {
 export async function smvTugaskan(items, petugasId, catatan = null) {
   await jeda(); siapkan();
   if (!bolehTugaskan()) throw g('Penugasan dilakukan Kapokja Supermonev atau Kapokja TU.', '42501');
-  const p = d().pengguna.find((u) => u.id === petugasId && u.aktif && (u.jenis_akses === 'petugas_supermonev' || u.juga_supermonev || anggotaSmv(u.id)));
-  if (!p) throw g('Pilih petugas Supermonev yang terdaftar dan aktif.');
+  const p = d().pengguna.find((u) => u.id === petugasId && u.aktif && ['pegawai', 'petugas_supermonev'].includes(u.jenis_akses));
+  if (!p) throw g('Pilih pegawai atau petugas yang terdaftar dan aktif.');
   if (!Array.isArray(items) || !items.length) throw g('Pilih minimal satu PM.');
   const jw = jadwal(tambahHari(hariIni(), 400));
   let baru = 0, pindah = 0; const lewat = [];
