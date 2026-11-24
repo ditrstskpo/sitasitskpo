@@ -19,7 +19,7 @@ export function defsLks({ pokjaPilihan = null } = {}) {
       { k: 'nama', l: 'Nama LKS', wajib: true, lebar: true, ph: 'mis. Yayasan Pelita Harapan' },
       { k: 'alamat', l: 'Alamat lengkap', tipe: 'area', lebar: true, baris: 2 },
       { k: 'provinsi', l: 'Provinsi', tipe: 'pilih', opsi: PROVINSI, help: 'Wajib sebelum diajukan' },
-      { k: 'kabkota', l: 'Kabupaten/Kota', ph: 'mis. Kota Bogor', help: 'Wajib sebelum diajukan' },
+      { k: 'kabkota', l: 'Kabupaten/Kota', tipe: 'kabkota', help: 'Wajib sebelum diajukan' },
       { k: 'ketua', l: 'Nama ketua LKS' }, { k: 'telepon', l: 'Nomor telepon / HP LKS', tipe: 'tel' },
       { k: 'tahun_berdiri', l: 'Tahun berdiri', tipe: 'angka', ph: 'mis. 2007' }, { k: 'no_induk', l: 'Nomor induk LKS' },
     ] },
@@ -113,7 +113,7 @@ export async function lihatLks(id, { onUbah } = {}) {
         ${kv('Diverifikasi', l.diverifikasi_nama ? `${l.diverifikasi_nama} (${l.diverifikasi_pokja || ''}) · ${tanggalJam(l.diverifikasi_pada)}` : '—')}
       </dl>
       <h3 style="font-size:1.0625rem;margin:24px 0 12px;display:flex;gap:8px;align-items:center">${raw(ikon('camera', 20))} Foto LKS
-        <small class="redup" style="font-weight:500">${boleh ? '· unggah langsung dari kamera/galeri, otomatis dikecilkan ≤ 500 KB' : ''}</small></h3>
+        <small class="redup" style="font-weight:500">${boleh ? '· unggah langsung dari kamera/galeri, otomatis dikecilkan ≤ 1 MB' : ''}</small></h3>
       <div class="galeri-grid">${FOTO_LKS.map(([j, judul]) => galeriFoto({ konteks: 'lks', ref: l.id, jenis: j, judul, maks: 1, berkas: b.filter((x) => x.jenis === j), boleh, ket: 'Maks 1 foto · JPG/PNG' }))}</div>
       <h3 style="font-size:1.0625rem;margin:24px 0 12px;display:flex;gap:8px;align-items:center">${raw(ikon('paperclip', 20))} Berkas pendukung</h3>
       <div class="grid grid-2" style="gap:12px">${DOK_LKS.map(([j, judul, ket]) => daftarBerkas({ konteks: 'lks', ref: l.id, jenis: j, judul, ket, berkas: b, boleh }))}</div>`);

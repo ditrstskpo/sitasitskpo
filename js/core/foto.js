@@ -1,7 +1,7 @@
-// Kompres foto di browser sebelum diunggah (PRD: foto maksimal 500 KB per foto).
+// Kompres foto di browser sebelum diunggah (PRD: foto maksimal 1 MB per foto).
 // Foto dikecilkan ke sisi terpanjang ≤ 1600 px lalu disimpan sebagai JPG dengan kualitas menurun bertahap
-// sampai ukurannya ≤ 500 KB. Foto yang sudah kecil (JPG/PNG ≤ 500 KB) dikirim apa adanya.
-export const BATAS_FOTO = 500 * 1024;
+// sampai ukurannya ≤ 1 MB. Foto yang sudah kecil (JPG/PNG ≤ 1 MB) dikirim apa adanya.
+export const BATAS_FOTO = 1024 * 1024;
 
 function muat(file) {
   if ('createImageBitmap' in window) return createImageBitmap(file).catch(() => muatImg(file));
@@ -39,5 +39,5 @@ export async function kecilkanFoto(file, { maks = BATAS_FOTO, sisi = 1600 } = {}
     }
     w = Math.round(w * 0.8); h = Math.round(h * 0.8);
   }
-  throw new Error('Foto terlalu besar dan tidak dapat dikecilkan di bawah 500 KB. Coba foto lain.');
+  throw new Error('Foto terlalu besar dan tidak dapat dikecilkan di bawah 1 MB. Coba foto lain.');
 }

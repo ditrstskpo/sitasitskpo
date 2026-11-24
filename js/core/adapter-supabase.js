@@ -413,6 +413,7 @@ export const daftarFolder = (pokja) => rpc('daftar_folder', { p_pokja: pokja });
 export const buatFolder = (pokja, nama) => rpc('buat_folder', { p_pokja: pokja, p_nama: nama });
 export const ubahFolder = (id, nama) => rpc('ubah_folder', { p_id: id, p_nama: nama });
 export const hapusFolder = (id) => rpc('hapus_folder', { p_id: id });
+export const cariGlobal = (q, batas = 6) => rpc('cari_global', { p_q: q, p_batas: batas });
 export const daftarDokumen = (f = {}) => rpc('daftar_dokumen', { p_filter: f });
 export const ubahDokumen = (id, d) => rpc('ubah_dokumen', { p_id: id, p_data: d });
 export const ajukanPublikasi = (id, kategori) => rpc('ajukan_publikasi', { p_id: id, p_kategori: kategori });

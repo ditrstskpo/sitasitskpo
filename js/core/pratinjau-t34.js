@@ -10,7 +10,7 @@ const PROV = { 'Aceh': '11', 'Sumatera Utara': '12', 'Sumatera Barat': '13', 'Ri
   'Sulawesi Utara': '71', 'Sulawesi Tengah': '72', 'Sulawesi Selatan': '73', 'Sulawesi Tenggara': '74', 'Gorontalo': '75', 'Sulawesi Barat': '76',
   'Maluku': '81', 'Maluku Utara': '82', 'Papua': '91-A', 'Papua Selatan': '91-C', 'Papua Tengah': '91-D', 'Papua Pegunungan': '91-B',
   'Papua Barat': '92-A', 'Papua Barat Daya': '92-B' };
-const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
+const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'SK', 'SOP', 'Perpres', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
 const LABEL_PM = { sebelum_usaha: 'Sebelum Usaha', saat_penyaluran: 'Saat Penyaluran', supermonev: 'Supermonev' };
 
 const d = () => I.db;
@@ -286,9 +286,9 @@ export function unggahKonteksP(x, lokasi) {
   const ukuran = Math.floor((x.base64 || '').length * 0.75);
   if (c.foto) {
     if (!['image/jpeg', 'image/png'].includes(x.mime)) throw g('Bagian ini hanya menerima foto JPG atau PNG.');
-    if (ukuran > 512000) throw g('Ukuran foto maksimal 500 KB. Aplikasi mengecilkan foto otomatis; pilih ulang fotonya.');
+    if (ukuran > 1048576) throw g('Ukuran foto maksimal 1 MB. Aplikasi mengecilkan foto otomatis; pilih ulang fotonya.');
   } else if (ukuran > 10 * 1024 * 1024) throw g('Ukuran dokumen maksimal 10 MB.');
-  else if (c.gambar500 && /^image\//.test(x.mime || '') && ukuran > 512000) throw g('Ukuran foto maksimal 500 KB. Aplikasi mengecilkan foto otomatis; pilih ulang fotonya.');
+  else if (c.gambar500 && /^image\//.test(x.mime || '') && ukuran > 1048576) throw g('Ukuran foto maksimal 1 MB. Aplikasi mengecilkan foto otomatis; pilih ulang fotonya.');
   if (c.maks && d().berkas.filter((b) => b.konteks === konteks && b.ref_id === x.usulan_id && b.jenis === x.jenis && !b.dihapus).length >= c.maks) {
     throw g(c.maks === 1 ? 'Foto ini sudah ada. Hapus foto lama lebih dulu bila ingin menggantinya.' : `Maksimal ${c.maks} foto untuk bagian ini. Hapus salah satu foto lama bila ingin menggantinya.`);
   }
@@ -902,20 +902,22 @@ const dokAmbil = (id) => { const x = d().dokumen.find((y) => y.id === id && !y.d
 export async function ubahDokumen(id, v) {
   await jeda(); siapkan(); const x = dokAmbil(id);
   if (!(bolehPokja(x.pokja_id) && ['privat', 'ditolak'].includes(x.status))) throw g('Dokumen hanya dapat diubah Pokja pemilik selama belum diajukan atau setelah ditolak.', '42501');
-  if (!teks(v.judul)) throw g('Judul dokumen wajib diisi.');
+  if ('judul' in v && !teks(v.judul)) throw g('Judul dokumen wajib diisi.');
+  const kat = teks(v.kategori); if (kat) cekKategori(x, kat);
   if (v.folder_id && !d().dok_folder.some((f) => f.id === v.folder_id && f.pokja_id === x.pokja_id)) throw g('Folder tujuan harus folder Pokja yang sama.');
-  Object.assign(x, { judul: teks(v.judul), keterangan: teks(v.keterangan), folder_id: v.folder_id || x.folder_id, diubah_pada: I.sekarang() }); I.simpan(); return dokJson(x);
+  Object.assign(x, { judul: 'judul' in v ? teks(v.judul) : x.judul, keterangan: 'keterangan' in v ? teks(v.keterangan) : x.keterangan, folder_id: v.folder_id || x.folder_id, kategori: kat || x.kategori, diubah_pada: I.sekarang() }); I.simpan(); return dokJson(x);
 }
 function cekKategori(x, kat) {
-  if (!KAT_DOK.includes(kat)) throw g('Pilih salah satu dari 6 kategori Dokumen Bersama.');
+  if (!KAT_DOK.includes(kat)) throw g('Pilih kategori dokumen.');
   const b = d().berkas.find((y) => y.id === x.berkas_id) || {};
-  if (kat === 'Dokumentasi Kegiatan') { if (b.lokasi === 'tautan' || !['image/jpeg', 'image/png'].includes(b.mime) || (b.ukuran || 0) > 512000) throw g('Kategori Dokumentasi Kegiatan hanya menerima foto JPG/PNG maksimal 500 KB.'); }
+  if (kat === 'Dokumentasi Kegiatan') { if (b.lokasi === 'tautan' || !['image/jpeg', 'image/png'].includes(b.mime) || (b.ukuran || 0) > 1048576) throw g('Kategori Dokumentasi Kegiatan hanya menerima foto JPG/PNG maksimal 1 MB.'); }
   else if (/^image\//.test(b.mime || '')) throw g('Foto hanya untuk kategori Dokumentasi Kegiatan. Kategori lain menerima PDF, DOC/DOCX, PPT/PPTX, atau XLS/XLSX.');
 }
-export async function ajukanPublikasi(id, kat) {
+export async function ajukanPublikasi(id, kat = null) {
   await jeda(); siapkan(); const x = dokAmbil(id);
   if (!bolehPokja(x.pokja_id)) throw g('Hanya anggota Pokja pemilik.', '42501');
   if (!['privat', 'ditolak'].includes(x.status)) throw g('Dokumen ini sudah diajukan atau sudah terbit.');
+  kat = teks(kat) || x.kategori;
   cekKategori(x, kat);
   Object.assign(x, { status: 'diajukan', kategori: kat, diajukan_nama: I.namaSaya(), diajukan_pada: I.sekarang(), catatan_verifikasi: null, diubah_pada: I.sekarang() });
   beriTahu(pengurus('TU'), 'PUBLIKASI_DIAJUKAN', 'Dokumen diajukan ke Dokumen Bersama', `Pokja ${I.pokjaById(x.pokja_id).nama_pendek} mengajukan "${x.judul}" (kategori ${kat}).`, '#/dokumen-bersama?tab=antrean');
@@ -1180,4 +1182,28 @@ export function langgananTabel(tabel, cb) {
   return () => set.delete(f);
 }
 /** Dipanggil adapter-pratinjau.init() setelah data dasar siap. */
+
+// ---------------------------------------------------------------- pencarian global (meniru public.cari_global)
+export async function cariGlobal(q, batas = 6) {
+  await jeda(40); siapkan(); butuhPeg();
+  const kata = String(q || '').toLowerCase().replace(/[%_\\]/g, '').split(/\s+/).filter(Boolean);
+  const kosong = { pm: [], usulan: [], dokumen: [], berkas: [], hukum: [] };
+  if (String(q || '').trim().length < 2 || !kata.length) return kosong;
+  const cocok = (...v) => { const t = v.map((x) => String(x ?? '')).join(' ').toLowerCase(); return kata.every((k) => t.includes(k)); };
+  const b = Math.min(Math.max(Number(batas) || 6, 1), 20);
+  const usulanOk = (id) => { const u = d().usulan.find((x) => x.id === id); return !!u && I.usulanTerlihat(u); };
+  return {
+    pm: d().bnba.filter((x) => I.bnbaTerlihat(x) && cocok(x.nama, x.nik)).sort((a, c) => a.nama.localeCompare(c.nama)).slice(0, b)
+      .map((x) => ({ id: x.id, nama: x.nama, nik: x.nik, klaster_ppks: x.klaster_ppks, ktp_kabkota: x.ktp_kabkota, usulan_id: x.usulan_id, status_verifikasi: x.status_verifikasi })),
+    usulan: d().usulan.filter((u) => I.usulanTerlihat(u) && cocok(u.no_register, u.judul, u.no_sk)).sort((a, c) => String(c.dibuat_pada).localeCompare(String(a.dibuat_pada))).slice(0, b)
+      .map((u) => ({ id: u.id, no_register: u.no_register, judul: u.judul, status: u.status, no_sk: u.no_sk })),
+    dokumen: d().dokumen.filter((x) => !x.dihapus && dokTerlihat(x) && cocok(x.judul, x.keterangan, (d().berkas.find((y) => y.id === x.berkas_id) || {}).nama)).slice(0, b)
+      .map((x) => ({ id: x.id, judul: x.judul, kategori: x.kategori, status: x.status, pokja_id: x.pokja_id })),
+    berkas: d().berkas.filter((x) => !x.dihapus && x.usulan_id && usulanOk(x.usulan_id) && cocok(x.nama, x.jenis)).slice(0, b)
+      .map((x) => ({ id: x.id, nama: x.nama, jenis: x.jenis, usulan_id: x.usulan_id, no_register: d().usulan.find((u) => u.id === x.usulan_id)?.no_register })),
+    hukum: d().hukum.filter((h) => cocok(h.jenis, h.nomor, h.judul, h.tentang)).sort((a, c) => (c.tahun || 0) - (a.tahun || 0)).slice(0, b)
+      .map((h) => ({ id: h.id, jenis: h.jenis, nomor: h.nomor, tahun: h.tahun, judul: h.judul })),
+  };
+}
+
 export function siapkanT34() { try { siapkan(); } catch (e) { console.warn('Data contoh Tahap 3–4 gagal disiapkan:', e); } }

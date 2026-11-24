@@ -10,15 +10,15 @@ import { daftarBerkas, pasangUnggah } from '../core/unggah.js';
 import { pasangEfek } from '../core/efek.js';
 import { JENIS_HUKUM, tabel, bukaFormulir, aksiKonfirmasi, tglPendek } from './_t34.js';
 
-export async function render(el) {
-  const f = { q: '', jenis: '', status: '' };
+export async function render(el, { query } = {}) {
+  const f = { q: (query?.get('q') || '').slice(0, 80), jenis: '', status: '' };
   let data = null;
   el.innerHTML = String(html`
     ${judulHalaman({ pill: 'Pokja Hukum', sorot: 'Produk Hukum', sisa: '& SOP',
       sub: 'Peraturan, keputusan, surat edaran, pedoman/juknis, dan SOP yang menjadi dasar pelaksanaan ATENSI TSKPO. Klik ikon unduh untuk membuka berkasnya.',
       aksi: '<div data-aksi></div>' })}
     <section class="card filter-card rv" style="margin-bottom:16px"><div class="filter-baris">
-      <label class="input-ikon" style="flex:2 1 260px">${raw(ikon('search', 18))}<input class="input" data-q placeholder="Cari judul, nomor, atau tentang" aria-label="Cari produk hukum"></label>
+      <label class="input-ikon" style="flex:2 1 260px">${raw(ikon('search', 18))}<input class="input" data-q value="${f.q}" placeholder="Cari judul, nomor, atau tentang" aria-label="Cari produk hukum"></label>
       <select class="select" data-f="jenis" aria-label="Jenis">${opsi(JENIS_HUKUM, '', 'Semua jenis')}</select>
       <select class="select" data-f="status" aria-label="Status">${opsi(['Berlaku', 'Dicabut', 'Draf/Revisi'], '', 'Semua status')}</select></div></section>
     <section class="card table-card rv" data-isi><div class="skel" style="height:240px"></div></section>`);

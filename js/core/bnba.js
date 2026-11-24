@@ -36,14 +36,15 @@ export const KOLOM = [
   { k: 'tempat_lahir', x: 'TEMPAT LAHIR', g: 'profil' },
   { k: 'tgl_lahir', x: 'TGL LAHIR', g: 'profil', tipe: 'tanggal', wajib: true },
   { k: 'usia', x: 'USIA', g: 'profil', otomatis: true },
-  { k: 'jenis_kelamin', x: 'JENIS KELAMIN', g: 'profil', tipe: 'pilih', opsi: ['Laki-laki', 'Perempuan'] },
+  { k: 'jenis_kelamin', x: 'JENIS KELAMIN', g: 'profil', tipe: 'pilih', opsi: ['Laki-laki', 'Perempuan'], wajib: true },
   { k: 'pekerjaan_ktp', x: 'PEKERJAAN DI KTP', g: 'profil' },
   { k: 'pekerjaan_kini', x: 'PEKERJAAN SAAT INI', g: 'profil' },
   { k: 'jenis_bantuan', x: 'JENIS BANTUAN', g: 'intervensi', tipe: 'pilih', opsi: Object.keys(JENIS_BANTUAN), wajib: true },
   { k: 'nilai_bantuan', x: 'NILAI BANTUAN', g: 'intervensi', tipe: 'uang', wajib: true },
   { k: 'rincian_barang', x: 'RINCIAN BARANG', g: 'intervensi', tipe: 'teks', lebar: true },
-  { k: 'uraian', x: 'URAIAN', g: 'intervensi', tipe: 'pilih', opsi: URAIAN },
-  { k: 'mak', x: 'MAK', g: 'intervensi', tipe: 'pilih', opsi: Object.keys(MAK), labelOpsi: MAK, wajib: true },
+  { k: 'uraian', x: 'URAIAN', g: 'intervensi', tipe: 'pilih', opsi: URAIAN, wajib: true },
+  // MAK tidak lagi diisi Pokja: Keuangan menetapkannya di Tahap 5 (Data Pencairan). Kolom tetap ada untuk ekspor/impor lama.
+  { k: 'mak', x: 'MAK', g: 'keuangan', tipe: 'pilih', opsi: Object.keys(MAK), labelOpsi: MAK },
   { k: 'no_sk', x: 'NO SK', g: 'sk', otomatis: true },
   { k: 'tgl_sk', x: 'TGL SK', g: 'sk', otomatis: true },
   { k: 'link_sk', x: 'LINK SK', g: 'sk', otomatis: true },
@@ -166,8 +167,12 @@ export function jenisDariKategori(k) {
   const t = String(k || '').toLowerCase();
   return /kewirausahaan/.test(t) ? 'KWU' : /pemulangan/.test(t) ? 'PEMULANGAN' : /sembako|nutrisi/.test(t) ? 'PHL' : '';
 }
-/** Total rincian barang: [{nama, jumlah, harga}] → angka. */
-export const totalRincian = (items) => (items || []).reduce((a, i) => a + (Number(i.jumlah) || 1) * (Number(i.harga) || 0), 0);
+/** Satuan barang yang lazim (boleh diketik sendiri). */
+export const SATUAN = ['kg', 'gram', 'liter', 'pcs', 'buah', 'bungkus', 'sak', 'dus', 'botol', 'kaleng', 'paket', 'lusin', 'unit', 'lembar', 'set', 'ekor'];
+/** Subtotal satu baris rincian: subtotal yang diisi; data lama (jumlah × harga satuan) tetap terbaca. */
+export const subtotalBaris = (i) => (i && i.subtotal !== undefined && i.subtotal !== '' ? Number(i.subtotal) || 0 : (Number(i.jumlah) || 1) * (Number(i.harga) || 0));
+/** Total rincian barang: [{nama, jumlah, satuan, subtotal}] → angka. */
+export const totalRincian = (items) => (items || []).reduce((a, i) => a + subtotalBaris(i), 0);
 
 /** Kolom wajib (cermin aturan submit di basis data). Kembali: daftar judul kolom yang masih kosong. */
 export function kolomKurang(b) {

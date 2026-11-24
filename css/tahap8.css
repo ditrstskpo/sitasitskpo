@@ -1,0 +1,28 @@
+/* v2.6.0 — pencarian saran, pemilih wilayah, rincian barang, dll. */
+
+/* ---- saran pencarian di bilah atas ---- */
+.cari-saran { position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 60; background: #fff; border: 1px solid var(--garis); border-radius: 18px; box-shadow: var(--bayang-2, 0 18px 48px rgba(15, 23, 42, .18)); max-height: min(70vh, 560px); overflow: auto; padding: 8px; }
+.cari-saran[hidden] { display: none; }
+.cs-grup { font: 800 .75rem var(--font); letter-spacing: .04em; text-transform: uppercase; color: var(--redup); padding: 10px 12px 4px; }
+.cs-baris { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 12px; color: var(--teks); text-decoration: none; }
+.cs-baris:hover, .cs-baris[aria-selected="true"] { background: var(--hijau-tint); }
+.cs-teks { min-width: 0; display: grid; }
+.cs-teks b { color: var(--judul); font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-teks small { color: var(--redup); font-size: .875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-kosong { padding: 16px 14px; color: var(--redup); font-size: .9375rem; }
+.cs-semua { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 14px; margin-top: 4px; border-top: 1px solid var(--garis); color: var(--hijau-tekan); font-weight: 800; text-decoration: none; border-radius: 0 0 12px 12px; }
+.cs-semua:hover { background: var(--hijau-tint); }
+.ubin-kecil { width: 36px; height: 36px; flex: none; }
+.cari-saran .ik, .cari-saran svg { position: static; transform: none; left: auto; top: auto; }
+.cs-semua .ik { color: currentColor; }
+
+/* ---- Tambah Dokumen: pilihan cara ---- */
+.cara-pilih { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.cara-pilih button { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 14px; min-height: 76px; border: 2px solid var(--garis); border-radius: 16px; background: #fff; color: var(--teks); cursor: pointer; }
+.cara-pilih button b { color: var(--judul); font-size: 1rem; }
+.cara-pilih button small { color: var(--redup); font-size: .8125rem; }
+.cara-pilih button .ik, .cara-pilih button svg { color: var(--hijau); }
+.cara-pilih button[aria-checked="true"] { border-color: var(--hijau); background: var(--hijau-tint); }
+.cek-baris { display: flex; gap: 12px; align-items: center; min-height: 44px; font-weight: 600; cursor: pointer; }
+.cek-baris input { width: 22px; height: 22px; flex: none; accent-color: var(--hijau); }
+@media (max-width: 640px) { .cara-pilih { grid-template-columns: 1fr; } }

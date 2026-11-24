@@ -1,5 +1,6 @@
 // Kerangka aplikasi setelah login: sidebar (Menu Bersama + Workspace Saya),
 // top bar (cari, A/A+, lonceng, profil), pengumuman, bilah simulasi, nav bawah ponsel.
+import { pasangSaran } from './core/cari-saran.js';
 import { html, raw, inisial, warnaDari, relatif, hariIni, esc } from './core/util.js';
 import { ikon } from './core/icons.js';
 import { api, modePratinjau } from './core/api.js';
@@ -24,7 +25,7 @@ export function pasang(root, { prefetch } = {}) {
           <a class="tb-merek" href="#/beranda">SITASI TSKPO</a>
           <form class="tb-cari" role="search" data-cari>
             ${raw(ikon('search', 18))}
-            <input class="input" name="q" type="search" autocomplete="off" placeholder="Cari NIK, Nama PM, No SK, atau Dokumen…" aria-label="Cari">
+            <input class="input" name="q" type="search" autocomplete="off" placeholder="Cari nama PM, NIK, SK, berkas, atau dokumen…" aria-label="Cari">
             <kbd>/</kbd>
           </form>
           <span class="tb-spacer"></span>
@@ -63,6 +64,7 @@ export function pasang(root, { prefetch } = {}) {
   root.addEventListener('focusin', pra);
 
   root.addEventListener('click', klik);
+  pasangSaran(q('[data-cari]'));
   q('[data-cari]').addEventListener('submit', (e) => {
     e.preventDefault();
     const v = e.target.q.value.trim();

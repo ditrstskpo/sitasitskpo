@@ -11,8 +11,8 @@ import { unduhExcel } from '../core/xlsx.js';
 import { pergi } from '../core/nav.js';
 import * as P from '../core/peran.js';
 
-export async function render(el, { sesi: s }) {
-  const f = { q: '', pokja: '', klaster: '', status: '', provinsi: '', kabkota: '', jenis: '' };
+export async function render(el, { sesi: s, query }) {
+  const f = { q: (query?.get('q') || '').slice(0, 80), pokja: '', klaster: '', status: '', provinsi: '', kabkota: '', jenis: '' };
   let hal = 1;
   const pokja = await pokjaCepat();
   el.innerHTML = String(html`
@@ -27,7 +27,7 @@ export async function render(el, { sesi: s }) {
     <section class="card filter-card" style="margin-bottom:16px">
       <div class="filter-head">${raw(ikon('sliders', 20))}<b>Parameter Penyaringan Data Lintas Pokja</b></div>
       <div class="filter-grid">
-        <label class="input-ikon">${raw(ikon('search', 18))}<input class="input" data-q placeholder="NIK (awalan) atau nama PM" aria-label="Cari NIK atau nama"></label>
+        <label class="input-ikon">${raw(ikon('search', 18))}<input class="input" data-q value="${f.q}" placeholder="NIK (awalan) atau nama PM" aria-label="Cari NIK atau nama"></label>
         <select class="select" data-f="pokja" aria-label="Pokja">${opsi(pokja.filter((p) => p.kelompok === 'teknis').map((p) => [p.id, 'Pokja ' + p.nama_pendek]), '', 'Semua Pokja')}</select>
         <select class="select" data-f="klaster" aria-label="Klaster">${opsi(KLASTER, '', 'Semua klaster PPKS')}</select>
         <select class="select" data-f="status" aria-label="Status verifikasi">${opsi(Object.entries(STATUS_BNBA).map(([k, v]) => [k, v.l]), '', 'Semua status')}</select>

@@ -61,7 +61,9 @@ export function bukaImporBnba(usulan, { onSelesai } = {}) {
     hasil.innerHTML = '<div class="skel skel-baris"></div>';
     try {
       const { sheets } = await bacaBerkasTabel(f);
-      const sh = sheets.find((x) => x.baris.length > 1) || sheets[0];
+      // Pilih lembar yang benar: bernama BNBA, atau yang judul kolomnya paling banyak dikenali (abaikan PETUNJUK/Daftar)
+      const nilai = (x) => { if (x.baris.length < 2) return -1; const hb0 = cariBarisJudul(x.baris); return petakanJudul(x.baris[hb0]).filter(Boolean).length + (/^bnba$/i.test(x.nama.trim()) ? 100 : 0); };
+      const sh = [...sheets].sort((a, b) => nilai(b) - nilai(a))[0];
       const hb = cariBarisJudul(sh.baris), peta = petakanJudul(sh.baris[hb]);
       const baris = sh.baris.slice(hb + 1).map((r, i) => {
         const o = { _baris: hb + i + 2 };

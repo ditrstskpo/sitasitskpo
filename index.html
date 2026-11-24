@@ -17,15 +17,28 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="https://script.google.com">
   <link rel="dns-prefetch" href="https://script.googleusercontent.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" media="print" onload="this.media=\'all\'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
 
-  <link rel="stylesheet" href="css/style.css?v=2.5.0">
-  <link rel="stylesheet" href="css/tahap2.css?v=2.5.0">
-  <link rel="stylesheet" href="css/landing.css?v=2.5.0">
-  <link rel="stylesheet" href="css/tahap34.css?v=2.5.0">
-  <link rel="stylesheet" href="css/tahap56.css?v=2.5.0">
-  <link rel="stylesheet" href="css/tahap7.css?v=2.5.0">
-  <link rel="modulepreload" href="js/app.js?v=2.5.0">
+  <link rel="stylesheet" href="css/style.css?v=2.6.0">
+  <link rel="stylesheet" href="css/tahap2.css?v=2.6.0">
+  <link rel="stylesheet" href="css/landing.css?v=2.6.0">
+  <link rel="stylesheet" href="css/tahap34.css?v=2.6.0">
+  <link rel="stylesheet" href="css/tahap56.css?v=2.6.0">
+  <link rel="stylesheet" href="css/tahap7.css?v=2.6.0">
+  <link rel="stylesheet" href="css/tahap8.css?v=2.6.0">
+  <link rel="modulepreload" href="js/app.js?v=2.6.0">
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm" crossorigin>
+  <link rel="modulepreload" href="js/core/api.js">
+  <link rel="modulepreload" href="js/core/store.js">
+  <link rel="modulepreload" href="js/core/util.js">
+  <link rel="modulepreload" href="js/core/ui.js">
+  <link rel="modulepreload" href="js/core/icons.js">
+  <link rel="modulepreload" href="js/core/menu.js">
+  <link rel="modulepreload" href="js/core/peran.js">
+  <link rel="modulepreload" href="js/core/nav.js">
+  <link rel="modulepreload" href="js/core/jaringan.js">
+  <link rel="modulepreload" href="js/core/sesi-idle.js">
 
   <script>
     // Terapkan ukuran teks (A+) sebelum halaman digambar, agar tidak "melompat"
@@ -33,6 +46,26 @@
     // Kenyamanan tampilan (menu profil): kontras tinggi & kurangi gerakan
     try { if (localStorage.getItem('sitasi:kontras') === '1') document.documentElement.classList.add('kontras-tinggi');
           if (localStorage.getItem('sitasi:gerak') === '1') document.documentElement.classList.add('gerak-kurang'); } catch (e) {}
+  </script>
+  <script>
+    // Penjaga pemuatan: bila aplikasi belum tampil dalam 12 detik, tampilkan penyebab & tombol muat ulang bersih.
+    (function () {
+      var pesan = '';
+      window.addEventListener('error', function (e) { pesan = pesan || (e.message || '') + (e.filename ? ' (' + e.filename.split('/').slice(-2).join('/') + ')' : ''); });
+      window.addEventListener('unhandledrejection', function (e) { pesan = pesan || String((e.reason && e.reason.message) || e.reason || ''); });
+      setTimeout(function () {
+        var b = document.querySelector('#app .boot'); if (!b) return;
+        var d = document.createElement('div'); d.style.cssText = 'margin-top:18px;max-width:420px;text-align:center;font:15px/1.5 sans-serif;color:#374151';
+        d.innerHTML = 'Pemuatan lebih lama dari biasanya. Periksa koneksi internet, lalu tekan tombol di bawah.' + (pesan ? '<br><small style="color:#9a3412">Rincian: ' + pesan.replace(/[<>&]/g, '') + '</small>' : '') +
+          '<br><button id="muat-bersih" style="margin-top:12px;min-height:44px;padding:0 20px;border-radius:12px;border:0;background:#0f6b3a;color:#fff;font-size:16px;font-weight:700;cursor:pointer">Muat ulang bersih</button>';
+        (b.querySelector('.boot-isi') || b).appendChild(d);
+        document.getElementById('muat-bersih').onclick = function () {
+          try { sessionStorage.clear(); } catch (e) {}
+          if (window.caches) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); });
+          location.reload();
+        };
+      }, 12000);
+    })();
   </script>
 </head>
 <body>
@@ -49,6 +82,6 @@
   <noscript>
     <p style="font-family:sans-serif;padding:24px;text-align:center">SITASI TSKPO memerlukan JavaScript. Aktifkan JavaScript di browser Anda, lalu muat ulang halaman.</p>
   </noscript>
-  <script type="module" src="js/app.js?v=2.5.0"></script>
+  <script type="module" src="js/app.js?v=2.6.0"></script>
 </body>
 </html>

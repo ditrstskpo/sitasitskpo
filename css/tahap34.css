@@ -314,7 +314,7 @@ table.jadwal { border-collapse: separate; border-spacing: 0; min-width: 100%; fo
 .dok-kartu .aksi { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 .dok-kartu .thumb { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--garis-halus); }
 .dok-kartu .thumb img { width: 100%; height: 100%; object-fit: cover; }
-.kat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.kat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .kat-kartu { display: grid; gap: 6px; padding: 16px; border-radius: 18px; border: 1px solid var(--garis); background: var(--kartu); text-align: left; transition: transform .2s var(--ease), border-color .2s, background .2s; }
 .kat-kartu:hover { transform: translateY(-3px); border-color: var(--hijau-garis); }
 .kat-kartu[aria-pressed="true"] { background: var(--hijau-tint); border-color: var(--hijau); }

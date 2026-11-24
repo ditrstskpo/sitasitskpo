@@ -41,7 +41,7 @@ export const defsAster = () => [
   ] },
   { judul: 'Survei & Alamat Rumah', kolom: [
     { k: 'tgl_survei', l: 'Tanggal & jam disurvei (WIB)', tipe: 'waktu' }, { k: 'status_survei', l: 'Status survei', ph: 'mis. Lanjut Survey' },
-    { k: 'provinsi', l: 'Provinsi rumah', tipe: 'pilih', opsi: PROVINSI }, { k: 'kabkota', l: 'Kabupaten/Kota rumah' },
+    { k: 'provinsi', l: 'Provinsi rumah', tipe: 'pilih', opsi: PROVINSI }, { k: 'kabkota', l: 'Kabupaten/Kota rumah', tipe: 'kabkota' },
     { k: 'kecamatan', l: 'Kecamatan' }, { k: 'kelurahan', l: 'Kelurahan/Desa' }, { k: 'alamat', l: 'Alamat rumah', tipe: 'area', lebar: true, baris: 2 },
     { k: 'dusun', l: 'Dusun' }, { k: 'rt', l: 'RT' }, { k: 'rw', l: 'RW' }, { k: 'latitude', l: 'Latitude', ph: '-6.19548' }, { k: 'longitude', l: 'Longitude', ph: '106.14852' },
   ] },

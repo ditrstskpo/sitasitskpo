@@ -224,11 +224,11 @@ export async function bukaFormSmv({ bnba_id, putaran, onSelesai }) {
   async function gambarFoto() {
     const w = m.body.querySelector('[data-foto]'); if (!w) return;
     if (!v.id) {
-      w.innerHTML = String(html`<div class="galeri"><div class="galeri-kepala"><span class="ubin">${raw(ikon('camera', 20))}</span><div><b>Foto usaha (opsional)</b><small>Maks 2 foto · otomatis dikecilkan ≤ 500 KB</small></div></div>
+      w.innerHTML = String(html`<div class="galeri"><div class="galeri-kepala"><span class="ubin">${raw(ikon('camera', 20))}</span><div><b>Foto usaha (opsional)</b><small>Maks 2 foto · otomatis dikecilkan ≤ 1 MB</small></div></div>
         <button type="button" class="btn btn-secondary" data-siap-foto>${raw(ikon('camera', 18))} Siapkan unggah foto</button><p class="help">Draft disimpan dulu agar foto tertaut ke isian ini.</p></div>`);
       return;
     }
-    w.innerHTML = String(galeriFoto({ konteks: 'smv', ref: v.id, jenis: 'foto', judul: 'Foto usaha (opsional)', maks: 2, berkas: foto, boleh: true, ket: 'Maks 2 foto · otomatis dikecilkan ≤ 500 KB · tampil juga di Detail PM' }));
+    w.innerHTML = String(galeriFoto({ konteks: 'smv', ref: v.id, jenis: 'foto', judul: 'Foto usaha (opsional)', maks: 2, berkas: foto, boleh: true, ket: 'Maks 2 foto · otomatis dikecilkan ≤ 1 MB · tampil juga di Detail PM' }));
     muatGambarMini(w);
   }
   const muatFoto = async () => { try { const x = await api.smvFormulir(bnba_id, putaran); foto = x.foto || []; } catch {} gambarFoto(); };
@@ -365,12 +365,12 @@ export async function bukaBelanja({ bnba_id, onSelesai }) {
     ${d.boleh_isi ? html`<button type="button" class="btn btn-icon" data-hapus-inv="${n}" aria-label="Hapus baris">${raw(ikon('x', 18))}</button>` : html`<span></span>`}</div>`;
   function render() {
     const b = d.berkas || [];
-    m.body.innerHTML = String(html`${infoPm({ ...d, putaran: null })}
+    m.body.innerHTML = String(html`${!d.boleh_isi && !d.boleh_verifikasi ? html`<div class="info-card emas" style="margin-bottom:16px">${raw(ikon('lock', 20, 'ik'))}<span><b>Mode lihat saja.</b> Bukti belanja dan BAST diunggah oleh <b>petugas Supermonev yang ditugaskan</b> atau Pokja Supermonev, lalu diverifikasi Kapokja Supermonev. Akun Anda hanya dapat memantau, sehingga kolom terkunci.</span></div>` : ''}${infoPm({ ...d, putaran: null })}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0">${lencanaStatus(STATUS_BELANJA, d.status)}
         <small class="redup">${d.diisi_nama ? 'Diisi ' + d.diisi_nama : 'Belum diisi'}${d.diajukan_pada ? ' · diajukan ' + tanggalJam(d.diajukan_pada) : ''}${d.diverifikasi_nama && d.status === 'terverifikasi' ? ' · diverifikasi ' + d.diverifikasi_nama : ''}</small></div>
       ${d.catatan_verifikasi ? html`<div class="info-card ${d.status === 'perlu_perbaikan' ? 'emas' : ''}" style="margin-bottom:16px">${raw(ikon('msg', 18, 'ik'))}<span><b>Catatan Kapokja Supermonev:</b> ${d.catatan_verifikasi}</span></div>` : ''}
       <div class="langkah-belanja">
-        <div class="lb-no">1</div><div>${daftarBerkas({ konteks: 'belanja', ref: bnba_id, jenis: 'bukti_belanja', judul: 'Bukti belanja (nota / kuitansi) *', ket: 'PDF atau foto. Foto otomatis dikecilkan ≤ 500 KB; dokumen maks 10 MB.', berkas: b, boleh: d.boleh_isi })}</div>
+        <div class="lb-no">1</div><div>${daftarBerkas({ konteks: 'belanja', ref: bnba_id, jenis: 'bukti_belanja', judul: 'Bukti belanja (nota / kuitansi) *', ket: 'PDF atau foto. Foto otomatis dikecilkan ≤ 1 MB; dokumen maks 10 MB.', berkas: b, boleh: d.boleh_isi })}</div>
         <div class="lb-no">2</div><div>${daftarBerkas({ konteks: 'belanja', ref: bnba_id, jenis: 'bast', judul: 'Berita Acara Serah Terima (BAST) *', ket: 'Ditandatangani PM dan petugas/penyalur.', berkas: b, boleh: d.boleh_isi })}</div>
         <div class="lb-no">3</div><div>${daftarBerkas({ konteks: 'belanja', ref: bnba_id, jenis: 'inventaris', judul: 'Foto barang / daftar inventaris (opsional)', ket: 'Foto barang yang diterima PM.', berkas: b, boleh: d.boleh_isi })}</div>
         <div class="lb-no">4</div><div class="slot-berkas"><div class="slot-head"><span class="ubin emas">${raw(ikon('list-ordered', 20))}</span><div><b>Daftar inventaris barang *</b><small>Sesuai barang yang diserahkan kepada PM.</small></div></div>

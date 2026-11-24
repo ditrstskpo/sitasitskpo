@@ -18,11 +18,12 @@ export async function render(el, { sesi: s, query }) {
   el.innerHTML = String(html`
     <div class="latar-hidup">
     ${judulHalaman({ pill: 'Supermonev · W-24B', sorot: 'Verifikasi Belanja', sisa: '& BAST',
-      sub: 'Untuk bantuan barang / aset usaha: unggah nota atau kuitansi, Berita Acara Serah Terima (BAST), foto barang, dan daftar inventaris. Foto otomatis dikecilkan ≤ 500 KB; dokumen PDF maks 10 MB. Diverifikasi Kapokja Supermonev.' })}
+      sub: 'Untuk bantuan barang / aset usaha: unggah nota atau kuitansi, Berita Acara Serah Terima (BAST), foto barang, dan daftar inventaris. Foto otomatis dikecilkan ≤ 1 MB; dokumen PDF maks 10 MB. Diverifikasi Kapokja Supermonev.' })}
     ${catatanPratinjau()}
     </div>
     <div class="alur-belanja rv">${[['upload', 'Unggah bukti', 'Nota, BAST, foto barang'], ['list-ordered', 'Isi inventaris', 'Nama, jumlah, nilai barang'], ['send', 'Ajukan', 'Ke Kapokja Supermonev'], ['badge-check', 'Terverifikasi', 'Tampil di Detail PM']]
       .map(([ik, j, k], i) => html`<div class="ab-langkah" style="--i:${i}"><span class="ab-ikon">${raw(ikon(ik, 22))}</span><b>${j}</b><small>${k}</small></div>`)}</div>
+    <p class="help rv" style="margin:10px 0 0"><b>Gunanya:</b> memastikan bantuan barang/aset usaha yang sudah cair benar-benar diterima PM (nota, BAST, foto, daftar barang). Empat kotak di atas hanyalah penjelasan alur, bukan tombol; yang bisa diklik ada pada tombol di <b>kartu setiap PM</b> di bawah. Mengisi dilakukan petugas Supermonev yang ditugaskan; verifikasi oleh Kapokja Supermonev; peran lain hanya melihat.</p>
     <div class="filter-baris rv" style="margin:16px 0"><div data-segwadah style="flex:1"></div>
       <label class="input-ikon" style="min-width:260px">${raw(ikon('search', 18))}<input class="input" data-q placeholder="Cari nama PM atau NIK" aria-label="Cari PM"></label></div>
     <div data-isi class="rv">${skelKartu(3)}</div>`);

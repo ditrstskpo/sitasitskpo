@@ -35,7 +35,7 @@ export async function render(el, { sesi: s, query }) {
       <button class="btn btn-ghost" data-unduh-saya>${raw(ikon('download', 16))} Unduh daftar</button></div></section>
     <section class="card table-card rv" data-tabel>${skelTabel(6, 7)}</section>
     <div class="info-card biru rv" style="margin-top:16px">${raw(ikon('camera', 20, 'ik'))}<span><b>Unggah foto langsung:</b> buka LKS (klik barisnya) → bagian <b>Foto LKS</b> → <b>Tambah foto</b>.
-      Di ponsel, kamera bisa langsung dipakai. Foto dikecilkan otomatis menjadi ≤ 500 KB lalu disimpan di Google Drive Super Admin.</span></div>`);
+      Di ponsel, kamera bisa langsung dipakai. Foto dikecilkan otomatis menjadi ≤ 1 MB lalu disimpan di Google Drive Super Admin.</span></div>`);
   pasangEfek(el);
   const $ = (q) => el.querySelector(q);
 

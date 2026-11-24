@@ -18,7 +18,7 @@ export const TERIMA_DOK = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png
 export async function unggahKonteks({ konteks, ref, jenis, file, foto = false }) {
   let f = file;
   if (foto) f = await kecilkanFoto(file);
-  else if (konteks === 'belanja' && /^image\/(jpeg|png|webp|heic|heif)/i.test(file.type || '')) f = await kecilkanFoto(file);   // foto nota/barang ≤ 500 KB
+  else if (konteks === 'belanja' && /^image\/(jpeg|png|webp|heic|heif)/i.test(file.type || '')) f = await kecilkanFoto(file);   // foto nota/barang ≤ 1 MB
   else {
     if (f.size > 10 * 1024 * 1024) throw new Error('Ukuran dokumen maksimal 10 MB.');
     if (f.type && !MIME_DOK.includes(f.type)) throw new Error('Jenis berkas tidak diizinkan. Gunakan PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX, JPG, atau PNG.');
@@ -56,7 +56,7 @@ export function galeriFoto({ konteks, ref, jenis, judul, ket = '', berkas = [], 
   const merah = wajib && !berkas.length && tanpa?.status !== 'disetujui';
   return html`<div class="galeri ${merah ? 'kurang' : ''}" data-galeri="${jenis}">
     <div class="galeri-kepala"><span class="ubin ${merah ? 'merah' : ''}">${raw(ikon('camera', 20))}</span>
-      <div><b>${judul}</b><small>${ket || `Maks ${maks} foto · 500 KB per foto (dikecilkan otomatis)`}</small></div>
+      <div><b>${judul}</b><small>${ket || `Maks ${maks} foto · 1 MB per foto (dikecilkan otomatis)`}</small></div>
       <span class="spacer"></span>
       ${berkas.length ? html`<span class="badge b-ok">${raw(ikon('check-circle', 15))} ${berkas.length}/${maks}</span>`
         : tanpa?.status === 'disetujui' ? html`<span class="badge b-draft">Tidak ada dokumentasi (disetujui)</span>`

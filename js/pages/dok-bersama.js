@@ -1,4 +1,4 @@
-// Dokumen Bersama — Repositori Terpadu (PRD 5.4): 6 kategori tetap, dokumen terbit setelah diverifikasi Pokja TU,
+// Dokumen Bersama — Repositori Terpadu (PRD 5.4): satu pilihan Kategori (tanpa folder), dokumen terbit setelah diverifikasi Pokja TU,
 // antrean publikasi untuk TU, pengajuan Pokja saya, produk hukum & SOP, dan "Unggah & Ajukan" langsung dari halaman ini.
 import { html, raw, angka, debounce } from '../core/util.js';
 import { ikon } from '../core/icons.js';
@@ -9,14 +9,14 @@ import { pokjaCepat, opsi } from '../core/komp.js';
 import { pasangUnggah, muatGambarMini, unduhKonteks } from '../core/unggah.js';
 import { pasangEfek, segarkanEfek } from '../core/efek.js';
 import { KAT_DOK, IKON_KAT, aksiKonfirmasi, tabel, tglPendek } from './_t34.js';
-import { kartuDok, ajukanDok, verifikasiDok, unggahKeFolder } from './_dok.js';
+import { kartuDok, ajukanDok, verifikasiDok, bukaTambahDokumen } from './_dok.js';
 import { tabs } from '../core/komp.js';
 import * as P from '../core/peran.js';
 
 export async function render(el, { sesi: s, query }) {
   const tu = P.isSuperAdmin(s) || P.diPokja(s, 'TU');
   const anggota = P.pokjaEfektif(s).length > 0;
-  let tab = ['terbit', 'antrean', 'pengajuan', 'hukum'].includes(query?.get('tab')) ? query.get('tab') : 'terbit', kat = '', q = '', antreanN = null;
+  let tab = ['terbit', 'antrean', 'pengajuan', 'hukum'].includes(query?.get('tab')) ? query.get('tab') : 'terbit', kat = '', q = (query?.get('q') || '').slice(0, 80), antreanN = null;
   let baris = [];
   el.innerHTML = String(html`
     <div class="latar-hidup">
@@ -26,7 +26,7 @@ export async function render(el, { sesi: s, query }) {
     <div class="kat-grid rv-anak rv" data-kat style="margin-bottom:24px">${KAT_DOK.map(() => html`<div class="skel" style="height:96px;border-radius:18px"></div>`)}</div>
     </div>
     <div data-tabs class="rv"></div>
-    <section class="card filter-card rv" style="margin-bottom:16px" data-cari-kartu><label class="input-ikon">${raw(ikon('search', 18))}<input class="input" data-q placeholder="Cari judul atau keterangan" aria-label="Cari dokumen"></label></section>
+    <section class="card filter-card rv" style="margin-bottom:16px" data-cari-kartu><label class="input-ikon">${raw(ikon('search', 18))}<input class="input" data-q value="${q}" placeholder="Cari judul atau keterangan" aria-label="Cari dokumen"></label></section>
     <div data-isi class="rv"><div class="skel" style="height:240px;border-radius:20px"></div></div>`);
   pasangEfek(el);
   const $ = (x) => el.querySelector(x);
@@ -81,49 +81,11 @@ export async function render(el, { sesi: s, query }) {
   }
   const segar = () => { hapusCache('dokb:'); hapusCache('hukum:'); muat(); };
 
-  // ---- Unggah & Ajukan langsung dari Dokumen Bersama
+  // ---- Unggah & Ajukan langsung dari Dokumen Bersama: satu pilihan Kategori, tanpa folder
   const unggahAjukan = async () => {
     const semua = await pokjaCepat();
     const milik = P.pokjaEfektif(s).length ? P.pokjaEfektif(s).map((p) => semua.find((x) => x.id === p.id) || p) : semua;
-    const m = bukaModal({
-      judul: 'Unggah & Ajukan ke Dokumen Bersama', ukuran: 'besar',
-      isi: String(html`<div class="info-card biru" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span>Berkas disimpan di repositori Pokja Anda (folder pilihan) lalu langsung diajukan ke Pokja TU.
-          Setelah diverifikasi, dokumen tampil untuk semua pegawai.</span></div>
-        <div class="form-grid">
-          <div class="field"><label class="label" for="ua-pokja">Pokja<span class="wajib">*</span></label><select id="ua-pokja" class="select">${opsi(milik.map((p) => [p.id, 'Pokja ' + p.nama_pendek]))}</select></div>
-          <div class="field"><label class="label" for="ua-folder">Simpan di folder<span class="wajib">*</span></label><select id="ua-folder" class="select"><option>Memuat…</option></select></div>
-          <div class="field"><label class="label" for="ua-kat">Kategori<span class="wajib">*</span></label><select id="ua-kat" class="select">${opsi(KAT_DOK, kat || '', '— Pilih kategori —')}</select>
-            <div class="help">Dokumentasi Kegiatan khusus foto JPG/PNG (≤ 500 KB, dikecilkan otomatis).</div></div>
-          <div class="field"><label class="label" for="ua-judul">Judul (opsional)</label><input id="ua-judul" class="input" placeholder="Bila kosong, memakai nama berkas"><div class="help">Untuk satu berkas saja.</div></div>
-          <div class="field penuh"><span class="label">Berkas<span class="wajib">*</span></span>
-            <label class="unggah-zona">${raw(ikon('upload', 28))}<b data-ua-nama>Pilih satu atau beberapa berkas</b><small>PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX maks 10 MB, atau foto</small>
-              <input type="file" multiple hidden id="ua-file"></label></div></div>`),
-      kaki: String(html`<button class="btn btn-ghost" data-batal>Batal</button><button class="btn btn-primary" data-ua-ok>${raw(ikon('send', 18))} Unggah & Ajukan</button>`),
-    });
-    const $m = (x) => m.el.querySelector(x);
-    const isiFolder = async () => {
-      try { const f = await api.daftarFolder($m('#ua-pokja').value); $m('#ua-folder').innerHTML = String(opsi(f.map((x) => [x.id, x.nama]), f.find((x) => x.nama === 'File Kegiatan')?.id)); }
-      catch (e) { $m('#ua-folder').innerHTML = `<option value="">${pesanGalat(e)}</option>`; }
-    };
-    $m('#ua-pokja').onchange = isiFolder; isiFolder();
-    $m('#ua-file').onchange = (e) => { const n = e.target.files.length; $m('[data-ua-nama]').textContent = n ? (n === 1 ? e.target.files[0].name : `${n} berkas dipilih`) : 'Pilih satu atau beberapa berkas'; };
-    $m('[data-ua-ok]').onclick = async (e) => {
-      const files = [...$m('#ua-file').files], k = $m('#ua-kat').value, fid = $m('#ua-folder').value;
-      if (!files.length) return toast('Pilih berkas lebih dulu.', 'peringatan');
-      if (!k) return toast('Pilih kategori Dokumen Bersama.', 'peringatan');
-      if (!fid) return toast('Pilih folder.', 'peringatan');
-      const pulih = tombolMuat(e.currentTarget, 'Mengunggah…');
-      const hasil = await unggahKeFolder(fid, files);
-      let ok = 0;
-      for (const r of hasil) {
-        try {
-          if (files.length === 1 && $m('#ua-judul').value.trim()) await api.ubahDokumen(r.dokumen_id, { judul: $m('#ua-judul').value.trim(), folder_id: fid });
-          await api.ajukanPublikasi(r.dokumen_id, k); ok++;
-        } catch (err) { toast(`${r.nama}: ${pesanGalat(err)}`, 'galat', 'Belum diajukan'); }
-      }
-      pulih();
-      if (ok) { toast(`${ok} dokumen diajukan ke Pokja TU.`); m.tutup(); tab = anggota ? 'pengajuan' : tab; segar(); }
-    };
+    bukaTambahDokumen({ pokja: milik, pokjaId: milik[0]?.id, kategori: kat || '', ajukan: true, onSelesai: () => { tab = anggota ? 'pengajuan' : tab; segar(); } });
   };
 
   pasangUnggah(el, { muatUlang: segar });

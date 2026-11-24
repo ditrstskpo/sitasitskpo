@@ -4,6 +4,8 @@
 // Semua nama selain akun awal PRD adalah FIKTIF.
 import { tunggu } from './util.js';
 import { barisEkspor, jenisDariKategori, totalRincian, kolomKurang } from './bnba.js';
+/** Ringkasan teks rincian barang (cermin app.hitung_rincian): "Beras (10 kg); Telur (2 kg)". */
+const ringkasRincian = (items) => items.map((i) => `${i.nama} (${String(i.jumlah || '') || '1'}${i.satuan ? ' ' + i.satuan : ''})`).join('; ');
 import { unggahKonteksP, hapusBerkasKonteksP, berkasTerlihatP, fotoContoh, siapkanT34 } from './pratinjau-t34.js';
 import { siapkanT56 } from './pratinjau-t56.js';
 
@@ -445,7 +447,7 @@ function normalBnba(p) {
     if (v && k === 'jenis_kelamin') v = /^(L|LK|LAKI|PRIA)/i.test(v) ? 'Laki-laki' : /^(P|PR|PEREMPUAN|WANITA)/i.test(v) ? 'Perempuan' : v;
     r[k] = v;
   }
-  if (Array.isArray(p.rincian_item)) r.rincian_item = p.rincian_item.map((i) => ({ nama: String(i.nama ?? '').trim(), jumlah: String(i.jumlah ?? '').trim() || '1', harga: String(i.harga ?? '').replace(/[^\d.]/g, '') }));
+  if (Array.isArray(p.rincian_item)) r.rincian_item = p.rincian_item.map((i) => { const o = { nama: String(i.nama ?? '').trim(), jumlah: String(i.jumlah ?? '').trim(), satuan: String(i.satuan ?? '').trim() }; if (i.subtotal !== undefined && String(i.subtotal) !== '') o.subtotal = String(i.subtotal).replace(/[^\d.]/g, ''); else o.harga = String(i.harga ?? '').replace(/[^\d.]/g, ''); return o; });
   return r;
 }
 function cekBnba(r) {
@@ -457,7 +459,7 @@ function cekBnba(r) {
   if (r.nilai_bantuan && !/^\d+(\.\d+)?$/.test(r.nilai_bantuan)) return 'NILAI BANTUAN harus angka';
   if (r.desil && !/^(10|[1-9])$/.test(r.desil)) return 'DESIL harus angka 1 sampai 10';
   if (r.mak && !['571111', '571112', '571113', '521219'].includes(r.mak)) return 'MAK tidak dikenal';
-  if (Array.isArray(r.rincian_item) && r.rincian_item.some((i) => !String(i.nama || '').trim() || !/^\d+(\.\d+)?$/.test(String(i.harga ?? '')) || !(Number(i.jumlah || 1) > 0))) return 'Setiap barang wajib punya nama, jumlah (lebih dari 0), dan harga (angka)';
+  if (Array.isArray(r.rincian_item) && r.rincian_item.some((i) => !String(i.nama || '').trim() || !/^\d+(\.\d+)?$/.test(String(i.subtotal ?? i.harga ?? '')) || (String(i.jumlah || '') !== '' && !(Number(i.jumlah) > 0)))) return 'Setiap barang wajib punya nama, jumlah (lebih dari 0), satuan, dan subtotal (angka)';
   if (r.tgl_lahir && !/^\d{4}-\d{2}-\d{2}$/.test(r.tgl_lahir)) return 'Format tanggal tidak dikenali (pakai DD/MM/YYYY)';
   return null;
 }
@@ -589,17 +591,17 @@ function benihT2() {
       const keuLengkap = posisi > URUT.indexOf('5') || status === 'selesai' || (tahap === '5' && j < 2);
       const rekLengkap = posisi > URUT.indexOf('8') || status === 'selesai';
       const jk = jenisDariKategori(u.kategori), jenisPM = status === 'draft' && j === 2 ? null : jk || ['KWU', 'PHL', 'KWU', 'PEMULANGAN'][j % 4];
-      const itemPM = jenisPM === 'PHL' ? [{ nama: 'Beras 5 kg', jumlah: '2', harga: '70000' }, { nama: 'Minyak goreng 2 L', jumlah: '2', harga: '38000' }, { nama: 'Telur 1 kg', jumlah: '1', harga: '30000' }] : null;
+      const itemPM = jenisPM === 'PHL' ? [{ nama: 'Beras', jumlah: '10', satuan: 'kg', subtotal: '140000' }, { nama: 'Minyak goreng', jumlah: '4', satuan: 'liter', subtotal: '76000' }, { nama: 'Telur', jumlah: '1', satuan: 'kg', subtotal: '30000' }] : null;
       db.bnba.push({
         id: 'bn-' + ni, usulan_id: u.id, pokja_id: k.id, status_verifikasi: ['draft', 'menunggu', 'perlu_perbaikan'].includes(status) ? status : 'terverifikasi',
-        klaster_ppks: status === 'draft' && j === 2 ? null : klas[kode][j % klas[kode].length], prov_penyaluran: kab[kode][1], mak: '571111', kota_kab_penyaluran: kab[kode][0],
+        klaster_ppks: status === 'draft' && j === 2 ? null : klas[kode][j % klas[kode].length], prov_penyaluran: kab[kode][1], mak: keuLengkap ? '571111' : null, kota_kab_penyaluran: kab[kode][0],
         ktp_provinsi: kab[kode][1], ktp_kabkota: kab[kode][0], ktp_kecamatan: 'Kec. Contoh ' + (j + 1), ktp_kelurahan: 'Desa Contoh', ktp_jalan: `Kp. Contoh RT 0${j + 1}/RW 04`,
         dom_provinsi: null, dom_kabkota: null, dom_kecamatan: null, dom_kelurahan: null, dom_jalan: null,
         nama: nm.toUpperCase(), nik, no_kk: nik.slice(0, 12) + '0004', no_paspor: null, desil: String(1 + (j % 3)), nama_ibu: 'Ibu ' + nm.split(' ')[0],
         tempat_lahir: kab[kode][0].replace(/^(Kabupaten|Kab\.|Kota) /, ''), tgl_lahir: `19${80 + (ni % 15)}-0${1 + (ni % 9)}-1${ni % 9}`, jenis_kelamin: ni % 2 ? 'Laki-laki' : 'Perempuan',
         pekerjaan_ktp: 'Mengurus Rumah Tangga', pekerjaan_kini: 'Pedagang', jenis_bantuan: jenisPM,
         nilai_bantuan: status === 'draft' && j === 2 ? null : itemPM ? totalRincian(itemPM) : [5000000, 2500000, 5000000, 1500000][j % 4],
-        rincian_item: itemPM, rincian_barang: itemPM ? itemPM.map((i) => `${i.nama} (${i.jumlah} x ${i.harga})`).join('; ') : 'Etalase, kompor gas, modal bahan baku',
+        rincian_item: itemPM, rincian_barang: itemPM ? ringkasRincian(itemPM) : 'Etalase, kompor gas, modal bahan baku',
         uraian: j % 4 === 1 ? 'BANSOS BARANG' : 'BANSOS UANG', akun_bantuan: keuLengkap ? '571111' : null,
         no_sp2d: posisi > URUT.indexOf('9') || status === 'selesai' ? '26019280' + (idx + 10) : null, tgl_sp2d: status === 'selesai' ? '2026-11-12' : null,
         bulan_sp2d: status === 'selesai' ? 'November' : null, rek_giro_bni: rekLengkap ? '1234567890' : null, nama_bank: rekLengkap ? 'BNI' : null, cek_keu: keuLengkap, tolak_keu_catatan: null,
@@ -682,7 +684,7 @@ function tulisB(u, r, st) {
   const jk = jenisDariKategori(u.kategori); if (jk) r.jenis_bantuan = jk;
   if (Array.isArray(r.rincian_item) && r.rincian_item.length) {
     r.nilai_bantuan = String(totalRincian(r.rincian_item));
-    r.rincian_barang = r.rincian_item.map((i) => `${i.nama} (${i.jumlah || 1} x ${i.harga})`).join('; ');
+    r.rincian_barang = ringkasRincian(r.rincian_item);
   } else if ('rincian_item' in r) r.rincian_item = null;
   angkaKe(r);
   if (!b) {
@@ -884,10 +886,11 @@ export async function simpanDataPencairan(id, rows) {
     const e = cekBnba({ ...r, nama: r.nama || b.nama, nik: b.nik }); if (e) throw galat(`${e} (PM ${b.nama})`);
     const adaData = Object.keys(r).some((k) => k !== 'akun_bantuan');
     const jk = jenisDariKategori(u.kategori); if (jk && 'jenis_bantuan' in r) r.jenis_bantuan = jk;
-    if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = r.rincian_item.map((i) => `${i.nama} (${i.jumlah || 1} x ${i.harga})`).join('; '); }
+    if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = ringkasRincian(r.rincian_item); }
     else if ('rincian_item' in r) r.rincian_item = null;
     angkaKe(r);
     Object.assign(b, r); if (r.nama) b.nama = String(r.nama).toUpperCase();
+    if (b.akun_bantuan) b.mak = b.akun_bantuan; // MAK = akun bantuan yang ditetapkan Keuangan
     if (adaData) b.cek_keu = false;
     if ('cek_keu' in x) {
       if (x.cek_keu && b.tolak_keu_catatan) throw galat(`PM ${b.nama} dikembalikan ke Pokja dan belum diperbaiki; tidak dapat dicentang.`);
@@ -918,7 +921,7 @@ export async function perbaikiPmDitolak(bnbaId, data) {
   const r = normalBnba(sisa); delete r.nik;
   const e = cekBnba({ ...r, nama: r.nama || b.nama, nik: b.nik }); if (e) throw galat(e);
   const jk = jenisDariKategori(u.kategori); if (jk && 'jenis_bantuan' in r) r.jenis_bantuan = jk;
-  if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = r.rincian_item.map((i) => `${i.nama} (${i.jumlah || 1} x ${i.harga})`).join('; '); }
+  if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = ringkasRincian(r.rincian_item); }
   else if ('rincian_item' in r) r.rincian_item = null;
   angkaKe(r); Object.assign(b, r); if (r.nama) b.nama = String(r.nama).toUpperCase();
   Object.assign(b, { tolak_keu_catatan: null, tolak_keu_oleh: null, cek_keu: false });

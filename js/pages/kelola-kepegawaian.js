@@ -48,7 +48,7 @@ export async function render(el, { sesi: s }) {
     jenis === 'pusat'
       ? { judul: 'Penempatan', kolom: [{ k: 'pokja_id', l: 'Pokja', tipe: 'pilih', opsi: opsiPokja }, { k: 'urutan', l: 'Urutan tampil di jadwal', tipe: 'angka', help: 'Angka kecil tampil lebih atas' },
         { k: 'mulai_tugas', l: 'Mulai tugas', tipe: 'tanggal' }] }
-      : { judul: 'Wilayah Tugas', kolom: [{ k: 'provinsi', l: 'Provinsi', tipe: 'pilih', opsi: PROVINSI, wajib: true }, { k: 'kabkota', l: 'Kabupaten/Kota' }, { k: 'mulai_tugas', l: 'Mulai tugas', tipe: 'tanggal' }] },
+      : { judul: 'Wilayah Tugas', kolom: [{ k: 'provinsi', l: 'Provinsi', tipe: 'pilih', opsi: PROVINSI, wajib: true }, { k: 'kabkota', l: 'Kabupaten/Kota', tipe: 'kabkota' }, { k: 'mulai_tugas', l: 'Mulai tugas', tipe: 'tanggal' }] },
     { judul: 'Kontak', kolom: [{ k: 'no_hp', l: 'No. HP', tipe: 'tel' }, { k: 'email', l: 'Email', tipe: 'email' }, { k: 'catatan', l: 'Catatan', tipe: 'area', lebar: true, baris: 2 }] },
   ];
   const formPeg = (lama = null) => bukaFormulir({

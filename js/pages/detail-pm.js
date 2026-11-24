@@ -123,12 +123,12 @@ export async function render(el, { sesi: s, param: nik }) {
           ${k.tanpa?.status === 'ditolak' ? html`<small style="color:var(--merah)">Pengajuan sebelumnya ditolak${k.tanpa.catatan ? ': ' + k.tanpa.catatan : ''}.</small>` : ''}</div>`);
         return '';
       };
-      w.innerHTML = String(html`<div class="info-card biru" style="margin-bottom:16px">${raw(ikon('camera', 20, 'ik'))}<span>Unggah foto langsung dari kamera atau galeri (maks 2 foto per kategori, otomatis dikecilkan ≤ 500 KB).
+      w.innerHTML = String(html`<div class="info-card biru" style="margin-bottom:16px">${raw(ikon('camera', 20, 'ik'))}<span>Unggah foto langsung dari kamera atau galeri (maks 2 foto per kategori, otomatis dikecilkan ≤ 1 MB).
           <b>Sebelum Usaha</b> diisi Pokja pengusul; <b>Saat Penyaluran</b> oleh Pokja pengusul atau Pokja TU; <b>Supermonev</b> oleh Pokja Supermonev (opsional).
           Status saat ini: <b>${st.status_cair === 'cair' ? 'sudah cair' : st.status_cair === 'belum_cair' ? 'SK terbit, belum cair' : 'dalam proses'}</b>.</span></div>
         <div class="galeri-grid">${st.kategori.map((k) => galeriFoto({ konteks: 'dok_pm', ref: b.id, jenis: k.kode, judul: k.label + (k.opsional ? ' (opsional)' : ''), maks: k.maks, berkas: k.berkas, boleh: k.boleh,
           wajib: !k.opsional && (k.kode === 'sebelum_usaha' || st.status_cair === 'cair'), tanpa: k.tanpa, aksiTanpa: tanpaBtn(k),
-          ket: k.boleh ? `Maks ${k.maks} foto · 500 KB per foto` : 'Hanya dapat dilihat' }))}</div>`);
+          ket: k.boleh ? `Maks ${k.maks} foto · 1 MB per foto` : 'Hanya dapat dilihat' }))}</div>`);
       muatGambarMini(w);
     } catch (e) { w.innerHTML = String(kotakGalat(pesanGalat(e))); }
   }

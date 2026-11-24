@@ -151,10 +151,10 @@ export async function render(el, { sesi: s, param: id, query }) {
             ${tolak ? html`<span class="badge b-no">${raw(ikon('undo', 15))} ${tolak} PM dikembalikan ke Pokja</span>` : ''}
             <span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm" data-unduh-rekap>${raw(ikon('download', 16))} Unduh Rekap untuk Bank (Excel)</button></div>
           ${ubah ? html`<div class="isi-semua"><b>Isi sekaligus:</b>
-            <select class="select" data-semua="akun_bantuan" aria-label="Akun bantuan">${opsi(Object.entries(MAK).map(([k, v]) => [k, `${k} — ${v}`]), '', 'Akun bantuan…')}</select>
+            <select class="select" data-semua="akun_bantuan" aria-label="MAK (akun bantuan)">${opsi(Object.entries(MAK).map(([k, v]) => [k, `${k} — ${v}`]), '', 'Pilih MAK…')}</select>
             <button type="button" class="btn btn-secondary btn-sm" data-terap-semua>Terapkan akun ke semua PM</button>
             <button type="button" class="btn btn-secondary btn-sm" data-cek-semua>${raw(ikon('check', 16))} Centang semua sudah dicek</button></div>` : ''}
-          <div class="rekap-tabel"><table><thead><tr><th>Dicek</th><th>Nama</th><th>NIK</th><th>Nama Ibu Kandung</th><th>Alamat KTP</th><th>Jenis PPKS</th><th>Jenis Bantuan</th><th>Nilai</th><th>Akun Bantuan</th>${ubah ? html`<th>Tindakan</th>` : ''}</tr></thead><tbody>
+          <div class="rekap-tabel"><table><thead><tr><th>Dicek</th><th>Nama</th><th>NIK</th><th>Nama Ibu Kandung</th><th>Alamat KTP</th><th>Jenis PPKS</th><th>Jenis Bantuan</th><th>Nilai</th><th>MAK</th>${ubah ? html`<th>Tindakan</th>` : ''}</tr></thead><tbody>
           ${dp.baris.map((b) => html`<tr class="${b.tolak_keu_catatan ? 'ditolak' : b.cek_keu ? 'dicek' : ''}" data-dp-baris="${b.id}">
             <td>${ubah ? html`<input type="checkbox" class="cek-besar" name="cek_keu" ${b.cek_keu ? raw('checked') : ''} ${b.tolak_keu_catatan ? raw('disabled title="PM dikembalikan ke Pokja"') : ''} aria-label="Sudah dicek: ${b.nama}">` : (b.cek_keu ? raw(ikon('check-circle', 20)) : '—')}</td>
             <td><b>${b.nama}</b>${b.tolak_keu_catatan ? html`<small class="teks-merah" style="display:block"><b>Dikembalikan:</b> ${b.tolak_keu_catatan}</small>` : ''}</td><td class="mono nowrap">${b.nik}</td><td>${b.nama_ibu || '—'}</td>
@@ -308,7 +308,7 @@ export async function render(el, { sesi: s, param: id, query }) {
     return html`<section class="card">
       <div class="card-head"><span class="ubin">${raw(ikon('camera', 22))}</span><div><h2 class="card-title">Dokumentasi PM</h2>
         <p class="card-sub">Foto Sebelum Usaha ${lengkapS}/${r.pm.length} PM · Saat Penyaluran ${cair ? `${lengkapP}/${r.pm.length} PM` : 'diisi setelah cair'} · Supermonev opsional</p></div></div>
-      <div class="info-card biru" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span>Klik <b>Unggah / lihat foto</b> pada baris PM. Foto dari kamera atau galeri otomatis dikecilkan ≤ 500 KB, maks 2 foto per kategori.
+      <div class="info-card biru" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span>Klik <b>Unggah / lihat foto</b> pada baris PM. Foto dari kamera atau galeri otomatis dikecilkan ≤ 1 MB, maks 2 foto per kategori.
         Kelengkapan foto memengaruhi <b>Progres Pokja</b> di Dashboard.</span></div>
       ${r.pm.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>PM</th><th>Sebelum Usaha</th><th>Saat Penyaluran</th><th>Supermonev</th><th></th></tr></thead><tbody>
         ${r.pm.map((p) => html`<tr><td><div class="sel-utama"><b>${p.nama}</b><small class="mono">${p.nik}</small></div></td>
@@ -321,7 +321,7 @@ export async function render(el, { sesi: s, param: id, query }) {
     const g = async () => {
       const st = await api.statusDokPm(bid);
       m.body.innerHTML = String(html`<div class="galeri-grid">${st.kategori.map((k) => galeriFoto({ konteks: 'dok_pm', ref: bid, jenis: k.kode, judul: k.label + (k.opsional ? ' (opsional)' : ''),
-        maks: k.maks, berkas: k.berkas, boleh: k.boleh, tanpa: k.tanpa, wajib: !k.opsional && (k.kode === 'sebelum_usaha' || st.status_cair === 'cair'), ket: k.boleh ? 'Maks 2 foto · 500 KB per foto' : 'Hanya dapat dilihat' }))}</div>
+        maks: k.maks, berkas: k.berkas, boleh: k.boleh, tanpa: k.tanpa, wajib: !k.opsional && (k.kode === 'sebelum_usaha' || st.status_cair === 'cair'), ket: k.boleh ? 'Maks 2 foto · 1 MB per foto' : 'Hanya dapat dilihat' }))}</div>
         <p class="help" style="margin-top:12px">Pengajuan "tidak ada dokumentasi" dilakukan dari Detail PM (Master BNBA → klik PM → tab Dokumentasi).
           <a href="#/pm/${nik}" data-batal>Buka Detail PM</a></p>`);
       muatGambarMini(m.body);

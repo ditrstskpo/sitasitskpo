@@ -36,9 +36,48 @@ function bacaCSV(teks) {
 }
 
 /** File → { sheets: [{ nama, baris: string[][] }] } */
+
+// ---- Pembaca .xlsx mini (tanpa pustaka, memakai DecompressionStream bawaan browser): cadangan bila pustaka Excel gagal dimuat
+async function inflasi(u8) { const ds = new DecompressionStream('deflate-raw'); const w = ds.writable.getWriter(); w.write(u8); w.close(); return new Uint8Array(await new Response(ds.readable).arrayBuffer()); }
+async function bacaXlsxMini(file) {
+  const b = new Uint8Array(await file.arrayBuffer()), dv = new DataView(b.buffer), dec = new TextDecoder();
+  let e = b.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('Berkas bukan .xlsx yang valid.');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const ent = {};
+  for (let i = 0; i < n; i++) { const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    ent[dec.decode(b.subarray(p + 46, p + 46 + nl))] = { m: dv.getUint16(p + 10, true), c: dv.getUint32(p + 20, true), o: dv.getUint32(p + 42, true) }; p += 46 + nl + xl + cl; }
+  const ambil = async (nama) => { const z = ent[nama]; if (!z) return null; const q = z.o, nl = dv.getUint16(q + 26, true), xl = dv.getUint16(q + 28, true), d = b.subarray(q + 30 + nl + xl, q + 30 + nl + xl + z.c);
+    return dec.decode(z.m === 0 ? d : await inflasi(d)); };
+  const xml = (t) => new DOMParser().parseFromString(t, 'application/xml');
+  const wb = xml(await ambil('xl/workbook.xml')), rel = xml(await ambil('xl/_rels/workbook.xml.rels'));
+  const relMap = {}; rel.querySelectorAll('Relationship').forEach((r) => { relMap[r.getAttribute('Id')] = r.getAttribute('Target'); });
+  const ss = []; const sst = await ambil('xl/sharedStrings.xml');
+  if (sst) xml(sst).querySelectorAll('si').forEach((si) => { ss.push([...si.querySelectorAll('t')].map((t) => t.textContent).join('')); });
+  // gaya tanggal
+  const tglXf = new Set(); const st = await ambil('xl/styles.xml');
+  if (st) { const sx = xml(st), kus = {}; sx.querySelectorAll('numFmts > numFmt').forEach((f) => { kus[f.getAttribute('numFmtId')] = f.getAttribute('formatCode'); });
+    [...sx.querySelectorAll('cellXfs > xf')].forEach((xf, i) => { const id = xf.getAttribute('numFmtId'); if ((+id >= 14 && +id <= 22) || (+id >= 45 && +id <= 47) || (kus[id] && /[dmy]/i.test(kus[id].replace(/"[^"]*"|\[[^\]]*\]/g, '')) && !/[hs]/i.test(kus[id].replace(/"[^"]*"/g, '')) )) tglXf.add(i); }); }
+  const iso = (v) => { const d = new Date(Math.round((v - 25569) * 86400000)); return d.toISOString().slice(0, 10); };
+  const huruf = (r) => { let k = 0; for (const c of r.replace(/\d/g, '')) k = k * 26 + c.charCodeAt(0) - 64; return k - 1; };
+  const sheets = [];
+  for (const s of wb.querySelectorAll('sheets > sheet')) {
+    const tgt = relMap[s.getAttribute('r:id')] || relMap[s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')];
+    const sx = xml(await ambil('xl/' + String(tgt).replace(/^\/?(xl\/)?/, ''))); const baris = [];
+    sx.querySelectorAll('sheetData > row').forEach((rw) => { const r = []; rw.querySelectorAll('c').forEach((c) => {
+      const t = c.getAttribute('t'), v = c.querySelector('v')?.textContent; let val = '';
+      if (t === 's') val = ss[+v] ?? ''; else if (t === 'inlineStr') val = [...c.querySelectorAll('t')].map((x) => x.textContent).join(''); else if (v != null) {
+        val = t === 'str' || t === 'e' ? v : t === 'b' ? v === '1' : (tglXf.has(+c.getAttribute('s')) ? iso(+v) : +v); }
+      r[huruf(c.getAttribute('r'))] = val; });
+      for (let i = 0; i < r.length; i++) if (r[i] === undefined) r[i] = '';
+      baris.push(r.map(sel)); });
+    sheets.push({ nama: s.getAttribute('name'), baris: baris.filter((r) => r.join('') !== '') });
+  }
+  return { sheets };
+}
+
 export async function bacaBerkasTabel(file) {
   if (/\.csv$/i.test(file.name)) return { sheets: [{ nama: file.name.replace(/\.csv$/i, ''), baris: bacaCSV((await file.text()).replace(/^﻿/, '')) }] };
-  const X = await siapkanXlsx();
+  let X; try { X = await siapkanXlsx(); } catch (e) { if (/\.xlsx$/i.test(file.name)) return bacaXlsxMini(file); throw e; }
   const wb = X.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
   return {
     sheets: wb.SheetNames.map((nama) => ({

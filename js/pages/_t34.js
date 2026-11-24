@@ -4,6 +4,7 @@ import { ikon } from '../core/icons.js';
 import { bukaModal, toast, pesanGalat, tombolMuat, konfirmasi } from '../core/ui.js';
 import { opsi } from '../core/komp.js';
 import { STATUS_BNBA, badge, KLASTER, PROVINSI } from '../core/bnba.js';
+import { daftarKabKota, cocokKabKota, cocokProvinsi } from '../core/wilayah.js';
 
 export { KLASTER, PROVINSI };
 export const status = (v) => badge(STATUS_BNBA, v);
@@ -17,8 +18,8 @@ export const LKS_OPSI = {
   wilayah_jangkauan: ['Kab/Kota', 'Provinsi', 'Nasional'],
   jenis_layanan: ['Rehabilitasi Sosial', 'Perlindungan Sosial', 'Pemberdayaan Sosial'],
 };
-export const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
-export const IKON_KAT = { 'SK ATENSI': 'award', 'SK Kegiatan': 'file-check', KAK: 'file-text', 'Bahan Paparan': 'pie', 'Dokumentasi Kegiatan': 'camera', Lainnya: 'folder' };
+export const KAT_DOK = ['SK ATENSI', 'SK Kegiatan', 'SK', 'SOP', 'Perpres', 'KAK', 'Bahan Paparan', 'Dokumentasi Kegiatan', 'Lainnya'];
+export const IKON_KAT = { 'SK ATENSI': 'award', 'SK Kegiatan': 'file-check', SK: 'scroll', SOP: 'list-checks', Perpres: 'gavel', KAK: 'file-text', 'Bahan Paparan': 'pie', 'Dokumentasi Kegiatan': 'camera', Lainnya: 'folder' };
 export const JENIS_HUKUM = ['Peraturan Menteri', 'Keputusan Menteri', 'Keputusan Dirjen', 'Keputusan Direktur', 'Surat Edaran', 'SOP', 'Pedoman/Juknis', 'Lainnya'];
 
 /**
@@ -32,6 +33,9 @@ export function medan(d, v) {
   let isi;
   if (d.tipe === 'pilih') {
     isi = html`<select id="${id}" class="select" data-k="${d.k}" ${dis}>${opsi(d.opsi || [], nil, d.kosong ?? '— Pilih —')}</select>`;
+  } else if (d.tipe === 'kabkota') {
+    isi = html`<input id="${id}" class="input" data-k="${d.k}" data-induk="${d.induk || 'provinsi'}" list="dl-t34-${d.k}" value="${nil}" autocomplete="off" placeholder="Pilih provinsi dulu, lalu pilih / ketik kabupaten atau kota" ${dis}><datalist id="dl-t34-${d.k}"></datalist>
+      <div class="help" data-saran-kab>Pilih provinsi dulu; daftar kabupaten/kota menyesuaikan.</div>`;
   } else if (d.tipe === 'multi') {
     const pilih = new Set(Array.isArray(v) ? v : String(v || '').split(/\s*[;,]\s*/).filter(Boolean));
     return html`<div class="field ${d.lebar ? 'penuh' : ''}" data-medan="${d.k}"><span class="label">${d.l}${wajib}</span>
@@ -166,3 +170,36 @@ export const ikonMime = (mime = '', nama = '') => {
   if (!mime) return ['LINK', '#7B5EC2'];
   return [e.slice(0, 4) || 'FILE', '#5B6B7F'];
 };
+
+
+// ---- Provinsi → Kabupaten/Kota bertingkat (sama dengan Workspace BNBA), berlaku untuk semua formulir tipe 'kabkota' ----
+const lingkup = (el) => el.closest('.modal, form, main') || document;
+function isiDaftarKab(inp) {
+  const prov = lingkup(inp).querySelector(`[data-k="${inp.dataset.induk}"]`)?.value || '';
+  const dl = document.getElementById(inp.getAttribute('list'));
+  if (dl) dl.innerHTML = daftarKabKota(prov).map((n) => `<option value="${n}"></option>`).join('');
+  const h = inp.closest('.field')?.querySelector('[data-saran-kab]');
+  if (h) h.textContent = prov ? 'Pilih dari daftar atau ketik; ejaan dicocokkan otomatis.' : 'Pilih provinsi dulu; daftar kabupaten/kota menyesuaikan.';
+  return prov;
+}
+if (typeof document !== 'undefined' && !window.__wilayahT34) {
+  window.__wilayahT34 = true;
+  document.addEventListener('focusin', (e) => { if (e.target.matches?.('input[data-induk]')) isiDaftarKab(e.target); });
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.matches?.('select[data-k]')) {
+      lingkup(t).querySelectorAll(`input[data-induk="${t.dataset.k}"]`).forEach((inp) => {
+        isiDaftarKab(inp);
+        if (inp.value && t.value && !cocokKabKota(inp.value, t.value).nilai) inp.value = '';
+      });
+    }
+  });
+  document.addEventListener('focusout', (e) => {
+    const inp = e.target; if (!inp.matches?.('input[data-induk]') || !inp.value.trim()) return;
+    const prov = isiDaftarKab(inp), h = inp.closest('.field')?.querySelector('[data-saran-kab]');
+    if (!prov) return;
+    const r = cocokKabKota(inp.value, prov);
+    if (r.nilai) { if (r.nilai !== inp.value) { inp.value = r.nilai; if (h) h.textContent = 'Disesuaikan otomatis dengan nama baku.'; } }
+    else if (h) h.textContent = r.saran.length ? 'Belum cocok. Mungkin: ' + r.saran.join(' / ') : 'Nama ini belum ada di daftar provinsi tersebut; periksa ejaan.';
+  });
+}

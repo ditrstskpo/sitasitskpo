@@ -6,7 +6,7 @@ import { api } from '../core/api.js';
 import { hapusCache } from '../core/store.js';
 import { judulHalaman, toast, konfirmasi, pesanGalat, tombolMuat, kotakGalat, bukaModal } from '../core/ui.js';
 import { opsi, tautanAman } from '../core/komp.js';
-import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_USULAN, badge, rupiah, usia, lengkapPM, kolomKurang, bolehTahap, jenisDariKategori, totalRincian } from '../core/bnba.js';
+import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_USULAN, badge, rupiah, usia, lengkapPM, kolomKurang, bolehTahap, jenisDariKategori, totalRincian, SATUAN } from '../core/bnba.js';
 import { cocokProvinsi, cocokKabKota, daftarKabKota } from '../core/wilayah.js';
 import { bukaImporBnba } from './_usulan-modal.js';
 import { pergi } from '../core/nav.js';
@@ -22,18 +22,19 @@ const KOL_FORM = [...KOLOM, ...KOLOM_EKONOMI].filter((c) => GRUP_FORM.includes(c
 const fmtUang = (v) => (v === '' || v == null ? '' : angka(String(v).replace(/[^\d]/g, '')));
 
 const barisRincian = (r = {}) => html`<div class="ri-baris" data-ri-baris>
-  <input class="input" data-ri="nama" placeholder="Nama barang (mis. Beras 5 kg)" value="${r.nama || ''}" aria-label="Nama barang">
-  <input class="input angka" data-ri="jumlah" type="number" min="0" step="any" inputmode="decimal" value="${r.jumlah ?? 1}" aria-label="Jumlah">
-  <label class="input-awalan"><span>Rp</span><input class="input angka" data-ri="harga" inputmode="numeric" value="${fmtUang(r.harga)}" aria-label="Harga per satuan" data-uang></label>
-  <output class="ri-sub" data-ri-sub>—</output>
+  <input class="input" data-ri="nama" placeholder="Nama barang (mis. Beras)" value="${r.nama || ''}" aria-label="Nama barang">
+  <input class="input angka" data-ri="jumlah" type="number" min="0" step="any" inputmode="decimal" value="${r.jumlah ?? ''}" placeholder="Jumlah" aria-label="Jumlah">
+  <input class="input" data-ri="satuan" list="dl-satuan" value="${r.satuan || ''}" placeholder="Satuan" aria-label="Satuan (kg, liter, dst.)" autocomplete="off">
+  <label class="input-awalan"><span>Rp</span><input class="input angka" data-ri="subtotal" inputmode="numeric" value="${fmtUang(r.subtotal !== undefined && r.subtotal !== '' ? r.subtotal : (r.harga ? (Number(r.jumlah) || 1) * Number(r.harga) : ''))}" aria-label="Subtotal (harga seluruh jumlah ini)" data-uang></label>
   <button type="button" class="btn btn-ghost btn-sm teks-merah" data-ri-hapus aria-label="Hapus barang">${raw(ikon('trash', 16))}</button></div>`;
 
 function editorRincian(b) {
   const items = Array.isArray(b.rincian_item) && b.rincian_item.length ? b.rincian_item : [];
   return html`<div class="field penuh" data-rincian>
-    <label class="label">Rincian barang yang dibeli <span class="redup" style="font-weight:500">(nama · jumlah · harga per satuan)</span></label>
-    <div class="ri-kepala" aria-hidden="true"><span>Nama barang</span><span>Jumlah</span><span>Harga satuan</span><span>Subtotal</span><span></span></div>
+    <label class="label">Rincian barang yang dibeli <span class="redup" style="font-weight:500">(nama barang · jumlah · satuan · subtotal)</span></label>
+    <div class="ri-kepala" aria-hidden="true"><span>Nama barang</span><span>Jumlah</span><span>Satuan</span><span>Subtotal</span><span></span></div>
     <div data-ri-daftar>${items.map(barisRincian)}</div>
+    <datalist id="dl-satuan">${SATUAN.map((x) => html`<option value="${x}"></option>`)}</datalist>
     <div class="ri-aksi"><button type="button" class="btn btn-secondary btn-sm" data-ri-tambah>${raw(ikon('plus', 16))} Tambah barang</button>
       <span class="ri-total">Total rencana intervensi: <b data-ri-total>${rupiah(totalRincian(items))}</b></span></div>
     ${!items.length && b.rincian_barang ? html`<div class="help">Catatan rincian lama: ${b.rincian_barang}</div>` : html`<div class="help">Isi satu baris per barang. Total otomatis menjadi Nilai Bantuan. Bila tidak ada rincian barang (mis. uang tunai), kosongkan dan isi Nilai Bantuan langsung.</div>`}</div>`;
@@ -161,8 +162,8 @@ export async function render(el, { sesi: s, query }) {
     el.querySelectorAll('form[data-pm] [name]').forEach((x) => { o[x.name] = x.matches('[data-uang]') ? x.value.replace(/[^\d]/g, '') : x.value.trim(); });
     // rincian barang → rincian_item (baris yang seluruhnya kosong diabaikan)
     o.rincian_item = [...el.querySelectorAll('[data-ri-baris]')].map((r) => ({
-      nama: r.querySelector('[data-ri=nama]').value.trim(), jumlah: r.querySelector('[data-ri=jumlah]').value.trim() || '1',
-      harga: r.querySelector('[data-ri=harga]').value.replace(/[^\d]/g, '') })).filter((x) => x.nama || x.harga);
+      nama: r.querySelector('[data-ri=nama]').value.trim(), jumlah: r.querySelector('[data-ri=jumlah]').value.trim(),
+      satuan: r.querySelector('[data-ri=satuan]').value.trim(), subtotal: r.querySelector('[data-ri=subtotal]').value.replace(/[^\d]/g, '') })).filter((x) => x.nama || x.subtotal || x.jumlah);
     if (o.rincian_item.length) o.nilai_bantuan = String(totalRincian(o.rincian_item));
     if (pilih >= 0 && pm[pilih]) o.id = pm[pilih].id;
     return o;
@@ -218,13 +219,12 @@ export async function render(el, { sesi: s, query }) {
     }
   }
   function hitungRincian() {
-    const rows = [...el.querySelectorAll('[data-ri-baris]')].map((r) => ({ r, jumlah: Number(r.querySelector('[data-ri=jumlah]').value) || 0, harga: Number(r.querySelector('[data-ri=harga]').value.replace(/\D/g, '')) || 0 }));
-    let total = 0;
-    rows.forEach(({ r, jumlah, harga }) => { const sub = (jumlah || (harga ? 1 : 0)) * harga; total += sub; r.querySelector('[data-ri-sub]').textContent = harga ? rupiah(sub) : '—'; });
+    const rows = [...el.querySelectorAll('[data-ri-baris]')].map((r) => Number(r.querySelector('[data-ri=subtotal]').value.replace(/\D/g, '')) || 0);
+    const total = rows.reduce((a, b) => a + b, 0);
     const tt = el.querySelector('[data-ri-total]'); if (tt) tt.textContent = rupiah(total);
     const nilai = el.querySelector('[name=nilai_bantuan]');
     if (nilai) {
-      const ada = rows.some(({ harga }) => harga);
+      const ada = rows.some((x) => x);
       nilai.readOnly = ada; nilai.toggleAttribute('data-otomatis', ada);
       if (ada) nilai.value = fmtUang(total);
     }
@@ -252,7 +252,7 @@ export async function render(el, { sesi: s, query }) {
     const pk = e.target.closest('[data-pakai-kab]');
     if (pk) { const inp = el.querySelector(`[name=${pk.dataset.untuk}]`); inp.value = pk.dataset.pakaiKab; kotor = true; cocokkanKab(inp); return; }
     if (e.target.closest('[data-ri-tambah]')) {
-      el.querySelector('[data-ri-daftar]').insertAdjacentHTML('beforeend', String(barisRincian({ jumlah: 1 })));
+      el.querySelector('[data-ri-daftar]').insertAdjacentHTML('beforeend', String(barisRincian({})));
       el.querySelector('[data-ri-daftar] [data-ri-baris]:last-child [data-ri=nama]').focus(); kotor = true; hitungRincian(); return;
     }
     const rh = e.target.closest('[data-ri-hapus]');
