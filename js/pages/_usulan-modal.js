@@ -5,7 +5,8 @@ import { api } from '../core/api.js';
 import { bukaModal, toast, pesanGalat, tombolMuat } from '../core/ui.js';
 import { opsi, tabelObjek } from '../core/komp.js';
 import { bacaBerkasTabel, cariBarisJudul, unduhExcel } from '../core/xlsx.js';
-import { petakanJudul, KOLOM, KOLOM_EKONOMI } from '../core/bnba.js';
+import { petakanJudul } from '../core/bnba.js';
+import { normalkanWilayah } from '../core/wilayah.js';
 import { hapusCache } from '../core/store.js';
 import * as P from '../core/peran.js';
 
@@ -34,12 +35,11 @@ export function bukaBuatUsulan(s, { onSelesai, pokjaList = [] } = {}) {
   };
 }
 
+/** Unduh template statis (berisi dropdown provinsi → kab/kota, MAK, desil, dll). */
 export async function unduhTemplateBnba() {
-  const kolom = ['NO', ...KOLOM.map((k) => k.x), ...KOLOM_EKONOMI.map((k) => k.x)];
-  const jenis = await unduhExcel('Template-BNBA-PENGAJUAN-SITASI.xlsx', [{ nama: 'BNBA', kolom, data: [['1', 'Pemulung', 'Kab. Cianjur', 'Jawa Barat', 'Kab. Cianjur', 'Cugenang', 'Sukamulya',
-    'Kp. Babakan RT 03/RW 04', '', '', '', '', '', 'CONTOH NAMA PM', '3203011508820001', '3203011204080002', '', '1', 'Nama Ibu', 'Cianjur', '15/08/1982', '', 'Perempuan',
-    'Mengurus Rumah Tangga', 'Pedagang', 'KWU', '5000000', 'Etalase, kompor gas', 'BANSOS UANG', '', '', '', '', '', '', '', '', '', '', '', '900000', '450000']] }]);
-  if (jenis === 'csv') toast('Pustaka Excel belum termuat; template diunduh sebagai CSV (bisa dibuka di Excel).', 'info');
+  const a = document.createElement('a');
+  a.href = 'assets/Template-BNBA-PENGAJUAN-SITASI.xlsx'; a.download = 'Template-BNBA-PENGAJUAN-SITASI.xlsx';
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 /** Modal impor berkas Excel/CSV ke usulan Draft. */
@@ -47,9 +47,9 @@ export function bukaImporBnba(usulan, { onSelesai } = {}) {
   let data = null;
   const m = bukaModal({
     judul: 'Impor Excel BNBA', ukuran: 'besar',
-    isi: String(html`<div class="info-card biru">${raw(ikon('info', 20, 'ik'))}<span>Gunakan format <b>BNBA PENGAJUAN.xlsx</b> (unduh template di halaman Workspace). Usulan tujuan: <b>${usulan.judul}</b> (${usulan.no_register}).
+    isi: String(html`<div class="info-card biru">${raw(ikon('info', 20, 'ik'))}<span>Gunakan format <b>BNBA PENGAJUAN.xlsx</b> (unduh template di halaman Workspace; berisi dropdown provinsi dan kab/kota). Usulan tujuan: <b>${usulan.judul}</b> (${usulan.no_register}).
       NIK yang sudah ada di usulan ini diperbarui, bukan digandakan. Maksimal 500 baris per kiriman, diproses bertahap.</span></div>
-      <label class="dropzone" style="margin-top:16px">${raw(ikon('upload', 28))}<b>Pilih berkas .xlsx atau .csv</b><small>Baris judul dicari otomatis (memuat NIK / NAMA)</small>
+      <label class="dropzone" style="margin-top:16px">${raw(ikon('upload', 28))}<b>Pilih berkas .xlsx, .xls, atau .csv</b><small>Baris judul dicari otomatis (memuat NIK / NAMA)</small>
         <input type="file" hidden accept=".xlsx,.xls,.csv" data-berkas></label>
       <div data-hasil style="margin-top:16px"></div>`),
     kaki: String(html`<button class="btn btn-ghost" data-batal>Tutup</button><button class="btn btn-secondary" data-uji disabled>${raw(ikon('search', 18))} Pindai (uji coba)</button>
@@ -68,9 +68,17 @@ export function bukaImporBnba(usulan, { onSelesai } = {}) {
         peta.forEach((k, j) => { if (k && r[j] !== '') o[k] = r[j]; });
         return o;
       }).filter((o) => o.nik || o.nama);
+      let diperbaiki = 0;
+      for (const o of baris) for (const [pk, kk] of [['prov_penyaluran', 'kota_kab_penyaluran'], ['ktp_provinsi', 'ktp_kabkota'], ['dom_provinsi', 'dom_kabkota']]) {
+        if (!o[pk] && !o[kk]) continue;
+        const w = normalkanWilayah(o[pk], o[kk]);
+        if (w.provinsi !== o[pk] || w.kabkota !== o[kk]) diperbaiki++;
+        o[pk] = w.provinsi || undefined; o[kk] = w.kabkota || undefined;
+      }
       data = baris;
       const dikenal = peta.filter(Boolean).length;
       hasil.innerHTML = String(html`<div class="info-card">${raw(ikon('check-circle', 20, 'ik'))}<span>Lembar <b>${sh.nama}</b>: ${angka(baris.length)} baris PM, ${dikenal} kolom dikenali.
+        ${diperbaiki ? html` Nama wilayah disesuaikan otomatis (pencocokan kemiripan) pada ${diperbaiki} isian — mohon periksa.` : ''}
         ${dikenal < 5 ? html`<b> Periksa judul kolom — sebagian besar tidak dikenali.</b>` : ''}</span></div>
         ${tabelObjek(baris.slice(0, 5), ['_baris', 'nama', 'nik', 'klaster_ppks', 'jenis_bantuan', 'nilai_bantuan'])}`);
       $('[data-uji]').disabled = false; $('[data-impor]').disabled = false;

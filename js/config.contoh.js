@@ -18,7 +18,10 @@ export const CONFIG = {
   GAS_URL: '',
 
   NAMA_APLIKASI: 'SITASI TSKPO',
-  VERSI: '2.4.0 · Tahap 6',
+
+  // Keluar otomatis bila tidak ada aktivitas selama sekian jam (bawaan 4).
+  IDLE_JAM: 4,
+  VERSI: '2.5.0',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
   LOGO: 'assets/logo-sitasi.png',

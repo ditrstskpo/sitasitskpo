@@ -14,6 +14,8 @@ const EVENT = {
   USULAN_DIKEMBALIKAN: ['Usulan dikembalikan beserta alasan', 'Anggota & Kapokja Pokja pemilik usulan'],
   USULAN_DITOLAK: ['Usulan ditolak beserta alasan', 'Anggota & Kapokja Pokja pemilik usulan'],
   USULAN_SELESAI: ['Bantuan sudah cair (Tahap 11)', 'Anggota & Kapokja Pokja pemilik usulan'],
+  PM_DITOLAK_KEUANGAN: ['PM dikembalikan Keuangan untuk diperbaiki (Tahap 5)', 'Anggota & Kapokja Pokja pemilik usulan'],
+  PM_DIPERBAIKI: ['PM sudah diperbaiki Pokja, siap dicek ulang', 'Pokja Keuangan'],
   SMV_JATUH_TEMPO: ['Jadwal Supermonev jatuh tempo', 'Kapokja Supermonev & Kapokja TU'],
   SMV_DITUGASKAN: ['Tugas Supermonev baru / dipindahkan', 'Petugas Supermonev yang ditugaskan'],
   SMV_MENUNGGU: ['Isian Supermonev menunggu verifikasi', 'Kapokja Supermonev'],

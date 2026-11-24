@@ -277,6 +277,10 @@ export const ajukanUlang = (id) => rpc('ajukan_ulang_usulan', { p_id: id });
 export const hapusUsulan = (id) => rpc('hapus_usulan', { p_id: id });
 export const dataPencairan = (usulanId) => rpc('data_pencairan', { p_usulan: usulanId });
 export const simpanDataPencairan = (usulanId, rows) => rpc('simpan_data_pencairan', { p_usulan: usulanId, p_rows: rows });
+export const tolakPmKeuangan = (usulanId, bnbaId, catatan) => rpc('tolak_pm_keuangan', { p_usulan: usulanId, p_bnba: bnbaId, p_catatan: catatan });
+export const perbaikiPmDitolak = (bnbaId, data) => rpc('perbaiki_pm_ditolak', { p_bnba: bnbaId, p_data: data });
+export const simpanRekeningSp2d = (usulanId, rows) => rpc('simpan_rekening_sp2d', { p_usulan: usulanId, p_rows: rows });
+export const calonPenerima = (usulanId, tahap) => rpc('calon_penerima', { p_usulan: usulanId, p_tahap: tahap });
 export const simpanPenyaluran = (usulanId, d) => rpc('simpan_penyaluran', { p_usulan: usulanId, p_data: d });
 export const hapusPenyaluran = (id) => rpc('hapus_penyaluran', { p_id: id });
 export const tambahTautanBerkas = (usulanId, tahap, jenis, nama, url) =>

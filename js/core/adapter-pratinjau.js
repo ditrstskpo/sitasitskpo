@@ -3,7 +3,7 @@
 // agar tampilan dan alur bisa dicoba sebelum Supabase dipasang.
 // Semua nama selain akun awal PRD adalah FIKTIF.
 import { tunggu } from './util.js';
-import { barisEkspor } from './bnba.js';
+import { barisEkspor, jenisDariKategori, totalRincian, kolomKurang } from './bnba.js';
 import { unggahKonteksP, hapusBerkasKonteksP, berkasTerlihatP, fotoContoh, siapkanT34 } from './pratinjau-t34.js';
 import { siapkanT56 } from './pratinjau-t56.js';
 
@@ -428,7 +428,7 @@ function angkaBebas(v) {
   else if (/^\d+,\d+$/.test(s)) s = s.replace(',', '.');
   return s === '' ? null : s;
 }
-const KOLOM_T = ['klaster_ppks', 'kota_kab_penyaluran', 'ktp_provinsi', 'ktp_kabkota', 'ktp_kecamatan', 'ktp_kelurahan', 'ktp_jalan', 'dom_provinsi', 'dom_kabkota',
+const KOLOM_T = ['klaster_ppks', 'prov_penyaluran', 'mak', 'kota_kab_penyaluran', 'ktp_provinsi', 'ktp_kabkota', 'ktp_kecamatan', 'ktp_kelurahan', 'ktp_jalan', 'dom_provinsi', 'dom_kabkota',
   'dom_kecamatan', 'dom_kelurahan', 'dom_jalan', 'nama', 'nik', 'no_kk', 'no_paspor', 'desil', 'nama_ibu', 'tempat_lahir', 'tgl_lahir', 'jenis_kelamin',
   'pekerjaan_ktp', 'pekerjaan_kini', 'jenis_bantuan', 'nilai_bantuan', 'rincian_barang', 'uraian', 'akun_bantuan', 'no_sp2d', 'tgl_sp2d', 'bulan_sp2d',
   'rek_giro_bni', 'nama_bank', 'nomor_rekening', 'nama_pemilik_rek', 'pendapatan_kotor_awal', 'biaya_awal'];
@@ -441,9 +441,11 @@ function normalBnba(p) {
     if (v && ['jenis_bantuan', 'uraian'].includes(k)) v = v.toUpperCase();
     if (v && ['nilai_bantuan', 'pendapatan_kotor_awal', 'biaya_awal'].includes(k)) v = angkaBebas(v);
     if (v && ['tgl_lahir', 'tgl_sp2d'].includes(k)) v = tglBebas(v);
+    if (v && ['desil', 'mak'].includes(k)) v = v.replace(/\D/g, '') || null;
     if (v && k === 'jenis_kelamin') v = /^(L|LK|LAKI|PRIA)/i.test(v) ? 'Laki-laki' : /^(P|PR|PEREMPUAN|WANITA)/i.test(v) ? 'Perempuan' : v;
     r[k] = v;
   }
+  if (Array.isArray(p.rincian_item)) r.rincian_item = p.rincian_item.map((i) => ({ nama: String(i.nama ?? '').trim(), jumlah: String(i.jumlah ?? '').trim() || '1', harga: String(i.harga ?? '').replace(/[^\d.]/g, '') }));
   return r;
 }
 function cekBnba(r) {
@@ -453,6 +455,9 @@ function cekBnba(r) {
   if (r.jenis_bantuan && !['PHL', 'KWU', 'PEMULANGAN'].includes(r.jenis_bantuan)) return 'JENIS BANTUAN harus PHL, KWU, atau PEMULANGAN';
   if (r.uraian && !['BANSOS UANG', 'BANSOS BARANG'].includes(r.uraian)) return 'URAIAN harus BANSOS UANG atau BANSOS BARANG';
   if (r.nilai_bantuan && !/^\d+(\.\d+)?$/.test(r.nilai_bantuan)) return 'NILAI BANTUAN harus angka';
+  if (r.desil && !/^(10|[1-9])$/.test(r.desil)) return 'DESIL harus angka 1 sampai 10';
+  if (r.mak && !['571111', '571112', '571113', '521219'].includes(r.mak)) return 'MAK tidak dikenal';
+  if (Array.isArray(r.rincian_item) && r.rincian_item.some((i) => !String(i.nama || '').trim() || !/^\d+(\.\d+)?$/.test(String(i.harga ?? '')) || !(Number(i.jumlah || 1) > 0))) return 'Setiap barang wajib punya nama, jumlah (lebih dari 0), dan harga (angka)';
   if (r.tgl_lahir && !/^\d{4}-\d{2}-\d{2}$/.test(r.tgl_lahir)) return 'Format tanggal tidak dikenali (pakai DD/MM/YYYY)';
   return null;
 }
@@ -484,15 +489,16 @@ function usulanV(u) {
     jumlah_pm: b.length, nilai_total: b.reduce((a, x) => a + (Number(x.nilai_bantuan) || 0), 0),
     klaster: [...new Set(b.map((x) => x.klaster_ppks).filter(Boolean))].join(', ') || null,
     kabkota: [...new Set(b.map((x) => x.kota_kab_penyaluran).filter(Boolean))].join(', ') || null,
-    pm_belum_lengkap: b.filter((x) => !x.jenis_bantuan || x.nilai_bantuan == null || !x.klaster_ppks).length,
+    pm_belum_lengkap: b.filter((x) => kolomKurang(x).length).length,
     tahap_status: st, tahap_aktif_list: aktif, pic_nama: ta?.pic_nama || null, tahap_mulai: ta?.mulai_pada || null,
   };
 }
 function riwayatP(uid_, t, aksi, lama, baru, cat) {
   db.riwayat.unshift({ id: ++db.seq_r, usulan_id: uid_, waktu: sekarang(), pengguna_id: sayaAktif()?.id, pengguna_nama: namaSaya(), sebagai: label(), tahap: t, aksi, status_lama: lama, status_baru: baru, catatan: cat || null });
 }
+let penerimaPilih = null;   // diisi sementara oleh prosesTahap (data._penerima)
 function penerimaTahap(pokjaId, t) {
-  return db.pengguna.filter((u) => u.aktif && u.jenis_akses === 'pegawai' && db.pengguna_pokja.some((pp) => pp.pengguna_id === u.id && (
+  return db.pengguna.filter((u) => !penerimaPilih || penerimaPilih.includes(u.id)).filter((u) => u.aktif && u.jenis_akses === 'pegawai' && db.pengguna_pokja.some((pp) => pp.pengguna_id === u.id && (
     ['1', '3'].includes(t) ? pp.pokja_id === pokjaId
       : t === '2' ? pp.pokja_id === pokjaId && pp.jabatan === 'kapokja'
         : ['4a', '4b', '4c', '6'].includes(t) ? pokjaById(pp.pokja_id)?.kode === 'TU'
@@ -536,13 +542,14 @@ function benihT2() {
   db.seq_u = 0; db.seq_r = 0; db.seq_a = 0; db.seq_nik = 0;
   db.notif_atur = { notif_wa_aktif: false, notif_email_aktif: false, app_url: '', notif_matriks: {
     USULAN_MENUNGGU_KAPOKJA: { wa: true, email: true }, TAHAP_BARU: { wa: true, email: true }, PROGRES_USULAN: { wa: false, email: true },
-    USULAN_DIKEMBALIKAN: { wa: true, email: true }, USULAN_DITOLAK: { wa: true, email: true }, USULAN_SELESAI: { wa: true, email: true } } };
+    USULAN_DIKEMBALIKAN: { wa: true, email: true }, USULAN_DITOLAK: { wa: true, email: true }, USULAN_SELESAI: { wa: true, email: true },
+    PM_DITOLAK_KEUANGAN: { wa: true, email: true }, PM_DIPERBAIKI: { wa: true, email: false } } };
   db.fonnte = '';
   const hp = { 'sari.handayani@contoh.id': '081234500101', 'bambang.wijaya@contoh.id': '081234500102', 'muhni2806@gmail.com': '081234500103',
     'yusuf.hidayat@contoh.id': '081234500104', 'nur.aini@contoh.id': '081234500105' };
   db.pengguna.forEach((p) => { if (hp[p.email]) p.no_hp = hp[p.email]; });
-  const kab = { KPO_PMBS: ['Kab. Cianjur', 'Jawa Barat'], GEPENGLUNG: ['Kota Jakarta Timur', 'DKI Jakarta'], BWBP: ['Kota Surakarta', 'Jawa Tengah'],
-    KTK_WTS: ['Kab. Indramayu', 'Jawa Barat'] };
+  const kab = { KPO_PMBS: ['Kabupaten Cianjur', 'Jawa Barat'], GEPENGLUNG: ['Kota Jakarta Timur', 'DKI Jakarta'], BWBP: ['Kota Surakarta', 'Jawa Tengah'],
+    KTK_WTS: ['Kabupaten Indramayu', 'Jawa Barat'] };
   const klas = { KPO_PMBS: ['KPO', 'PMIB'], GEPENGLUNG: ['Pemulung', 'Gelandangan', 'Pengemis'], BWBP: ['BWBLP Eks Napiter', 'BWBLP Umum'], KTK_WTS: ['Eks WTS', 'KTK'] };
   const pembuat = { KPO_PMBS: 'pg-8', GEPENGLUNG: 'pg-9', BWBP: 'pg-13', KTK_WTS: 'pg-1' };
   const rencana = [
@@ -562,6 +569,8 @@ function benihT2() {
       link_profil: status === 'draft' ? null : 'https://drive.google.com/drive/folders/contoh-profil-asesmen', status, tahap_aktif: tahap, catatan_terakhir: null,
       no_sk: null, tgl_sk: null, link_sk: null, tgl_cair: null, usulan_asal_id: null, usulan_baru_id: null, sumber: 'web', dibuat_oleh: pembuat[kode],
       dibuat_pada: t0, tgl_submit: status === 'draft' ? null : t0, diubah_pada: t0 };
+    if (/Sembako/.test(judul)) u.kategori = 'Bantuan ATENSI — Sembako & Nutrisi';
+    if (/Kewirausahaan/.test(judul)) u.kategori = 'Bantuan ATENSI — Kewirausahaan';
     const posisi = URUT.indexOf(tahap);
     URUT.forEach((t, i) => {
       let st = status === 'selesai' || i < posisi ? 'selesai' : t === tahap ? 'aktif' : 'terkunci';
@@ -578,19 +587,23 @@ function benihT2() {
       const nm = NAMA_PM[ni % NAMA_PM.length]; ni++;
       const nik = '32' + String(1000000000 + ni * 7919).padStart(10, '0') + String(1000 + ni).slice(-4);
       const keuLengkap = posisi > URUT.indexOf('5') || status === 'selesai' || (tahap === '5' && j < 2);
+      const rekLengkap = posisi > URUT.indexOf('8') || status === 'selesai';
+      const jk = jenisDariKategori(u.kategori), jenisPM = status === 'draft' && j === 2 ? null : jk || ['KWU', 'PHL', 'KWU', 'PEMULANGAN'][j % 4];
+      const itemPM = jenisPM === 'PHL' ? [{ nama: 'Beras 5 kg', jumlah: '2', harga: '70000' }, { nama: 'Minyak goreng 2 L', jumlah: '2', harga: '38000' }, { nama: 'Telur 1 kg', jumlah: '1', harga: '30000' }] : null;
       db.bnba.push({
         id: 'bn-' + ni, usulan_id: u.id, pokja_id: k.id, status_verifikasi: ['draft', 'menunggu', 'perlu_perbaikan'].includes(status) ? status : 'terverifikasi',
-        klaster_ppks: status === 'draft' && j === 2 ? null : klas[kode][j % klas[kode].length], kota_kab_penyaluran: kab[kode][0],
+        klaster_ppks: status === 'draft' && j === 2 ? null : klas[kode][j % klas[kode].length], prov_penyaluran: kab[kode][1], mak: '571111', kota_kab_penyaluran: kab[kode][0],
         ktp_provinsi: kab[kode][1], ktp_kabkota: kab[kode][0], ktp_kecamatan: 'Kec. Contoh ' + (j + 1), ktp_kelurahan: 'Desa Contoh', ktp_jalan: `Kp. Contoh RT 0${j + 1}/RW 04`,
         dom_provinsi: null, dom_kabkota: null, dom_kecamatan: null, dom_kelurahan: null, dom_jalan: null,
         nama: nm.toUpperCase(), nik, no_kk: nik.slice(0, 12) + '0004', no_paspor: null, desil: String(1 + (j % 3)), nama_ibu: 'Ibu ' + nm.split(' ')[0],
-        tempat_lahir: kab[kode][0].replace(/^(Kab\.|Kota) /, ''), tgl_lahir: `19${80 + (ni % 15)}-0${1 + (ni % 9)}-1${ni % 9}`, jenis_kelamin: ni % 2 ? 'Laki-laki' : 'Perempuan',
-        pekerjaan_ktp: 'Mengurus Rumah Tangga', pekerjaan_kini: 'Pedagang', jenis_bantuan: status === 'draft' && j === 2 ? null : ['KWU', 'PHL', 'KWU', 'PEMULANGAN'][j % 4],
-        nilai_bantuan: status === 'draft' && j === 2 ? null : [5000000, 2500000, 5000000, 1500000][j % 4], rincian_barang: 'Etalase, kompor gas, modal bahan baku',
+        tempat_lahir: kab[kode][0].replace(/^(Kabupaten|Kab\.|Kota) /, ''), tgl_lahir: `19${80 + (ni % 15)}-0${1 + (ni % 9)}-1${ni % 9}`, jenis_kelamin: ni % 2 ? 'Laki-laki' : 'Perempuan',
+        pekerjaan_ktp: 'Mengurus Rumah Tangga', pekerjaan_kini: 'Pedagang', jenis_bantuan: jenisPM,
+        nilai_bantuan: status === 'draft' && j === 2 ? null : itemPM ? totalRincian(itemPM) : [5000000, 2500000, 5000000, 1500000][j % 4],
+        rincian_item: itemPM, rincian_barang: itemPM ? itemPM.map((i) => `${i.nama} (${i.jumlah} x ${i.harga})`).join('; ') : 'Etalase, kompor gas, modal bahan baku',
         uraian: j % 4 === 1 ? 'BANSOS BARANG' : 'BANSOS UANG', akun_bantuan: keuLengkap ? '571111' : null,
         no_sp2d: posisi > URUT.indexOf('9') || status === 'selesai' ? '26019280' + (idx + 10) : null, tgl_sp2d: status === 'selesai' ? '2026-11-12' : null,
-        bulan_sp2d: status === 'selesai' ? 'November' : null, rek_giro_bni: keuLengkap ? '1234567890' : null, nama_bank: keuLengkap ? 'BNI' : null,
-        nomor_rekening: keuLengkap ? '0092' + nik.slice(-8) : null, nama_pemilik_rek: keuLengkap ? nm.toUpperCase() : null,
+        bulan_sp2d: status === 'selesai' ? 'November' : null, rek_giro_bni: rekLengkap ? '1234567890' : null, nama_bank: rekLengkap ? 'BNI' : null, cek_keu: keuLengkap, tolak_keu_catatan: null,
+        nomor_rekening: rekLengkap ? '0092' + nik.slice(-8) : null, nama_pemilik_rek: rekLengkap ? nm.toUpperCase() : null,
         pendapatan_kotor_awal: 900000, biaya_awal: 450000, dibuat_oleh: pembuat[kode], dibuat_oleh_nama: 'Bambang Wijaya', dibuat_pada: t0, diubah_pada: t0,
       });
     }
@@ -666,10 +679,16 @@ export async function simpanUsulan(d) {
 function tulisB(u, r, st) {
   let b = db.bnba.find((x) => x.nik === r.nik);
   if (b && b.usulan_id !== u.id) return 'NIK_ADA';
+  const jk = jenisDariKategori(u.kategori); if (jk) r.jenis_bantuan = jk;
+  if (Array.isArray(r.rincian_item) && r.rincian_item.length) {
+    r.nilai_bantuan = String(totalRincian(r.rincian_item));
+    r.rincian_barang = r.rincian_item.map((i) => `${i.nama} (${i.jumlah || 1} x ${i.harga})`).join('; ');
+  } else if ('rincian_item' in r) r.rincian_item = null;
   angkaKe(r);
   if (!b) {
     b = { id: uid(), usulan_id: u.id, pokja_id: u.pokja_id, status_verifikasi: st, dibuat_oleh: sayaAktif()?.id, dibuat_oleh_nama: namaSaya(), dibuat_pada: sekarang() };
     KOLOM_T.forEach((k) => { b[k] = r[k] ?? null; });
+    b.rincian_item = r.rincian_item ?? null; b.cek_keu = false; b.tolak_keu_catatan = null;
     b.nama = String(b.nama).toUpperCase(); b.diubah_pada = sekarang();
     db.bnba.push(b);
     return 'TAMBAH';
@@ -732,7 +751,8 @@ export async function ajukanUsulan(id) {
   if (!['draft', 'perlu_perbaikan'].includes(u.status)) throw galat('Usulan sudah diajukan.');
   if (!b.length) throw galat('Usulan belum berisi PM. Tambahkan minimal satu PM.');
   if (!u.link_profil) throw galat('Link profil asesmen wajib diisi sebelum submit.');
-  if (b.some((x) => !x.jenis_bantuan || x.nilai_bantuan == null || !x.klaster_ppks)) throw galat('Masih ada PM tanpa KLASTER, JENIS BANTUAN, atau NILAI BANTUAN.');
+  const kurangPM = b.filter((x) => kolomKurang(x).length);
+  if (kurangPM.length) throw galat(`${kurangPM.length} PM belum lengkap (contoh: ${[...kurangPM].sort((p1, p2) => p1.nama.localeCompare(p2.nama))[0].nama}). Wajib: klaster, jenis & nilai bantuan, MAK, alamat KTP lengkap, provinsi & kab/kota penyaluran, desil (1–10), No. KK, nama ibu kandung, tanggal lahir.`);
   const lama = u.status;
   Object.assign(u, { status: 'menunggu', tgl_submit: sekarang(), catatan_terakhir: null });
   b.forEach((x) => { x.status_verifikasi = 'menunggu'; });
@@ -772,6 +792,11 @@ export async function prosesTahap(id, t, aksi, data = {}, catatan = null) {
   if (!bolehTahapP(u.pokja_id, t)) throw galat(`Peran Anda tidak berwenang mengisi Tahap ${t} (${NAMA_T[t]}).`, '42501');
   if (u.status !== 'proses') throw galat(`Usulan tidak sedang diproses (status: ${u.status}).`);
   if (x.status !== 'aktif' && !(aksi === 'simpan' && t === '5' && x.status === 'terkunci')) throw galat(`Tahap ${t} belum terbuka atau sudah selesai. Tahap tidak dapat dilewati.`);
+  const { _penerima, ...dataBersih } = data || {};
+  penerimaPilih = Array.isArray(_penerima) && _penerima.length ? _penerima : null;
+  try { return await prosesTahapInti(id, t, aksi, dataBersih, cat, u, x); } finally { penerimaPilih = null; }
+}
+async function prosesTahapInti(id, t, aksi, data, cat, u, x) {
   const d = { ...x.data, ...data };
   if (aksi === 'simpan') { x.data = d; if (cat) x.catatan = cat; simpan(); return { ok: true, data: d }; }
   if (aksi === 'kembalikan' || aksi === 'tolak') {
@@ -794,10 +819,10 @@ export async function prosesTahap(id, t, aksi, data = {}, catatan = null) {
     3: !adaBerkas(id, 'draft_sk') ? 'Unggah naskah Draft SK.' : !adaBerkas(id, 'nota_dinas') ? 'Unggah Nota Dinas.' : null,
     '4b': !d.tgl_masuk_direktur ? 'Isi tanggal masuk ke Direktur.' : null,
     '4c': !(d.tgl_kirim && d.pengirim && d.penerima && d.hp_penerima) ? 'Lengkapi tanggal kirim, nama pengirim, nama penerima, dan nomor HP penerima di Sekretariat.' : null,
-    5: b.some((y) => !y.nama_bank || !y.nomor_rekening || !y.akun_bantuan) ? 'Masih ada PM tanpa nama bank, nomor rekening, atau akun bantuan.' : null,
+    5: b.some((y) => y.tolak_keu_catatan) ? 'Masih ada PM yang dikembalikan ke Pokja dan belum diperbaiki.' : b.some((y) => !y.akun_bantuan) ? 'Masih ada PM tanpa akun bantuan.' : b.some((y) => !y.cek_keu) ? 'Masih ada PM yang belum dicentang "sudah dicek".' : null,
     6: !d.sk_selesai ? 'Centang "SK sudah selesai".' : !(d.no_sk && d.tgl_sk) ? 'Isi NO SK dan TGL SK.' : !adaBerkas(id, 'sk_final') ? 'Unggah scan SK TTD final.' : null,
-    7: !adaBerkas(id, 'surat_burekol') ? 'Unggah Surat Penyampaian Data Bantuan ATENSI.' : !adaBerkas(id, 'lampiran_burekol') ? 'Unggah Lampiran Data BNBA PM.' : null,
-    8: !d.sp2d_terbit ? 'Centang "SP2D sudah terbit".' : null,
+    7: !adaBerkas(id, 'surat_burekol') ? 'Unggah Surat Penyampaian Data Bantuan ATENSI.' : null,
+    8: !d.sp2d_terbit ? 'Centang "SP2D sudah terbit".' : b.some((y) => !y.nama_bank || !y.nomor_rekening) ? 'Masih ada PM tanpa nama bank atau nomor rekening.' : null,
     9: !(d.no_sp2d && d.tgl_sp2d && d.bulan_sp2d) ? 'Isi NO SP2D, TGL SP2D, dan BULAN (SP2D).' : null,
     10: !d.si_selesai ? 'Centang "SI sudah selesai".' : null,
     11: !(d.dikonfirmasi && d.tgl_cair) ? 'Konfirmasi pencairan dan isi tanggal cair.' : null,
@@ -805,7 +830,7 @@ export async function prosesTahap(id, t, aksi, data = {}, catatan = null) {
   if (kurang) throw galat(`Tahap ${t} belum dapat diselesaikan: ${kurang}`);
   if (t === '4a') { d.tanggal ||= new Date().toISOString().slice(0, 10); d.petugas ||= namaSaya(); }
   Object.assign(x, { status: 'selesai', data: d, catatan: cat || x.catatan, selesai_pada: sekarang(), pic_nama: namaSaya() });
-  if (t === '6') Object.assign(u, { no_sk: d.no_sk, tgl_sk: d.tgl_sk, link_sk: d.link_sk || null });
+  if (t === '6') Object.assign(u, { no_sk: d.no_sk, tgl_sk: d.tgl_sk, link_sk: db.berkas.find((y) => y.usulan_id === id && y.jenis === 'sk_final' && !y.dihapus && y.tautan)?.tautan || null });
   if (t === '9') b.forEach((y) => Object.assign(y, { no_sp2d: d.no_sp2d, tgl_sp2d: d.tgl_sp2d, bulan_sp2d: d.bulan_sp2d }));
   if (t === '11') Object.assign(u, { status: 'selesai', tgl_cair: d.tgl_cair });
   riwayatP(id, t, 'SELESAI', 'aktif', 'selesai', cat);
@@ -839,21 +864,94 @@ export async function dataPencairan(id) {
   await tunggu(100); const u = ambilU(id); if (!usulanTerlihat(u)) throw galat('Usulan tidak ditemukan.');
   const penuh = bolehPenuhP(u.pokja_id);
   if (penuh) { log('LIHAT_DATA_SENSITIF', 'usulan', id, 'Membuka Data Pencairan ' + u.no_register); simpan(); }
-  return { penuh, baris: db.bnba.filter((b) => b.usulan_id === id).sort((a, b) => a.nama.localeCompare(b.nama)).map((b) => ({ id: b.id, nik: b.nik, nama: b.nama, jenis_bantuan: b.jenis_bantuan,
-    nilai_bantuan: b.nilai_bantuan, akun_bantuan: b.akun_bantuan, nama_bank: b.nama_bank, nomor_rekening: penuh ? b.nomor_rekening : samarAngka(b.nomor_rekening), nama_pemilik_rek: b.nama_pemilik_rek, rek_giro_bni: b.rek_giro_bni })) };
+  return { penuh, usulan: { id: u.id, no_register: u.no_register, judul: u.judul, kategori: u.kategori, no_sk: u.no_sk, tgl_sk: u.tgl_sk },
+    baris: db.bnba.filter((b) => b.usulan_id === id).sort((a, b) => a.nama.localeCompare(b.nama)).map((b) => ({ id: b.id, nik: b.nik, nama: b.nama,
+      nama_ibu: penuh ? b.nama_ibu : samarNama(b.nama_ibu), ktp_provinsi: b.ktp_provinsi, ktp_kabkota: b.ktp_kabkota, ktp_kecamatan: b.ktp_kecamatan, ktp_kelurahan: b.ktp_kelurahan,
+      ktp_jalan: penuh ? b.ktp_jalan : samarAlamat(b.ktp_jalan), klaster_ppks: b.klaster_ppks, jenis_bantuan: b.jenis_bantuan, nilai_bantuan: b.nilai_bantuan, mak: b.mak,
+      akun_bantuan: b.akun_bantuan, nama_bank: b.nama_bank, nomor_rekening: penuh ? b.nomor_rekening : samarAngka(b.nomor_rekening), nama_pemilik_rek: b.nama_pemilik_rek,
+      cek_keu: !!b.cek_keu, tolak_keu_catatan: b.tolak_keu_catatan || null })) };
 }
+// Tahap 5: Keuangan mencentang "sudah dicek", mengisi akun bantuan, atau memperbaiki data per PM (bank & rekening baru di Tahap 8).
 export async function simpanDataPencairan(id, rows) {
   await tunggu(150); const u = ambilU(id);
   if (!bolehTahapP(u.pokja_id, '5')) throw galat('Hanya Pokja Keuangan yang mengisi Data Pencairan.', '42501');
   if (u.status !== 'proses' || tahapU(id, '5').status === 'selesai') throw galat('Data Pencairan usulan ini sudah dikunci.');
   let n = 0;
-  rows.forEach((x) => {
-    const r = normalBnba({ ...x, nik: undefined, nama: undefined }); delete r.nik; delete r.nama;
-    if (r.nomor_rekening && !/^\d{6,20}$/.test(r.nomor_rekening)) throw galat(`Nomor rekening ${r.nomor_rekening} tidak valid (6–20 digit angka).`);
-    const b = db.bnba.find((y) => y.id === x.id && y.usulan_id === id);
-    if (b) { ['akun_bantuan', 'nama_bank', 'nomor_rekening', 'nama_pemilik_rek', 'rek_giro_bni'].forEach((k) => { if (k in r) b[k] = r[k]; }); n++; }
-  });
+  for (const x of rows) {
+    const b = db.bnba.find((y) => y.id === x.id && y.usulan_id === id); if (!b) continue;
+    const { id: _i, nik: _n, cek_keu, nama_bank: _nb, nomor_rekening: _nr, nama_pemilik_rek: _np, rek_giro_bni: _rg, ...sisa } = x;
+    const r = normalBnba(sisa); delete r.nik;
+    const e = cekBnba({ ...r, nama: r.nama || b.nama, nik: b.nik }); if (e) throw galat(`${e} (PM ${b.nama})`);
+    const adaData = Object.keys(r).some((k) => k !== 'akun_bantuan');
+    const jk = jenisDariKategori(u.kategori); if (jk && 'jenis_bantuan' in r) r.jenis_bantuan = jk;
+    if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = r.rincian_item.map((i) => `${i.nama} (${i.jumlah || 1} x ${i.harga})`).join('; '); }
+    else if ('rincian_item' in r) r.rincian_item = null;
+    angkaKe(r);
+    Object.assign(b, r); if (r.nama) b.nama = String(r.nama).toUpperCase();
+    if (adaData) b.cek_keu = false;
+    if ('cek_keu' in x) {
+      if (x.cek_keu && b.tolak_keu_catatan) throw galat(`PM ${b.nama} dikembalikan ke Pokja dan belum diperbaiki; tidak dapat dicentang.`);
+      b.cek_keu = !!x.cek_keu; b.cek_keu_oleh = x.cek_keu ? namaSaya() : null;
+    }
+    n++;
+  }
   simpan(); return { ok: true, diperbarui: n };
+}
+export async function tolakPmKeuangan(id, bnbaId, catatan) {
+  await tunggu(120); const u = ambilU(id), cat = String(catatan || '').trim();
+  if (!bolehTahapP(u.pokja_id, '5')) throw galat('Hanya Pokja Keuangan yang dapat mengembalikan PM.', '42501');
+  if (u.status !== 'proses' || tahapU(id, '5').status === 'selesai') throw galat('Data Pencairan usulan ini sudah dikunci.');
+  if (!cat) throw galat('Catatan untuk Pokja wajib diisi.');
+  const b = db.bnba.find((y) => y.id === bnbaId && y.usulan_id === id); if (!b) throw galat('PM tidak ditemukan.');
+  Object.assign(b, { tolak_keu_catatan: cat, tolak_keu_oleh: namaSaya(), cek_keu: false });
+  riwayatP(id, '5', 'PM_DIKEMBALIKAN', null, null, `${b.nama}: ${cat}`);
+  beriTahu(anggotaPokja(u.pokja_id), 'PM_DITOLAK_KEUANGAN', 'PM dikembalikan Keuangan', `PM ${b.nama} pada usulan "${u.judul}" (${u.no_register}) perlu diperbaiki. Catatan: ${cat}`, '#/usulan/' + id);
+  simpan(); return { ok: true };
+}
+export async function perbaikiPmDitolak(bnbaId, data) {
+  await tunggu(120); const b = db.bnba.find((y) => y.id === bnbaId); if (!b) throw galat('PM tidak ditemukan.');
+  const u = ambilU(b.usulan_id);
+  if (!bolehTahapP(u.pokja_id, '1')) throw galat('Anda tidak berwenang.', '42501');
+  if (u.status !== 'proses' || tahapU(u.id, '5').status === 'selesai') throw galat('Data Pencairan usulan ini sudah dikunci.');
+  if (!b.tolak_keu_catatan) throw galat('PM ini tidak sedang dikembalikan oleh Keuangan.');
+  const { id: _i, nik: _n, nama_bank: _nb, nomor_rekening: _nr, nama_pemilik_rek: _np, rek_giro_bni: _rg, akun_bantuan: _ab, ...sisa } = data || {};
+  const r = normalBnba(sisa); delete r.nik;
+  const e = cekBnba({ ...r, nama: r.nama || b.nama, nik: b.nik }); if (e) throw galat(e);
+  const jk = jenisDariKategori(u.kategori); if (jk && 'jenis_bantuan' in r) r.jenis_bantuan = jk;
+  if (Array.isArray(r.rincian_item) && r.rincian_item.length) { r.nilai_bantuan = String(totalRincian(r.rincian_item)); r.rincian_barang = r.rincian_item.map((i) => `${i.nama} (${i.jumlah || 1} x ${i.harga})`).join('; '); }
+  else if ('rincian_item' in r) r.rincian_item = null;
+  angkaKe(r); Object.assign(b, r); if (r.nama) b.nama = String(r.nama).toUpperCase();
+  Object.assign(b, { tolak_keu_catatan: null, tolak_keu_oleh: null, cek_keu: false });
+  riwayatP(u.id, '5', 'PM_DIPERBAIKI', null, null, b.nama);
+  beriTahu(penerimaTahap(u.pokja_id, '5'), 'PM_DIPERBAIKI', 'PM sudah diperbaiki Pokja', `PM ${b.nama} pada usulan "${u.judul}" (${u.no_register}) sudah diperbaiki dan siap dicek ulang.`, '#/usulan/' + u.id);
+  simpan(); return { ok: true };
+}
+// Tahap 8 (SP2D): nama bank & nomor rekening per PM
+export async function simpanRekeningSp2d(id, rows) {
+  await tunggu(120); const u = ambilU(id);
+  if (!bolehTahapP(u.pokja_id, '8')) throw galat('Hanya Pokja Keuangan yang mengisi rekening pada Tahap SP2D.', '42501');
+  if (u.status !== 'proses' || tahapU(id, '8').status !== 'aktif') throw galat('Nomor rekening hanya dapat diisi saat Tahap 8 (SP2D) aktif.');
+  let n = 0;
+  for (const x of rows || []) {
+    const rek = String(x.nomor_rekening || '').replace(/[\s.-]/g, ''), bank = String(x.nama_bank || '').trim() || null, pem = String(x.nama_pemilik_rek || '').trim() || null;
+    if (rek && !/^\d{6,20}$/.test(rek)) throw galat(`Nomor rekening ${rek} tidak valid (6–20 digit angka).`);
+    const b = db.bnba.find((y) => y.id === x.id && y.usulan_id === id); if (!b) continue;
+    Object.assign(b, { nama_bank: bank, nomor_rekening: rek || null, nama_pemilik_rek: pem || b.nama }); n++;
+  }
+  simpan(); return { ok: true, diperbarui: n };
+}
+// Calon penerima notifikasi tahap berikutnya (dipilih pengirim saat menyelesaikan tahap)
+export async function calonPenerima(id, t) {
+  await tunggu(60); const u = ambilU(id);
+  if (!bolehTahapP(u.pokja_id, t)) return [];
+  const sel = (x) => tahapU(id, x)?.status === 'selesai';
+  const kode = { 3: ['TU'], '4a': ['TU'], '4b': ['TU'], '4c': ['TU', 'KEUANGAN'], 5: sel('6') ? ['KEUANGAN'] : [], 6: sel('5') ? ['KEUANGAN'] : [], 7: ['KEUANGAN'], 8: ['KEUANGAN'], 9: ['KEUANGAN'], 10: ['KEUANGAN'] }[t] || [];
+  const hasil = [];
+  db.pengguna.filter((p) => p.aktif && p.jenis_akses === 'pegawai').forEach((p) => db.pengguna_pokja.filter((pp) => pp.pengguna_id === p.id).forEach((pp) => {
+    const k = pokjaById(pp.pokja_id); if (!k || !kode.includes(k.kode) || hasil.some((h) => h.id === p.id && h.kelompok === k.kode)) return;
+    hasil.push({ id: p.id, nama: p.nama, jabatan: pp.jabatan, kelompok: k.kode, kelompok_nama: k.nama_pendek });
+  }));
+  return hasil.sort((a, b) => a.kelompok.localeCompare(b.kelompok) || (b.jabatan === 'kapokja') - (a.jabatan === 'kapokja') || a.nama.localeCompare(b.nama));
 }
 export async function simpanPenyaluran(id, d) {
   await tunggu(100); const u = ambilU(id);

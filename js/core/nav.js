@@ -1,6 +1,7 @@
 // Navigasi & keluar aplikasi (dipakai shell dan halaman).
 import { api } from './api.js';
 import { state, bersihkanSemua } from './store.js';
+import { hentikanPantauIdle } from './sesi-idle.js';
 
 /** Pindah ke rute. Bila rute sama, halaman dimuat ulang. */
 export function pergi(path) {
@@ -13,6 +14,7 @@ export async function keluarAplikasi() {
   try { await api.keluar(); } catch {}
   state.hentikanRealtime?.();
   state.hentikanRealtime = null;
+  hentikanPantauIdle();
   bersihkanSemua();
   pergi('/');
 }

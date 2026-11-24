@@ -6,7 +6,8 @@ import { api } from '../core/api.js';
 import { hapusCache, bus } from '../core/store.js';
 import { judulHalaman, kosong, kotakGalat, toast, konfirmasi, pesanGalat, tombolMuat, bukaModal, pasangReveal } from '../core/ui.js';
 import { tabs, slotBerkas, pasangSlotBerkas, opsi, namaUnduhan, tautanAman } from '../core/komp.js';
-import { STATUS_USULAN, STATUS_BNBA, MAK, badge, chipTahap, stepperBesar, infoTahap, bolehTahap, rupiah, chipPokjaU, urutEkspor, URUT_TAHAP } from '../core/bnba.js';
+import { STATUS_USULAN, STATUS_BNBA, MAK, KLASTER, JENIS_BANTUAN, PROVINSI, badge, chipTahap, stepperBesar, infoTahap, bolehTahap, rupiah, chipPokjaU, urutEkspor, URUT_TAHAP, KOLOM_BANK, barisBank, BANK_UMUM, jenisDariKategori } from '../core/bnba.js';
+import { cocokKabKota, daftarKabKota } from '../core/wilayah.js';
 import { unduhExcel } from '../core/xlsx.js';
 import { pergi } from '../core/nav.js';
 import * as P from '../core/peran.js';
@@ -14,7 +15,7 @@ import { galeriFoto, pasangUnggah, muatGambarMini } from '../core/unggah.js';
 import { panelDiskusi } from './_pesan.js';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-const JENIS_BERKAS = { draft_sk: 'Draft SK', nota_dinas: 'Nota Dinas', sk_final: 'Scan SK TTD Final', surat_burekol: 'Surat Penyampaian Data Bantuan ATENSI', lampiran_burekol: 'Lampiran Data BNBA PM' };
+const JENIS_BERKAS = { draft_sk: 'Draft SK', nota_dinas: 'Nota Dinas', sk_final: 'SK TTD Final (berkas atau tautan)', surat_burekol: 'Surat Penyampaian Data Bantuan ATENSI', lampiran_burekol: 'Lampiran Data BNBA PM' };
 const LABEL_DATA = { tanggal: 'Tanggal', petugas: 'Petugas', tgl_masuk_direktur: 'Tanggal masuk ke Direktur', status_ttd: 'Status TTD', tgl_ttd: 'Tanggal TTD',
   tgl_kirim: 'Tanggal kirim', pengirim: 'Pengirim (TSKPO)', penerima: 'Penerima di Sekretariat', hp_penerima: 'Nomor HP penerima', status_kirim: 'Status',
   sk_selesai: 'SK sudah selesai', no_sk: 'NO SK', tgl_sk: 'TGL SK', link_sk: 'Link SK', sp2d_terbit: 'SP2D terbit', no_sp2d: 'NO SP2D', tgl_sp2d: 'TGL SP2D',
@@ -65,7 +66,7 @@ export async function render(el, { sesi: s, param: id, query }) {
     const tombol = (labelSelesai) => html`<div class="form-aksi">
       ${tolakKembali ? html`<button type="button" class="btn btn-ghost" data-aksi="kembalikan" data-t="${no}">${raw(ikon('undo', 18))} Kembalikan ke Tahap 3</button>
         <button type="button" class="btn btn-ghost teks-merah" data-aksi="tolak" data-t="${no}">${raw(ikon('circle-x', 18))} Tolak</button>` : ''}
-      <span class="spacer"></span>${['4b', '4c', '5', '6'].includes(no) ? html`<button type="button" class="btn btn-secondary" data-aksi="simpan" data-t="${no}">${raw(ikon('save', 18))} Simpan Draf</button>` : ''}
+      <span class="spacer"></span>${['4b', '4c', '5', '6', '8'].includes(no) ? html`<button type="button" class="btn btn-secondary" data-aksi="simpan" data-t="${no}">${raw(ikon('save', 18))} Simpan Draf</button>` : ''}
       <button type="button" class="btn btn-primary" data-aksi="selesai" data-t="${no}">${raw(ikon('check-circle', 18))} ${labelSelesai}</button></div>`;
     const isi = {
       1: () => html`<p>Usulan masih disusun Pokja pengusul.</p>${milik() ? html`<a class="btn btn-primary" href="#/workspace-bnba/usulan?id=${u.id}">${raw(ikon('pencil', 18))} Buka Formulir Usulan</a>` : ''}`,
@@ -84,15 +85,20 @@ export async function render(el, { sesi: s, param: id, query }) {
         ${fld('Nama penerima di Sekretariat', inp('penerima', dt.penerima), true)}${fld('Nomor HP penerima', inp('hp_penerima', dt.hp_penerima, 'tel', '08…'), true)}
         ${fld('Status', html`<select class="select" name="status_kirim">${opsi(['Dikirim', 'Diterima Sekretariat'], dt.status_kirim || 'Dikirim')}</select>`)}</div>
         ${tombol('Diterima Sekretariat — Buka Tahap 5 & 6')}`,
-      5: () => html`<div class="info-card emas" style="margin-bottom:16px">${raw(ikon('shield-alert', 20, 'ik'))}<span>Data ditarik dari BNBA. Rekening tampil penuh hanya bagi Pokja Keuangan, Pokja pemilik, dan Super Admin; setiap pembukaan tercatat di audit log.</span></div>
-        <div data-dp><div class="skel" style="height:160px;border-radius:16px"></div></div>${boleh ? tombol('Semua PM Lengkap — Tahap 5 Selesai') : ''}`,
+      5: () => html`<div class="info-card emas" style="margin-bottom:16px">${raw(ikon('shield-alert', 20, 'ik'))}<span><b>Rekap Data Pencairan per PM.</b> Periksa setiap baris, centang "sudah dicek", lalu unduh Excel untuk dicetak dan diberikan ke bank.
+          Bila ada data yang salah: perbaiki langsung, atau <b>kembalikan ke Pokja</b> lengkap dengan catatan. Nama bank dan nomor rekening <b>belum diisi di tahap ini</b> (diisi pada Tahap 8 SP2D).
+          Data sensitif tampil penuh hanya bagi Pokja Keuangan, Pokja pemilik, dan Super Admin; pembukaannya tercatat di audit log.</span></div>
+        <div data-dp><div class="skel" style="height:160px;border-radius:16px"></div></div>${boleh ? tombol('Semua PM Sudah Dicek — Tahap 5 Selesai') : ''}`,
       6: () => html`${cek('sk_selesai', dt.sk_selesai, 'SK sudah selesai dan keluar dari Sekretariat')}
-        <div class="form-grid" style="margin-top:16px">${fld('NO SK', inp('no_sk', dt.no_sk, 'text', '142/RSTSKPO/SK/11/2026'), true)}${fld('TGL SK', inp('tgl_sk', dt.tgl_sk, 'date'), true)}${fld('Link SK (opsional)', inp('link_sk', dt.link_sk, 'url', 'https://…'), false, true)}</div>
-        <div style="margin-top:16px">${slotBerkas({ judul: 'Scan SK TTD Final', ket: 'PDF hasil pindai SK yang sudah ditandatangani', jenis: 'sk_final', berkas: berkasT('6'), boleh })}</div>
+        <div class="form-grid" style="margin-top:16px">${fld('NO SK', inp('no_sk', dt.no_sk, 'text', '142/RSTSKPO/SK/11/2026'), true)}${fld('TGL SK', inp('tgl_sk', dt.tgl_sk, 'date'), true)}</div>
+        <div style="margin-top:16px">${slotBerkas({ judul: 'SK TTD Final (wajib)', ket: 'Unggah berkas PDF hasil pindai, atau tempel tautan (Google Drive). Salah satunya wajib.', jenis: 'sk_final', berkas: berkasT('6'), boleh })}</div>
         <p class="help" style="margin-top:12px">NO SK dan TGL SK diisi sekali di sini, lalu otomatis tampil di BNBA, Data Pencairan, dan Rekap Data Pencairan.</p>${tombol('Konfirmasi SK Keluar — Tahap 6 Selesai')}`,
       7: () => html`<div class="grid grid-2">${slotBerkas({ judul: 'Surat Penyampaian Data Bantuan ATENSI', jenis: 'surat_burekol', berkas: berkasT('7'), boleh })}
-        ${slotBerkas({ judul: 'Lampiran Data BNBA PM', ket: 'Bisa diunduh dari tombol "Unduh Excel Bundle Ini"', jenis: 'lampiran_burekol', berkas: berkasT('7'), boleh })}</div>${tombol('Administrasi Burekol Selesai — Buka Tahap 8')}`,
-      8: () => html`${cek('sp2d_terbit', dt.sp2d_terbit, 'SP2D sudah terbit dari KPPN')}${tombol('SP2D Terbit — Buka Tahap 9')}`,
+        <div class="slot-berkas"><div class="slot-kepala"><b>Lampiran Data BNBA PM</b><small>Tidak perlu diunggah — unduh dari sini sesuai rekap Tahap 5 (Excel), lalu lampirkan pada surat ke Burekol.</small></div>
+          <button type="button" class="btn btn-primary" data-unduh-lampiran>${raw(ikon('download', 18))} Unduh Lampiran Data BNBA PM (Excel)</button></div></div>${tombol('Administrasi Burekol Selesai — Buka Tahap 8')}`,
+      8: () => html`<div class="info-card emas" style="margin-bottom:16px">${raw(ikon('shield-alert', 20, 'ik'))}<span><b>Nomor rekening baru diisi di tahap SP2D ini.</b> Isi nama bank, nomor rekening, dan nama pemilik rekening untuk setiap PM, lalu centang "SP2D sudah terbit".</span></div>
+        <div data-dp8><div class="skel" style="height:140px;border-radius:16px"></div></div>
+        <div style="margin-top:16px">${cek('sp2d_terbit', dt.sp2d_terbit, 'SP2D sudah terbit dari KPPN')}</div>${tombol('SP2D Terbit — Buka Tahap 9')}`,
       9: () => html`<div class="form-grid">${fld('NO SP2D', inp('no_sp2d', dt.no_sp2d, 'text', '2601928019289'), true)}${fld('TGL SP2D', inp('tgl_sp2d', dt.tgl_sp2d, 'date'), true)}
         ${fld('BULAN (SP2D)', html`<select class="select" name="bulan_sp2d">${opsi(BULAN, dt.bulan_sp2d, 'Pilih bulan')}</select>`, true)}</div>
         <p class="help" style="margin-top:12px">Nilai SP2D otomatis tersalin ke seluruh BNBA dalam usulan dan Rekap Data Pencairan.</p>${tombol('Administrasi SI Selesai — Buka Tahap 10')}`,
@@ -103,7 +109,7 @@ export async function render(el, { sesi: s, param: id, query }) {
     return html`<section class="card panel-tahap" data-panel="${no}" style="--c:${info.warna}">
       <div class="panel-kepala"><span class="fokus">${boleh ? 'Fokus Aksi' : 'Tahap Aktif'}</span>${chipTahap(no)}<span class="spacer"></span>
         <small class="redup">Pelaksana: <b>${info.oleh}</b> · dibuka ${tanggalJam(t.mulai_pada)}</small></div>
-      ${boleh || ['1', '2'].includes(no) ? isi() : html`<div class="info-card">${raw(ikon('lock', 20, 'ik'))}<span>Menunggu <b>${info.oleh}</b> menyelesaikan tahap ini. Anda dapat memantau tanpa mengubah.</span></div>
+      ${boleh || ['1', '2'].includes(no) ? isi() : html`${no === '5' && milik() ? html`<div data-dp-pokja></div>` : ''}<div class="info-card">${raw(ikon('lock', 20, 'ik'))}<span>Menunggu <b>${info.oleh}</b> menyelesaikan tahap ini. Anda dapat memantau tanpa mengubah.</span></div>
         ${Object.keys(dt).length ? html`<dl class="kv" style="margin-top:16px">${Object.entries(dt).map(([k, v]) => html`<div><dt>${LABEL_DATA[k] || k}</dt><dd>${nilaiData(v)}</dd></div>`)}</dl>` : ''}`}
     </section>`;
   }
@@ -131,25 +137,116 @@ export async function render(el, { sesi: s, param: id, query }) {
             ${!Object.keys(x.data || {}).length && !x.catatan && !berkasT(x.tahap).length ? html`<p class="redup">Tidak ada isian tambahan.</p>` : ''}</div></details>`)}</div></section>` : ''}`;
   }
 
+  const KUNCI_BARIS = (b) => [b.ktp_kelurahan, b.ktp_kecamatan, b.ktp_kabkota, b.ktp_provinsi].filter(Boolean).join(', ');
   async function gambarDP() {
-    const box = $('[data-dp]'); if (!box) return;
     try {
+      const box = $('[data-dp]'), box8 = $('[data-dp8]'), boxP = $('[data-dp-pokja]');
+      if (!box && !box8 && !boxP) return;
       dp ||= await api.dataPencairan(id);
-      const ubah = bolehTahap(s, d.usulan.pokja_id, '5') && d.usulan.status === 'proses' && T('5').status !== 'selesai';
-      box.innerHTML = String(html`${ubah ? html`<div class="isi-semua"><b>Isi sekaligus:</b>
-          <select class="select" data-semua="akun_bantuan">${opsi(Object.entries(MAK).map(([k, v]) => [k, `${k} — ${v}`]), '', 'Akun bantuan…')}</select>
-          <input class="input" data-semua="nama_bank" placeholder="Nama bank (mis. BNI)"><input class="input" data-semua="rek_giro_bni" placeholder="No. rek giro bansos BNI">
-          <button type="button" class="btn btn-secondary btn-sm" data-terap-semua>Terapkan ke semua PM</button></div>` : ''}
-        <div class="table-wrap"><table class="tbl rapat"><thead><tr><th>PM</th><th>Jenis / Nilai</th><th>Akun Bantuan</th><th>Nama Bank</th><th>Nomor Rekening</th><th>Nama Pemilik</th><th>Rek Giro BNI</th></tr></thead><tbody>
-        ${dp.baris.map((b) => html`<tr data-dp-baris="${b.id}"><td><b>${b.nama}</b><small class="mono redup" style="display:block">${b.nik}</small></td><td>${b.jenis_bantuan || '—'}<small style="display:block">${rupiah(b.nilai_bantuan)}</small></td>
-          ${ubah ? html`<td><select class="select" name="akun_bantuan">${opsi(Object.keys(MAK), b.akun_bantuan, '—')}</select></td><td><input class="input" name="nama_bank" value="${b.nama_bank || ''}"></td>
-            <td><input class="input mono" name="nomor_rekening" inputmode="numeric" value="${b.nomor_rekening || ''}"></td><td><input class="input" name="nama_pemilik_rek" value="${b.nama_pemilik_rek || b.nama}"></td>
-            <td><input class="input mono" name="rek_giro_bni" value="${b.rek_giro_bni || ''}"></td>`
-          : html`<td>${b.akun_bantuan || '—'}</td><td>${b.nama_bank || '—'}</td><td class="mono">${b.nomor_rekening || '—'}</td><td>${b.nama_pemilik_rek || '—'}</td><td class="mono">${b.rek_giro_bni || '—'}</td>`}</tr>`)}
-        </tbody></table></div>${!dp.penuh ? html`<p class="help">Nomor rekening tersamar untuk peran Anda.</p>` : ''}`);
-    } catch (e) { box.innerHTML = String(kotakGalat(pesanGalat(e))); }
+      const u = d.usulan;
+      if (box) {
+        const ubah = bolehTahap(s, u.pokja_id, '5') && u.status === 'proses' && T('5').status !== 'selesai';
+        const n = dp.baris.length, dicek = dp.baris.filter((b) => b.cek_keu).length, tolak = dp.baris.filter((b) => b.tolak_keu_catatan).length;
+        box.innerHTML = String(html`<div class="rekap-ringkas"><span class="badge ${dicek === n && !tolak ? 'b-ok' : 'b-wait'}">${raw(ikon('check-circle', 15))} ${dicek} dari ${n} PM sudah dicek</span>
+            ${tolak ? html`<span class="badge b-no">${raw(ikon('undo', 15))} ${tolak} PM dikembalikan ke Pokja</span>` : ''}
+            <span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm" data-unduh-rekap>${raw(ikon('download', 16))} Unduh Rekap untuk Bank (Excel)</button></div>
+          ${ubah ? html`<div class="isi-semua"><b>Isi sekaligus:</b>
+            <select class="select" data-semua="akun_bantuan" aria-label="Akun bantuan">${opsi(Object.entries(MAK).map(([k, v]) => [k, `${k} — ${v}`]), '', 'Akun bantuan…')}</select>
+            <button type="button" class="btn btn-secondary btn-sm" data-terap-semua>Terapkan akun ke semua PM</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-cek-semua>${raw(ikon('check', 16))} Centang semua sudah dicek</button></div>` : ''}
+          <div class="rekap-tabel"><table><thead><tr><th>Dicek</th><th>Nama</th><th>NIK</th><th>Nama Ibu Kandung</th><th>Alamat KTP</th><th>Jenis PPKS</th><th>Jenis Bantuan</th><th>Nilai</th><th>Akun Bantuan</th>${ubah ? html`<th>Tindakan</th>` : ''}</tr></thead><tbody>
+          ${dp.baris.map((b) => html`<tr class="${b.tolak_keu_catatan ? 'ditolak' : b.cek_keu ? 'dicek' : ''}" data-dp-baris="${b.id}">
+            <td>${ubah ? html`<input type="checkbox" class="cek-besar" name="cek_keu" ${b.cek_keu ? raw('checked') : ''} ${b.tolak_keu_catatan ? raw('disabled title="PM dikembalikan ke Pokja"') : ''} aria-label="Sudah dicek: ${b.nama}">` : (b.cek_keu ? raw(ikon('check-circle', 20)) : '—')}</td>
+            <td><b>${b.nama}</b>${b.tolak_keu_catatan ? html`<small class="teks-merah" style="display:block"><b>Dikembalikan:</b> ${b.tolak_keu_catatan}</small>` : ''}</td><td class="mono nowrap">${b.nik}</td><td>${b.nama_ibu || '—'}</td>
+            <td style="min-width:240px">${b.ktp_jalan || ''}<small class="redup" style="display:block">${KUNCI_BARIS(b)}</small></td><td>${b.klaster_ppks || '—'}</td><td>${b.jenis_bantuan || '—'}</td><td class="nowrap">${rupiah(b.nilai_bantuan)}</td>
+            <td>${ubah ? html`<select class="select" name="akun_bantuan" aria-label="Akun bantuan ${b.nama}">${opsi(Object.keys(MAK), b.akun_bantuan, '—')}</select>` : (b.akun_bantuan || '—')}</td>
+            ${ubah ? html`<td><div class="aksi-baris"><button type="button" class="btn btn-ghost btn-sm" data-perbaiki-pm="${b.id}">${raw(ikon('pencil', 15))} Perbaiki</button>
+              <button type="button" class="btn btn-ghost btn-sm teks-merah" data-kembalikan-pm="${b.id}">${raw(ikon('undo', 15))} Kembalikan ke Pokja</button></div></td>` : ''}</tr>`)}
+          </tbody></table></div>${!dp.penuh ? html`<p class="help">Sebagian data tersamar untuk peran Anda.</p>` : ''}`);
+      }
+      if (boxP) {
+        const salah = dp.baris.filter((b) => b.tolak_keu_catatan);
+        boxP.innerHTML = salah.length ? String(html`<div class="galat" style="margin-bottom:16px">${raw(ikon('alert', 22))}<span><b>${salah.length} PM dikembalikan Keuangan — mohon diperbaiki:</b></span></div>
+          <div class="rekap-tabel" style="margin-bottom:16px"><table><thead><tr><th>Nama</th><th>NIK</th><th>Catatan Keuangan</th><th></th></tr></thead><tbody>
+          ${salah.map((b) => html`<tr class="ditolak"><td><b>${b.nama}</b></td><td class="mono">${b.nik}</td><td>${b.tolak_keu_catatan}</td>
+            <td><button type="button" class="btn btn-primary btn-sm" data-perbaiki-pm="${b.id}" data-mode="pokja">${raw(ikon('pencil', 15))} Perbaiki PM</button></td></tr>`)}</tbody></table></div>`) : '';
+      }
+      if (box8) {
+        const ubah8 = bolehTahap(s, u.pokja_id, '8') && u.status === 'proses' && T('8').status === 'aktif';
+        box8.innerHTML = String(html`<datalist id="dl-bank">${BANK_UMUM.map((b) => html`<option value="${b}"></option>`)}</datalist>
+          ${dp.baris.map((b) => html`<div class="rek-baris" data-rek-baris="${b.id}"><div><b>${b.nama}</b><small class="mono redup" style="display:block">${b.nik}</small></div>
+            ${ubah8 ? html`<input class="input" name="nama_bank" list="dl-bank" placeholder="Nama bank" value="${b.nama_bank || ''}" aria-label="Nama bank ${b.nama}" autocomplete="off">
+              <input class="input mono" name="nomor_rekening" inputmode="numeric" placeholder="Nomor rekening" value="${b.nomor_rekening || ''}" aria-label="Nomor rekening ${b.nama}">
+              <input class="input" name="nama_pemilik_rek" placeholder="Nama pemilik rekening" value="${b.nama_pemilik_rek || b.nama}" aria-label="Nama pemilik ${b.nama}">`
+            : html`<span>${b.nama_bank || '—'}</span><span class="mono">${b.nomor_rekening || '—'}</span><span>${b.nama_pemilik_rek || '—'}</span>`}</div>`)}
+          ${!dp.penuh ? html`<p class="help">Nomor rekening tersamar untuk peran Anda.</p>` : ''}`);
+      }
+    } catch (e) { ['[data-dp]', '[data-dp8]', '[data-dp-pokja]'].forEach((q) => { const b = $(q); if (b) b.innerHTML = String(kotakGalat(pesanGalat(e))); }); }
   }
-  const barisDP = () => [...el.querySelectorAll('[data-dp-baris]')].map((tr) => ({ id: tr.dataset.dpBaris, ...Object.fromEntries([...tr.querySelectorAll('[name]')].map((x) => [x.name, x.value.trim()])) }));
+  const barisDP = () => [...el.querySelectorAll('[data-dp-baris]')].map((tr) => ({ id: tr.dataset.dpBaris,
+    ...Object.fromEntries([...tr.querySelectorAll('[name]')].filter((x) => !x.disabled).map((x) => [x.name, x.type === 'checkbox' ? x.checked : x.value.trim()])) }));
+  const barisRek = () => [...el.querySelectorAll('[data-rek-baris]')].map((r) => ({ id: r.dataset.rekBaris, ...Object.fromEntries([...r.querySelectorAll('[name]')].map((x) => [x.name, x.value.trim()])) }));
+
+  async function unduhRekapBank(namaBerkas) {
+    dp = await api.dataPencairan(id);
+    const baris = dp.baris.map((b) => barisBank(b, dp.usulan));
+    const j = await unduhExcel(namaUnduhan(namaBerkas + '-' + d.usulan.no_register), [{ nama: 'Rekap Pencairan', kolom: KOLOM_BANK, baris }]);
+    toast(j === 'xlsx' ? 'Excel diunduh.' : 'Diunduh sebagai CSV (bisa dibuka di Excel).');
+  }
+
+  // Perbaiki satu PM (Keuangan di Tahap 5, atau Pokja untuk PM yang dikembalikan)
+  function modalPerbaikiPM(b, mode) {
+    const kunci = jenisDariKategori(d.usulan.kategori);
+    const fl = (lbl, nama, v, extra = '') => html`<div class="field"><label class="label">${lbl}</label><input class="input" name="${nama}" value="${v ?? ''}" ${raw(extra)}></div>`;
+    const m = bukaModal({ judul: (mode === 'pokja' ? 'Perbaiki PM · ' : 'Koreksi data PM · ') + b.nama, ukuran: 'besar', isi: String(html`
+      ${b.tolak_keu_catatan ? html`<div class="galat" style="margin-bottom:16px">${raw(ikon('alert', 20))}<span><b>Catatan Keuangan:</b> ${b.tolak_keu_catatan}</span></div>` : ''}
+      <div class="form-grid">${fl('Nama', 'nama', b.nama)}${fl('Nama ibu kandung', 'nama_ibu', b.nama_ibu)}
+        <div class="field"><label class="label">Provinsi (KTP)</label><select class="select" name="ktp_provinsi" data-prov>${opsi(PROVINSI.map((x) => [x, x]), b.ktp_provinsi, 'Pilih provinsi…')}</select></div>
+        <div class="field"><label class="label">Kabupaten/Kota (KTP)</label><input class="input" name="ktp_kabkota" list="dl-pm-kab" value="${b.ktp_kabkota || ''}" autocomplete="off"><datalist id="dl-pm-kab">${daftarKabKota(b.ktp_provinsi).map((n) => html`<option value="${n}"></option>`)}</datalist></div>
+        ${fl('Kecamatan', 'ktp_kecamatan', b.ktp_kecamatan)}${fl('Kelurahan/Desa', 'ktp_kelurahan', b.ktp_kelurahan)}
+        <div class="field penuh"><label class="label">Nama jalan / No / RT / RW</label><input class="input" name="ktp_jalan" value="${b.ktp_jalan || ''}"></div>
+        <div class="field"><label class="label">Klaster PPKS</label><select class="select" name="klaster_ppks">${opsi(KLASTER, b.klaster_ppks, 'Pilih…')}</select></div>
+        ${kunci ? '' : html`<div class="field"><label class="label">Jenis bantuan</label><select class="select" name="jenis_bantuan">${opsi(Object.keys(JENIS_BANTUAN).map((k) => [k, `${k} — ${JENIS_BANTUAN[k]}`]), b.jenis_bantuan, 'Pilih…')}</select></div>`}
+        <div class="field"><label class="label">Nilai bantuan (Rp)</label><input class="input angka" name="nilai_bantuan" inputmode="numeric" value="${b.nilai_bantuan ?? ''}"></div></div>
+      <p class="help" style="margin-top:12px">Setelah disimpan, centang "sudah dicek" PM ini direset dan perlu dicek ulang oleh Keuangan.</p>`),
+      kaki: String(html`<button class="btn btn-ghost" data-batal>Batal</button><button class="btn btn-primary" data-ok>${raw(ikon('save', 18))} Simpan perbaikan</button>`) });
+    m.el.addEventListener('change', (e) => { if (e.target.matches('[data-prov]')) { m.el.querySelector('#dl-pm-kab').innerHTML = daftarKabKota(e.target.value).map((n) => `<option value="${n}"></option>`).join(''); } });
+    m.el.addEventListener('focusout', (e) => {
+      if (e.target.name === 'ktp_kabkota' && e.target.value) { const r = cocokKabKota(e.target.value, m.el.querySelector('[name=ktp_provinsi]').value); if (r.nilai) e.target.value = r.nilai; }
+    });
+    m.el.querySelector('[data-ok]').onclick = async (ev) => {
+      const v = Object.fromEntries([...m.el.querySelectorAll('[name]')].map((x) => [x.name, x.value.trim()]));
+      v.nilai_bantuan = String(v.nilai_bantuan || '').replace(/[^\d]/g, '');
+      const pulih = tombolMuat(ev.currentTarget);
+      try {
+        if (mode === 'pokja') await api.perbaikiPmDitolak(b.id, v); else await api.simpanDataPencairan(id, [{ id: b.id, ...v }]);
+        m.tutup(); toast(mode === 'pokja' ? 'PM diperbaiki. Keuangan akan mengecek ulang.' : 'Data PM diperbarui. Mohon dicentang ulang setelah dicek.'); hapusCache('usulan'); dp = null; await segar();
+      } catch (err) { pulih(); toast(pesanGalat(err), 'galat'); }
+    };
+  }
+
+  // Pilih penerima notifikasi tahap berikutnya (TU: anggota/kapokja; Keuangan: anggota/kapokja)
+  function pilihPenerima(no, calon) {
+    return new Promise((resolve) => {
+      const grup = [...new Set(calon.map((c) => c.kelompok))];
+      const m = bukaModal({ judul: `Selesaikan Tahap ${no}?`, isi: String(html`<p>Tahap berikutnya terbuka. <b>Siapa yang diberi tahu</b> lewat notifikasi aplikasi, WhatsApp, dan email sesuai pengaturan? Pilih satu atau lebih orang.</p>
+        <div class="pilih-penerima">${grup.map((g) => { const isi = calon.filter((c) => c.kelompok === g); return html`<fieldset><legend>Pokja ${isi[0].kelompok_nama}</legend>
+          <div class="cepat"><button type="button" class="btn btn-ghost btn-sm" data-pilih-g="${g}" data-cara="semua">Semua</button><button type="button" class="btn btn-ghost btn-sm" data-pilih-g="${g}" data-cara="kapokja">Hanya Kapokja</button><button type="button" class="btn btn-ghost btn-sm" data-pilih-g="${g}" data-cara="anggota">Hanya Anggota</button></div>
+          ${isi.map((c) => html`<label class="opsi-orang"><input type="checkbox" value="${c.id}" data-grup="${g}" data-jab="${c.jabatan}" checked><span><b>${c.nama}</b> <small class="redup">${c.jabatan === 'kapokja' ? 'Kapokja' : 'Anggota'}</small></span></label>`)}</fieldset>`; })}</div>
+        <p class="help" style="margin-top:12px">Status selesai tidak dapat dibatalkan.</p>`),
+        kaki: String(html`<button class="btn btn-ghost" data-batal>Batal</button><button class="btn btn-primary" data-ok>${raw(ikon('check-circle', 18))} Ya, selesaikan &amp; kirim notifikasi</button>`),
+        onTutup: () => resolve(null) });
+      const ids = () => [...m.el.querySelectorAll('input[type=checkbox]:checked')].map((x) => x.value);
+      const ok = m.el.querySelector('[data-ok]'), segarOk = () => { ok.disabled = !ids().length; };
+      m.el.addEventListener('change', segarOk);
+      m.el.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-pilih-g]'); if (!b) return;
+        m.el.querySelectorAll(`input[data-grup="${b.dataset.pilihG}"]`).forEach((x) => { x.checked = b.dataset.cara === 'semua' || x.dataset.jab === b.dataset.cara; });
+        segarOk();
+      });
+      ok.onclick = () => { const r = ids(); resolve(r); m.tutup(); };
+    });
+  }
 
   async function tabPM() {
     pm ||= await api.bnbaUsulan(id);
@@ -249,13 +346,22 @@ export async function render(el, { sesi: s, param: id, query }) {
     if (no === '4b' && aksi === 'selesai' && data.status_ttd !== 'Ditandatangani') return toast('Ubah Status TTD Direktur menjadi "Ditandatangani" terlebih dahulu.', 'peringatan');
     if (no === '4c' && aksi === 'selesai' && data.status_kirim !== 'Diterima Sekretariat') return toast('Ubah status menjadi "Diterima Sekretariat" terlebih dahulu.', 'peringatan');
     if (aksi === 'selesai') {
-      const k = await konfirmasi({ judul: `Selesaikan Tahap ${no}?`, ikonNama: 'check-circle', label: 'Ya, selesaikan',
-        pesan: 'Tahap berikutnya terbuka dan pelaksananya menerima notifikasi (in-app, WhatsApp, email). Status selesai tidak dapat dibatalkan.' });
-      if (!k.ok) return;
+      let calon = [];
+      try { calon = await api.calonPenerima(id, no); } catch { calon = []; }
+      if (calon && calon.length) {
+        const pilih = await pilihPenerima(no, calon);
+        if (!pilih) return;
+        data._penerima = pilih;
+      } else {
+        const k = await konfirmasi({ judul: `Selesaikan Tahap ${no}?`, ikonNama: 'check-circle', label: 'Ya, selesaikan',
+          pesan: 'Tahap berikutnya terbuka dan pelaksananya menerima notifikasi (in-app, WhatsApp, email). Status selesai tidak dapat dibatalkan.' });
+        if (!k.ok) return;
+      }
     }
     const pulih = tombolMuat(btn, 'Menyimpan…');
     try {
       if (no === '5' && (aksi === 'simpan' || aksi === 'selesai')) { await api.simpanDataPencairan(id, barisDP()); dp = null; }
+      if (no === '8' && (aksi === 'simpan' || aksi === 'selesai')) { const rk = barisRek(); if (rk.length) await api.simpanRekeningSp2d(id, rk); dp = null; }
       await api.prosesTahap(id, no, aksi, data, catatan);
       toast(aksi === 'simpan' ? 'Draf isian tersimpan.' : aksi === 'selesai' ? `Tahap ${no} selesai. Pelaksana tahap berikutnya sudah diberi tahu.` : aksi === 'tolak' ? 'Usulan ditolak.' : 'Usulan dikembalikan ke Tahap 3.');
       await segar();
@@ -287,6 +393,23 @@ export async function render(el, { sesi: s, param: id, query }) {
       el.querySelectorAll('[data-semua]').forEach((x) => { if (x.value) el.querySelectorAll(`[data-dp-baris] [name="${x.dataset.semua}"]`).forEach((y) => { y.value = x.value; }); });
       return toast('Diterapkan ke semua PM. Tekan "Simpan Draf" untuk menyimpan.', 'info');
     }
+    if (e.target.closest('[data-cek-semua]')) { el.querySelectorAll('[data-dp-baris] [name=cek_keu]:not(:disabled)').forEach((c) => { c.checked = true; c.closest('tr').classList.add('dicek'); }); return toast('Semua dicentang. Tekan "Simpan Draf" untuk menyimpan.', 'info'); }
+    if (e.target.matches('[data-dp-baris] [name=cek_keu]')) e.target.closest('tr').classList.toggle('dicek', e.target.checked);
+    const pb = e.target.closest('[data-perbaiki-pm]');
+    if (pb) { dp ||= await api.dataPencairan(id); const b = dp.baris.find((x) => x.id === pb.dataset.perbaikiPm); return b && modalPerbaikiPM(b, pb.dataset.mode === 'pokja' ? 'pokja' : 'keuangan'); }
+    const kb = e.target.closest('[data-kembalikan-pm]');
+    if (kb) {
+      const b = (dp ||= await api.dataPencairan(id)) && dp.baris.find((x) => x.id === kb.dataset.kembalikanPm); if (!b) return;
+      const k = await konfirmasi({ judul: `Kembalikan ${b.nama} ke Pokja?`, label: 'Kembalikan', bahaya: true, pesan: 'Pokja pengusul menerima notifikasi dan memperbaiki data PM ini.', alasan: { label: 'Catatan untuk Pokja', wajib: true, placeholder: 'Mis. NIK tidak sesuai KTP' } });
+      if (!k.ok) return;
+      try { await api.tolakPmKeuangan(id, b.id, k.alasan); toast('PM dikembalikan ke Pokja.'); hapusCache('usulan'); dp = null; await segar(); } catch (err) { toast(pesanGalat(err), 'galat'); }
+      return;
+    }
+    if (e.target.closest('[data-unduh-rekap]')) {
+      try { const baru = barisDP(); if (baru.length && !el.querySelector('[data-dp-pokja]')?.children.length) { await api.simpanDataPencairan(id, baru); dp = null; } await unduhRekapBank('Rekap-Pencairan'); } catch (err) { toast(pesanGalat(err), 'galat'); }
+      return;
+    }
+    if (e.target.closest('[data-unduh-lampiran]')) { try { await unduhRekapBank('Lampiran-Data-BNBA-PM'); } catch (err) { toast(pesanGalat(err), 'galat'); } return; }
     const py = e.target.closest('[data-penyalur]'); if (py) return modalPenyalur(d.penyaluran.find((x) => x.id === py.dataset.penyalur) || {});
     const hp = e.target.closest('[data-hapus-penyalur]');
     if (hp) { if (!(await konfirmasi({ judul: 'Hapus petugas penyalur?', pesan: 'Entri log dihapus dari usulan ini.', label: 'Hapus', bahaya: true })).ok) return;

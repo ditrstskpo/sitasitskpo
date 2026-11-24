@@ -2,7 +2,7 @@
 
 **Sistem Integrasi Data dan Informasi TSKPO** — portal internal Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI.
 
-Versi **2.4.0 · Tahap 1 (Fondasi) + Tahap 2 (BNBA & Alur Pencairan 11 Tahap) + Tahap 3 (Dashboard & Data Pendukung) + Tahap 4 (Dokumen & Koordinasi) + Tahap 5 (Supermonev) + Tahap 6 (Integrasi & Penyempurnaan)**, sesuai PRD Final v2.2 dan Design System v4.
+Versi **2.5.0 · Tahap 1 (Fondasi) + Tahap 2 (BNBA & Alur Pencairan 11 Tahap) + Tahap 3 (Dashboard & Data Pendukung) + Tahap 4 (Dokumen & Koordinasi) + Tahap 5 (Supermonev) + Tahap 6 (Integrasi & Penyempurnaan)**, sesuai PRD Final v2.2 dan Design System v4.
 
 ## Arsitektur
 
@@ -181,3 +181,6 @@ Lihat **PANDUAN-INSTALASI.md**.
 Keenam tahap sudah terpasang. Rutinitas Tahap 6 setelah aplikasi berjalan: Pemeriksaan Keamanan bulanan, Cadangan mingguan, Uji Pulih tiap 3 bulan, pelatihan pengguna lewat Pusat Bantuan.
 
 © Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang, Kementerian Sosial RI
+
+## Perbaikan Workspace BNBA & alur pencairan (v2.5.0)
+Logout otomatis 4 jam, kolom wajib baru, provinsi → kab/kota (pencocokan kemiripan), rencana intervensi per barang, pilihan penerima notifikasi, rekap Tahap 5 (Excel untuk bank), lampiran Tahap 7 diunduh, rekening di Tahap 8. Lihat `PANDUAN-UPGRADE-2.5.0.md`.

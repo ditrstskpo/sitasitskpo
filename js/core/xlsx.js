@@ -1,6 +1,6 @@
 // Baca & tulis Excel. Pustaka SheetJS dimuat hanya saat dibutuhkan (tidak memperlambat halaman lain).
 // Berkas .csv dibaca tanpa pustaka. Bila pustaka gagal dimuat, ekspor jatuh ke CSV.
-import { unduhCSV } from './util.js';
+
 
 let muat;
 export function siapkanXlsx() {
@@ -53,6 +53,40 @@ export function cariBarisJudul(baris) {
   return i < 0 ? 0 : i;
 }
 
+
+// ---- Penulis .xlsx mini (tanpa pustaka): dipakai bila pustaka Excel gagal dimuat, supaya unduhan tetap .xlsx
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+const kolHuruf = (i) => { let s = ''; for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + ((i - 1) % 26)) + s; return s; };
+function zipSimpan(files) {
+  const enc = new TextEncoder(), bagian = [], pusat = []; let off = 0;
+  const u16 = (n) => [n & 255, (n >> 8) & 255], u32 = (n) => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+  for (const [nama, teks] of files) {
+    const nb = enc.encode(nama), d = enc.encode(teks), c = crc32(d);
+    const lh = new Uint8Array([0x50, 0x4b, 3, 4, 20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0, ...u32(c), ...u32(d.length), ...u32(d.length), ...u16(nb.length), 0, 0, ...nb]);
+    bagian.push(lh, d);
+    pusat.push(new Uint8Array([0x50, 0x4b, 1, 2, 20, 0, 20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0, ...u32(c), ...u32(d.length), ...u32(d.length), ...u16(nb.length), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...u32(off), ...nb]));
+    off += lh.length + d.length;
+  }
+  const ukPusat = pusat.reduce((a, x) => a + x.length, 0);
+  const akhir = new Uint8Array([0x50, 0x4b, 5, 6, 0, 0, 0, 0, ...u16(files.length), ...u16(files.length), ...u32(ukPusat), ...u32(off), 0, 0]);
+  return new Blob([...bagian, ...pusat, akhir], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function xlsxMini(lembar) {
+  const sh = lembar.map((l) => { const kol = l.kolom || Object.keys(l.baris?.[0] || {}); const data = l.data || (l.baris || []).map((o) => kol.map((k) => o[k]));
+    const rows = [kol, ...data].map((r, i) => `<row r="${i + 1}">${r.map((v, j) => (v === '' || v == null) ? '' : typeof v === 'number' && isFinite(v) ? `<c r="${kolHuruf(j)}${i + 1}"><v>${v}</v></c>` : `<c r="${kolHuruf(j)}${i + 1}" t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`).join('')}</row>`).join('');
+    return { nama: esc(String(l.nama).replace(/[\\/?*\[\]:]/g, ' ').slice(0, 31)), xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="${Math.max(1, kol.length)}" width="22" customWidth="1"/></cols><sheetData>${rows}</sheetData></worksheet>` }; });
+  const H = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  return zipSimpan([
+    ['[Content_Types].xml', `${H}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sh.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`],
+    ['_rels/.rels', `${H}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `${H}<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sh.map((x, i) => `<sheet name="${x.nama}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `${H}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sh.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}</Relationships>`],
+    ...sh.map((x, i) => [`xl/worksheets/sheet${i + 1}.xml`, x.xml]),
+  ]);
+}
+
 /** lembar: [{ nama, baris: object[] }] atau [{ nama, kolom: string[], data: any[][] }] */
 export async function unduhExcel(namaBerkas, lembar) {
   try {
@@ -67,10 +101,9 @@ export async function unduhExcel(namaBerkas, lembar) {
     X.writeFile(wb, namaBerkas.endsWith('.xlsx') ? namaBerkas : namaBerkas + '.xlsx');
     return 'xlsx';
   } catch {
-    const l = lembar[0];
-    const kol = l.kolom || Object.keys(l.baris?.[0] || {});
-    const data = l.data || (l.baris || []).map((o) => kol.map((k) => o[k]));
-    unduhCSV(namaBerkas.replace(/\.xlsx$/, '') + '.csv', [kol, ...data]);
-    return 'csv';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(xlsxMini(lembar));
+    a.download = namaBerkas.endsWith('.xlsx') ? namaBerkas : namaBerkas + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    return 'xlsx';
   }
 }

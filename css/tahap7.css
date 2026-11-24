@@ -1,0 +1,50 @@
+/* v2.5.0 — rincian barang, wilayah, rekap Keuangan, pilihan penerima */
+.info-card.kuning { background: var(--emas-tint); color: var(--emas-teks); }
+.info-card.kuning .ik { color: var(--emas-teks2); }
+.input.baca, .input[readonly] { background: var(--garis-halus); }
+.input[data-otomatis] { font-weight: 800; }
+
+/* rincian barang */
+.ri-kepala, .ri-baris { display: grid; grid-template-columns: minmax(180px, 1fr) 88px 170px 140px 44px; gap: 10px; align-items: center; }
+.ri-kepala { font-size: .8125rem; font-weight: 700; color: var(--teks-redup, #5b6b7f); padding: 0 2px 6px; }
+.ri-baris { margin-bottom: 10px; }
+.ri-baris .input { min-height: 46px; }
+.ri-sub { font-weight: 800; text-align: right; color: var(--judul); font-variant-numeric: tabular-nums; }
+.ri-aksi { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--garis); }
+.ri-total { font-size: 1.0625rem; } .ri-total b { font-size: 1.25rem; color: var(--hijau-tekan); }
+@media (max-width: 760px) {
+  .ri-kepala { display: none; }
+  .ri-baris { grid-template-columns: 1fr 90px 1fr; padding: 12px; border: 1px solid var(--garis); border-radius: 14px; background: var(--kartu); }
+  .ri-baris [data-ri=nama] { grid-column: 1 / -1; } .ri-sub { grid-column: 1 / 3; text-align: left; }
+}
+
+/* rekap Keuangan Tahap 5 */
+.rekap-tabel { overflow: auto; border: 1px solid var(--garis); border-radius: 16px; max-height: 62vh; }
+.rekap-tabel table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .9375rem; }
+.rekap-tabel th { position: sticky; top: 0; z-index: 2; background: var(--biru-tint); text-align: left; padding: 12px 14px; white-space: nowrap; font-size: .8125rem; letter-spacing: .02em; }
+.rekap-tabel td { padding: 12px 14px; border-top: 1px solid var(--garis-halus); vertical-align: top; }
+.rekap-tabel tr.dicek td { background: var(--hijau-latar); }
+.rekap-tabel tr.ditolak td { background: #fff4f2; }
+.rekap-tabel td.nowrap { white-space: nowrap; }
+.rekap-tabel .cek-besar { width: 28px; height: 28px; accent-color: var(--hijau); cursor: pointer; }
+.rekap-tabel .aksi-baris { display: flex; gap: 6px; flex-wrap: wrap; }
+.rekap-ringkas { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+
+/* pilihan penerima notifikasi */
+.pilih-penerima { display: grid; gap: 14px; margin-top: 14px; }
+.pilih-penerima fieldset { border: 1px solid var(--garis); border-radius: 16px; padding: 12px 16px 14px; margin: 0; }
+.pilih-penerima legend { font-weight: 800; padding: 0 8px; }
+.pilih-penerima label.opsi-orang { display: flex; gap: 12px; align-items: center; min-height: 44px; cursor: pointer; border-radius: 10px; padding: 4px 8px; }
+.pilih-penerima label.opsi-orang:hover { background: var(--hijau-tint); }
+.pilih-penerima input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--hijau); flex: none; }
+.pilih-penerima .cepat { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+
+/* kartu rekening Tahap 8 */
+.rek-baris { display: grid; grid-template-columns: minmax(160px, 1.3fr) 150px minmax(180px, 1.2fr) minmax(160px, 1fr); gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--garis-halus); }
+.rek-baris:first-child { border-top: 0; }
+@media (max-width: 760px) { .rek-baris { grid-template-columns: 1fr; } }
+.rekap-tabel th:last-child, .rekap-tabel td:last-child { position: sticky; right: 0; background: var(--kartu, #fff); box-shadow: -8px 0 12px -10px rgba(0,0,0,.25); }
+.rekap-tabel tr.ditolak td:last-child { background: #fff4f2; } .rekap-tabel tr.dicek td:last-child { background: var(--hijau-latar); }
+.rekap-tabel th:last-child { z-index: 3; background: var(--biru-tint); }
+.rek-baris { display: grid; grid-template-columns: minmax(160px,1.2fr) 1fr 1fr 1.2fr; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--garis-halus); }
+@media (max-width: 800px) { .rek-baris { grid-template-columns: 1fr; } }

@@ -12,6 +12,7 @@ import { modulDariRute, ruteBoleh } from './core/menu.js';
 import * as P from './core/peran.js';
 import { pergi } from './core/nav.js';
 import { pantauJaringan, preconnect } from './core/jaringan.js';
+import { mulaiPantauIdle } from './core/sesi-idle.js';
 import { CONFIG } from './config.js';
 
 const root = document.getElementById('app');
@@ -90,6 +91,7 @@ async function muatSesi({ login = false } = {}) {
   if (s.status === 'aktif') {
     simpanSesi(s);
     mulaiRealtime(s);
+    mulaiPantauIdle();
     return s;
   }
   if (s.status === 'tanpa_sesi') { bersihkanSemua(); return null; }

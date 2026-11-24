@@ -19,7 +19,7 @@ export async function render(el) {
       <section class="card"><div class="form-section-head"><span class="no">1</span><h3>Pilih sumber data</h3></div>
         <div class="pilihan" style="--kol:2"><label><input type="radio" name="sumber" value="file" checked><span><b>Berkas Excel / CSV</b><small>Dibaca di browser Anda, tidak diunggah ke mana pun.</small></span></label>
           <label><input type="radio" name="sumber" value="sheet" ${!gasAktif() ? raw('disabled') : ''}><span><b>Google Sheets</b><small>${gasAktif() ? 'Dibaca oleh Apps Script akun Super Admin.' : 'Aktif setelah GAS_URL diisi.'}</small></span></label></div>
-        <div data-sumber-file style="margin-top:16px"><label class="dropzone">${raw(ikon('upload', 28))}<b>Pilih berkas .xlsx / .csv</b><small>Baris judul (memuat NIK / NAMA) dicari otomatis</small><input type="file" hidden accept=".xlsx,.xls,.csv" data-berkas></label></div>
+        <div data-sumber-file style="margin-top:16px"><label class="dropzone">${raw(ikon('upload', 28))}<b>Pilih berkas .xlsx, .xls, atau .csv</b><small>Baris judul (memuat NIK / NAMA) dicari otomatis</small><input type="file" hidden accept=".xlsx,.xls,.csv" data-berkas></label></div>
         <div data-sumber-sheet hidden style="margin-top:16px"><div class="baris-input"><input class="input" data-url placeholder="Tempel URL Google Sheets (https://docs.google.com/spreadsheets/d/…)"><button class="btn btn-secondary" data-buka-sheet>Buka</button></div>
           <div data-pilih-sheet style="margin-top:12px"></div></div></section>
       <section class="card"><div class="form-section-head"><span class="no">2</span><h3>Opsi</h3></div><div class="form-grid">

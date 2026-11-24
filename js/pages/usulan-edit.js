@@ -6,7 +6,8 @@ import { api } from '../core/api.js';
 import { hapusCache } from '../core/store.js';
 import { judulHalaman, toast, konfirmasi, pesanGalat, tombolMuat, kotakGalat, bukaModal } from '../core/ui.js';
 import { opsi, tautanAman } from '../core/komp.js';
-import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_USULAN, badge, rupiah, usia, lengkapPM, bolehTahap } from '../core/bnba.js';
+import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_USULAN, badge, rupiah, usia, lengkapPM, kolomKurang, bolehTahap, jenisDariKategori, totalRincian } from '../core/bnba.js';
+import { cocokProvinsi, cocokKabKota, daftarKabKota } from '../core/wilayah.js';
 import { bukaImporBnba } from './_usulan-modal.js';
 import { pergi } from '../core/nav.js';
 
@@ -20,14 +21,46 @@ function label(x) {
 const KOL_FORM = [...KOLOM, ...KOLOM_EKONOMI].filter((c) => GRUP_FORM.includes(c.g));
 const fmtUang = (v) => (v === '' || v == null ? '' : angka(String(v).replace(/[^\d]/g, '')));
 
-function field(c, v) {
-  const id = 'f-' + c.k, w = c.wajib ? html`<span class="wajib">*</span>` : '';
+const barisRincian = (r = {}) => html`<div class="ri-baris" data-ri-baris>
+  <input class="input" data-ri="nama" placeholder="Nama barang (mis. Beras 5 kg)" value="${r.nama || ''}" aria-label="Nama barang">
+  <input class="input angka" data-ri="jumlah" type="number" min="0" step="any" inputmode="decimal" value="${r.jumlah ?? 1}" aria-label="Jumlah">
+  <label class="input-awalan"><span>Rp</span><input class="input angka" data-ri="harga" inputmode="numeric" value="${fmtUang(r.harga)}" aria-label="Harga per satuan" data-uang></label>
+  <output class="ri-sub" data-ri-sub>—</output>
+  <button type="button" class="btn btn-ghost btn-sm teks-merah" data-ri-hapus aria-label="Hapus barang">${raw(ikon('trash', 16))}</button></div>`;
+
+function editorRincian(b) {
+  const items = Array.isArray(b.rincian_item) && b.rincian_item.length ? b.rincian_item : [];
+  return html`<div class="field penuh" data-rincian>
+    <label class="label">Rincian barang yang dibeli <span class="redup" style="font-weight:500">(nama · jumlah · harga per satuan)</span></label>
+    <div class="ri-kepala" aria-hidden="true"><span>Nama barang</span><span>Jumlah</span><span>Harga satuan</span><span>Subtotal</span><span></span></div>
+    <div data-ri-daftar>${items.map(barisRincian)}</div>
+    <div class="ri-aksi"><button type="button" class="btn btn-secondary btn-sm" data-ri-tambah>${raw(ikon('plus', 16))} Tambah barang</button>
+      <span class="ri-total">Total rencana intervensi: <b data-ri-total>${rupiah(totalRincian(items))}</b></span></div>
+    ${!items.length && b.rincian_barang ? html`<div class="help">Catatan rincian lama: ${b.rincian_barang}</div>` : html`<div class="help">Isi satu baris per barang. Total otomatis menjadi Nilai Bantuan. Bila tidak ada rincian barang (mis. uang tunai), kosongkan dan isi Nilai Bantuan langsung.</div>`}</div>`;
+}
+
+function field(c, v, ctx = {}) {
+  const id = 'f-' + c.k, w = c.wajib ? html`<span class="wajib" title="Wajib diisi">*</span>` : '';
   const kelas = c.lebar || c.tipe === 'teks' ? 'field penuh' : 'field';
   let inp;
+  if (c.k === 'rincian_barang') return editorRincian(ctx.b || {});
   if (c.k === 'usia') inp = html`<input id="${id}" class="input" readonly value="${usia(v) !== '' ? usia(v) + ' tahun' : 'Otomatis dari tanggal lahir'}" data-usia>`;
-  else if (c.tipe === 'pilih') inp = html`<select id="${id}" class="select" name="${c.k}">${opsi(c.opsi.map((o) => [o, c.k === 'jenis_bantuan' ? `${o} — ${JENIS_BANTUAN[o]}` : o]), v, 'Pilih…')}</select>`;
+  else if (c.k === 'jenis_bantuan' && ctx.jenisKunci) inp = html`<input id="${id}" class="input baca" readonly value="${ctx.jenisKunci} — ${JENIS_BANTUAN[ctx.jenisKunci]}"><input type="hidden" name="${c.k}" value="${ctx.jenisKunci}">
+    <div class="help">Mengikuti kategori usulan: ${ctx.kategori}.</div>`;
+  else if (c.tipe === 'pilih' && c.k.includes('prov')) {
+    const pv = cocokProvinsi(v).nilai || v || '';
+    inp = html`<select id="${id}" class="select" name="${c.k}" data-prov>${opsi(c.opsi.map((o) => [o, o]), pv, 'Pilih provinsi…')}</select>`;
+  }
+  else if (c.tipe === 'pilih') inp = html`<select id="${id}" class="select" name="${c.k}">${opsi(c.opsi.map((o) => [o, c.k === 'jenis_bantuan' ? `${o} — ${JENIS_BANTUAN[o]}` : c.labelOpsi ? `${o} — ${c.labelOpsi[o]}` : o]), v, 'Pilih…')}</select>`;
+  else if (c.tipe === 'kabkota') {
+    const prov = ctx.b?.[c.indukProv] || '';
+    inp = html`<input id="${id}" class="input" name="${c.k}" value="${v || ''}" list="dl-${c.k}" data-kabkota="${c.indukProv}" autocomplete="off" placeholder="Pilih / ketik kabupaten atau kota">
+      <datalist id="dl-${c.k}">${daftarKabKota(prov).map((n) => html`<option value="${n}"></option>`)}</datalist>
+      <div class="help" data-saran-kab>Pilih provinsi dulu; daftar kabupaten/kota menyesuaikan. Bila diketik sendiri, sistem mencocokkan ejaan otomatis.</div>`;
+  }
+  else if (c.tipe === 'desil') inp = html`<input id="${id}" class="input angka" type="number" min="1" max="10" step="1" inputmode="numeric" name="${c.k}" value="${v || ''}" placeholder="Angka 1–10">`;
   else if (c.tipe === 'tanggal') inp = html`<input id="${id}" class="input" type="date" name="${c.k}" value="${v || ''}">`;
-  else if (c.tipe === 'uang') inp = html`<label class="input-awalan"><span>Rp</span><input id="${id}" class="input angka" inputmode="numeric" name="${c.k}" value="${fmtUang(v)}" data-uang></label>`;
+  else if (c.tipe === 'uang') inp = html`<label class="input-awalan"><span>Rp</span><input id="${id}" class="input angka" inputmode="numeric" name="${c.k}" value="${fmtUang(v)}" data-uang ${c.k === 'nilai_bantuan' && Array.isArray(ctx.b?.rincian_item) && ctx.b.rincian_item.length ? raw('readonly data-otomatis') : ''}></label>`;
   else if (c.tipe === 'nik') inp = html`<input id="${id}" class="input mono" inputmode="numeric" maxlength="16" name="${c.k}" value="${v || ''}" data-nik placeholder="16 digit angka">`;
   else if (c.tipe === 'teks') inp = html`<textarea id="${id}" class="textarea" rows="2" name="${c.k}">${v || ''}</textarea>`;
   else inp = html`<input id="${id}" class="input" name="${c.k}" value="${v || ''}">`;
@@ -76,7 +109,7 @@ export async function render(el, { sesi: s, query }) {
     $('[data-daftar]').innerHTML = String(html`${pm.map((b, i) => ({ b, i })).filter(({ b }) => !s2 || b.nama?.toLowerCase().includes(s2) || b.nik?.includes(s2)).map(({ b, i }) => html`
       <button type="button" class="pm-item ${i === pilih ? 'aktif' : ''}" data-pilih="${i}">
         <span class="pm-no">#${String(i + 1).padStart(2, '0')}</span>
-        ${lengkapPM(b) ? html`<span class="badge b-ok kecil">Lengkap</span>` : html`<span class="badge b-fix kecil">Belum lengkap</span>`}
+        ${lengkapPM(b) ? html`<span class="badge b-ok kecil">Lengkap</span>` : html`<span class="badge b-fix kecil" title="${kolomKurang(b).join(', ')}">Kurang ${kolomKurang(b).length} kolom</span>`}
         <b>${b.nama}</b><span class="mono">NIK: ${b.nik}</span>
         <small>${b.jenis_bantuan || '—'} · ${rupiah(b.nilai_bantuan)}</small></button>`)}
       ${pilih === -1 ? html`<div class="pm-item aktif baru"><span class="pm-no">PM baru</span><b>Mengisi PM baru…</b></div>` : ''}
@@ -90,16 +123,18 @@ export async function render(el, { sesi: s, query }) {
     $('[data-form]').innerHTML = String(html`
       <div class="form-kepala"><span class="badge b-proc mono">${pilih >= 0 ? `PM #${String(pilih + 1).padStart(2, '0')} dari ${pm.length}` : 'PM baru'}</span>
         <b>${b.nama || 'Penerima manfaat baru'}</b>${b.nik ? html`<span class="mono redup">NIK ${b.nik}</span>` : ''}
+        ${pilih >= 0 && kolomKurang(b).length ? html`<div class="info-card kuning" style="flex-basis:100%">${raw(ikon('alert', 20, 'ik'))}<span><b>Wajib diisi sebelum submit:</b> ${kolomKurang(b).join(' · ')}</span></div>` : ''}
         <nav class="nav-seksi" aria-label="Bagian formulir">${GRUP_FORM.map((g, i) => html`<a href="#seksi-${g}" data-lompat="${g}"><span>${i + 1}</span>${NAV[g]}</a>`)}</nav></div>
       <form data-pm novalidate>${GRUP_FORM.map((g, i) => html`<section class="form-section" id="seksi-${g}">
         <div class="form-section-head"><span class="no">${i + 1}</span><h3>${GRUP[g]}</h3>
           ${g === 'dom' ? html`<button type="button" class="btn btn-ghost btn-sm" data-salin-ktp style="margin-left:auto">${raw(ikon('copy', 16))} Sama dengan KTP</button>` : ''}</div>
-        <div class="form-grid">${KOL_FORM.filter((c) => c.g === g).map((c) => field(c, c.k === 'usia' ? b.tgl_lahir : b[c.k]))}
+        <div class="form-grid">${KOL_FORM.filter((c) => c.g === g).map((c) => field(c, c.k === 'usia' ? b.tgl_lahir : b[c.k], { b, jenisKunci: jenisDariKategori(d.usulan.kategori), kategori: d.usulan.kategori }))}
           ${g === 'ekonomi' ? html`<div class="field"><label class="label">Laba Bersih Awal (otomatis)</label><div class="input angka baca" data-laba>${rupiah((Number(b.pendapatan_kotor_awal) || 0) - (Number(b.biaya_awal) || 0))}</div><div class="help">Pendapatan kotor − biaya; pembanding penilaian Supermonev.</div></div>` : ''}</div>
       </section>`)}
       <div class="form-aksi">${pilih >= 0 ? html`<button type="button" class="btn btn-ghost teks-merah" data-hapus-pm>${raw(ikon('trash', 18))} Hapus PM</button>` : ''}
         <span class="spacer"></span><button type="submit" class="btn btn-primary">${raw(ikon('save', 18))} Simpan PM Ini</button></div></form>`);
     kotor = false;
+    hitungRincian();
   }
   function gambarBilah() {
     const lengkap = pm.filter(lengkapPM).length, kurang = pm.length - lengkap;
@@ -124,6 +159,11 @@ export async function render(el, { sesi: s, query }) {
   function kumpul() {
     const o = {};
     el.querySelectorAll('form[data-pm] [name]').forEach((x) => { o[x.name] = x.matches('[data-uang]') ? x.value.replace(/[^\d]/g, '') : x.value.trim(); });
+    // rincian barang → rincian_item (baris yang seluruhnya kosong diabaikan)
+    o.rincian_item = [...el.querySelectorAll('[data-ri-baris]')].map((r) => ({
+      nama: r.querySelector('[data-ri=nama]').value.trim(), jumlah: r.querySelector('[data-ri=jumlah]').value.trim() || '1',
+      harga: r.querySelector('[data-ri=harga]').value.replace(/[^\d]/g, '') })).filter((x) => x.nama || x.harga);
+    if (o.rincian_item.length) o.nilai_bantuan = String(totalRincian(o.rincian_item));
     if (pilih >= 0 && pm[pilih]) o.id = pm[pilih].id;
     return o;
   }
@@ -134,6 +174,7 @@ export async function render(el, { sesi: s, query }) {
     if (x.matches('[data-nik]') && x.value && !/^\d{16}$/.test(x.value)) pesan = 'Harus 16 digit angka.';
     if (x.name === 'nik' && !x.value) pesan = 'NIK wajib diisi.';
     if (x.name === 'nama' && !x.value.trim()) pesan = 'Nama wajib diisi.';
+    if (x.name === 'desil' && x.value && !/^(10|[1-9])$/.test(x.value)) pesan = 'Desil harus angka 1 sampai 10.';
     err.hidden = !pesan; err.innerHTML = pesan ? String(html`${raw(ikon('alert', 14))} ${pesan}`) : '';
     f.classList.toggle('salah', !!pesan); f.classList.toggle('sah', !pesan && x.matches('[data-nik]') && !!x.value);
     return !pesan;
@@ -156,22 +197,66 @@ export async function render(el, { sesi: s, query }) {
     return (await konfirmasi({ judul: 'Perubahan belum disimpan', pesan: 'Data PM yang sedang diisi belum disimpan. Buang perubahan?', label: 'Buang perubahan', bahaya: true })).ok;
   }
 
+  // ---- wilayah: daftar kab/kota mengikuti provinsi + pencocokan ejaan bebas
+  function segarkanDaftarKab(selProv, bersihkanBilaBeda = true) {
+    if (!selProv) return;
+    el.querySelectorAll(`[data-kabkota="${selProv.name}"]`).forEach((inp) => {
+      const dl = el.querySelector('#' + inp.getAttribute('list'));
+      dl.innerHTML = daftarKabKota(selProv.value).map((n) => `<option value="${n}"></option>`).join('');
+      if (bersihkanBilaBeda && inp.value && selProv.value && !cocokKabKota(inp.value, selProv.value).nilai) { inp.value = ''; }
+      const h = inp.closest('.field').querySelector('[data-saran-kab]'); if (h) h.textContent = selProv.value ? 'Pilih dari daftar atau ketik; ejaan dicocokkan otomatis.' : 'Pilih provinsi dulu; daftar kabupaten/kota menyesuaikan.';
+    });
+  }
+  function cocokkanKab(inp) {
+    const prov = el.querySelector(`[name=${inp.dataset.kabkota}]`)?.value, h = inp.closest('.field').querySelector('[data-saran-kab]');
+    if (!inp.value.trim() || !prov) return;
+    const r = cocokKabKota(inp.value, prov);
+    if (r.nilai) { if (r.nilai !== inp.value) { inp.value = r.nilai; kotor = true; if (h) h.textContent = 'Disesuaikan otomatis dengan nama baku.'; } return; }
+    if (h) {
+      const pilihan = r.saran.map((n) => `<button type="button" class="btn btn-ghost btn-sm" data-pakai-kab="${n}" data-untuk="${inp.name}">${n}</button>`).join(' ');
+      h.innerHTML = r.ambigu ? `Ada lebih dari satu nama mirip, pilih: ${pilihan}` : r.saran.length ? `Maksud Anda: ${pilihan}` : `Nama "${inp.value.replace(/[<>&]/g, '')}" tidak ada di daftar ${prov}. Periksa ejaan atau pilih dari daftar.`;
+    }
+  }
+  function hitungRincian() {
+    const rows = [...el.querySelectorAll('[data-ri-baris]')].map((r) => ({ r, jumlah: Number(r.querySelector('[data-ri=jumlah]').value) || 0, harga: Number(r.querySelector('[data-ri=harga]').value.replace(/\D/g, '')) || 0 }));
+    let total = 0;
+    rows.forEach(({ r, jumlah, harga }) => { const sub = (jumlah || (harga ? 1 : 0)) * harga; total += sub; r.querySelector('[data-ri-sub]').textContent = harga ? rupiah(sub) : '—'; });
+    const tt = el.querySelector('[data-ri-total]'); if (tt) tt.textContent = rupiah(total);
+    const nilai = el.querySelector('[name=nilai_bantuan]');
+    if (nilai) {
+      const ada = rows.some(({ harga }) => harga);
+      nilai.readOnly = ada; nilai.toggleAttribute('data-otomatis', ada);
+      if (ada) nilai.value = fmtUang(total);
+    }
+  }
+
   el.addEventListener('input', (e) => {
     if (e.target.closest('form[data-pm]')) kotor = true;
     if (e.target.matches('[data-cari]')) { cari = e.target.value; gambarDaftar(); }
     if (e.target.matches('[data-nik]')) e.target.value = e.target.value.replace(/\D/g, '').slice(0, 16);
     if (e.target.name === 'tgl_lahir') { const x = el.querySelector('[data-usia]'); if (x) x.value = usia(e.target.value) !== '' ? usia(e.target.value) + ' tahun' : ''; }
-    if (e.target.matches('[data-uang]')) {
+    if (e.target.closest('[data-rincian]')) hitungRincian();
+    if (e.target.matches('[data-uang]') && !e.target.closest('[data-rincian]')) {
       const f = el.querySelector('form[data-pm]'), n = (k) => Number(f.querySelector(`[name=${k}]`)?.value.replace(/\D/g, '')) || 0;
       const lb = el.querySelector('[data-laba]'); if (lb) lb.textContent = rupiah(n('pendapatan_kotor_awal') - n('biaya_awal'));
     }
   });
+  el.addEventListener('change', (e) => { if (e.target.matches('[data-prov]')) { segarkanDaftarKab(e.target); kotor = true; } });
   el.addEventListener('focusout', (e) => {
+    if (e.target.matches('[data-kabkota]')) cocokkanKab(e.target);
     if (e.target.matches('form[data-pm] [name]')) cekField(e.target);
     if (e.target.matches('[data-uang]')) e.target.value = fmtUang(e.target.value);
   });
   el.addEventListener('submit', (e) => { e.preventDefault(); simpanPM(e.submitter || e.target.querySelector('[type=submit]')); });
   el.addEventListener('click', async (e) => {
+    const pk = e.target.closest('[data-pakai-kab]');
+    if (pk) { const inp = el.querySelector(`[name=${pk.dataset.untuk}]`); inp.value = pk.dataset.pakaiKab; kotor = true; cocokkanKab(inp); return; }
+    if (e.target.closest('[data-ri-tambah]')) {
+      el.querySelector('[data-ri-daftar]').insertAdjacentHTML('beforeend', String(barisRincian({ jumlah: 1 })));
+      el.querySelector('[data-ri-daftar] [data-ri-baris]:last-child [data-ri=nama]').focus(); kotor = true; hitungRincian(); return;
+    }
+    const rh = e.target.closest('[data-ri-hapus]');
+    if (rh) { rh.closest('[data-ri-baris]').remove(); kotor = true; hitungRincian(); return; }
     const lp = e.target.closest('[data-lompat]');
     if (lp) { e.preventDefault(); el.querySelector('#seksi-' + lp.dataset.lompat)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     const pi = e.target.closest('[data-pilih]');
@@ -179,6 +264,7 @@ export async function render(el, { sesi: s, query }) {
     if (e.target.closest('[data-tambah]')) { if (!(await bolehPindah())) return; pilih = -1; gambarDaftar(); gambarForm(); el.querySelector('#f-nama')?.focus(); return; }
     if (e.target.closest('[data-salin-ktp]')) {
       ['provinsi', 'kabkota', 'kecamatan', 'kelurahan', 'jalan'].forEach((k) => { const a = el.querySelector(`[name=ktp_${k}]`), b = el.querySelector(`[name=dom_${k}]`); if (a && b) b.value = a.value; });
+      segarkanDaftarKab(el.querySelector('[name=dom_provinsi]'), false);
       kotor = true; return;
     }
     if (e.target.closest('[data-hapus-pm]')) {
@@ -194,9 +280,12 @@ export async function render(el, { sesi: s, query }) {
     }
     if (e.target.closest('[data-submit]')) {
       if (kotor && !(await simpanPM(e.target.closest('button')))) return;
-      const kurang = pm.filter((x) => !lengkapPM(x)).length;
+      const bk = pm.map((x, i) => ({ x, i, k: kolomKurang(x) })).filter((r) => r.k.length);
       if (!pm.length) return toast('Usulan belum berisi PM.', 'galat');
-      if (kurang) return toast(`${kurang} PM belum lengkap (klaster, jenis bantuan, atau nilai bantuan).`, 'galat');
+      if (bk.length) {
+        pilih = bk[0].i; gambarDaftar(); gambarForm();
+        return toast(`${bk.length} PM belum lengkap. PM #${String(bk[0].i + 1).padStart(2, '0')} ${bk[0].x.nama}: kurang ${bk[0].k.slice(0, 4).join(', ')}${bk[0].k.length > 4 ? ', …' : ''}.`, 'galat');
+      }
       if (!d.usulan.link_profil) return toast('Link profil asesmen wajib diisi. Gunakan tombol "Ubah Judul & Link".', 'galat');
       const k = await konfirmasi({ judul: 'Submit usulan ke Kapokja?', ikonNama: 'send', label: 'Submit sekarang',
         pesan: `${pm.length} PM senilai ${rupiah(pm.reduce((a, x) => a + (Number(x.nilai_bantuan) || 0), 0))} dikirim ke Kapokja ${d.usulan.pokja_nama}. Setelah submit, usulan terkunci sampai diverifikasi.` });

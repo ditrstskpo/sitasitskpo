@@ -9,34 +9,32 @@ export const KLASTER = ['BWBLP Umum', 'BWBLP Eks Napiter', 'Gelandangan', 'Penge
 export const JENIS_BANTUAN = { KWU: 'Kewirausahaan (KWU)', PHL: 'Sembako / Kebersihan Diri / Nutrisi (PHL)', PEMULANGAN: 'Pemulangan / Transportasi' };
 export const URAIAN = ['BANSOS UANG', 'BANSOS BARANG'];
 export const MAK = { '571111': 'Bansos Uang', '571112': 'Bansos Barang', '571113': 'Bansos Lainnya', '521219': 'Belanja Barang Non Operasional' };
-export const PROVINSI = ['Aceh', 'Sumatera Utara', 'Sumatera Barat', 'Riau', 'Jambi', 'Sumatera Selatan', 'Bengkulu', 'Lampung',
-  'Kepulauan Bangka Belitung', 'Kepulauan Riau', 'DKI Jakarta', 'Jawa Barat', 'Jawa Tengah', 'Daerah Istimewa Yogyakarta', 'Jawa Timur',
-  'Banten', 'Bali', 'Nusa Tenggara Barat', 'Nusa Tenggara Timur', 'Kalimantan Barat', 'Kalimantan Tengah', 'Kalimantan Selatan',
-  'Kalimantan Timur', 'Kalimantan Utara', 'Sulawesi Utara', 'Sulawesi Tengah', 'Sulawesi Selatan', 'Sulawesi Tenggara', 'Gorontalo',
-  'Sulawesi Barat', 'Maluku', 'Maluku Utara', 'Papua', 'Papua Selatan', 'Papua Tengah', 'Papua Pegunungan', 'Papua Barat', 'Papua Barat Daya'];
+export { PROVINSI } from './wilayah.js';
+import { PROVINSI } from './wilayah.js';
 
 // k = kolom basis data · x = judul kolom Excel · g = kelompok formulir
 export const KOLOM = [
   { k: 'klaster_ppks', x: 'KLASTER PPKS', g: 'umum', tipe: 'pilih', opsi: KLASTER, wajib: true },
-  { k: 'kota_kab_penyaluran', x: 'KOTA/KAB PENYALURAN', g: 'umum', wajib: true },
-  { k: 'ktp_provinsi', x: 'PROVINSI', g: 'ktp', tipe: 'pilih', opsi: PROVINSI },
-  { k: 'ktp_kabkota', x: 'KABUPATEN/KOTA', g: 'ktp' },
-  { k: 'ktp_kecamatan', x: 'KECAMATAN', g: 'ktp' },
-  { k: 'ktp_kelurahan', x: 'KELURAHAN/DESA', g: 'ktp' },
-  { k: 'ktp_jalan', x: 'NAMA JALAN/NO/RT/RW', g: 'ktp', sensitif: true, lebar: true },
+  { k: 'prov_penyaluran', x: 'PROVINSI PENYALURAN', g: 'umum', tipe: 'pilih', opsi: PROVINSI, wajib: true },
+  { k: 'kota_kab_penyaluran', x: 'KOTA/KAB PENYALURAN', g: 'umum', tipe: 'kabkota', indukProv: 'prov_penyaluran', wajib: true },
+  { k: 'ktp_provinsi', x: 'PROVINSI', g: 'ktp', tipe: 'pilih', opsi: PROVINSI, wajib: true },
+  { k: 'ktp_kabkota', x: 'KABUPATEN/KOTA', g: 'ktp', tipe: 'kabkota', indukProv: 'ktp_provinsi', wajib: true },
+  { k: 'ktp_kecamatan', x: 'KECAMATAN', g: 'ktp', wajib: true },
+  { k: 'ktp_kelurahan', x: 'KELURAHAN/DESA', g: 'ktp', wajib: true },
+  { k: 'ktp_jalan', x: 'NAMA JALAN/NO/RT/RW', g: 'ktp', sensitif: true, lebar: true, wajib: true },
   { k: 'dom_provinsi', x: 'PROVINSI', g: 'dom', tipe: 'pilih', opsi: PROVINSI },
-  { k: 'dom_kabkota', x: 'KABUPATEN/KOTA', g: 'dom' },
+  { k: 'dom_kabkota', x: 'KABUPATEN/KOTA', g: 'dom', tipe: 'kabkota', indukProv: 'dom_provinsi' },
   { k: 'dom_kecamatan', x: 'KECAMATAN', g: 'dom' },
   { k: 'dom_kelurahan', x: 'KELURAHAN/DESA', g: 'dom' },
   { k: 'dom_jalan', x: 'NAMA JALAN/NO/RT/RW', g: 'dom', sensitif: true, lebar: true },
   { k: 'nama', x: 'NAMA', g: 'profil', wajib: true },
   { k: 'nik', x: 'NIK', g: 'profil', wajib: true, tipe: 'nik' },
-  { k: 'no_kk', x: 'NO. KK', g: 'profil', tipe: 'nik', sensitif: true },
+  { k: 'no_kk', x: 'NO. KK', g: 'profil', tipe: 'nik', sensitif: true, wajib: true },
   { k: 'no_paspor', x: 'NO. PASPOR', g: 'profil' },
-  { k: 'desil', x: 'DESIL', g: 'profil', tipe: 'pilih', opsi: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] },
-  { k: 'nama_ibu', x: 'NAMA IBU KANDUNG', g: 'profil', sensitif: true },
+  { k: 'desil', x: 'DESIL', g: 'profil', tipe: 'desil', wajib: true },
+  { k: 'nama_ibu', x: 'NAMA IBU KANDUNG', g: 'profil', sensitif: true, wajib: true },
   { k: 'tempat_lahir', x: 'TEMPAT LAHIR', g: 'profil' },
-  { k: 'tgl_lahir', x: 'TGL LAHIR', g: 'profil', tipe: 'tanggal' },
+  { k: 'tgl_lahir', x: 'TGL LAHIR', g: 'profil', tipe: 'tanggal', wajib: true },
   { k: 'usia', x: 'USIA', g: 'profil', otomatis: true },
   { k: 'jenis_kelamin', x: 'JENIS KELAMIN', g: 'profil', tipe: 'pilih', opsi: ['Laki-laki', 'Perempuan'] },
   { k: 'pekerjaan_ktp', x: 'PEKERJAAN DI KTP', g: 'profil' },
@@ -45,6 +43,7 @@ export const KOLOM = [
   { k: 'nilai_bantuan', x: 'NILAI BANTUAN', g: 'intervensi', tipe: 'uang', wajib: true },
   { k: 'rincian_barang', x: 'RINCIAN BARANG', g: 'intervensi', tipe: 'teks', lebar: true },
   { k: 'uraian', x: 'URAIAN', g: 'intervensi', tipe: 'pilih', opsi: URAIAN },
+  { k: 'mak', x: 'MAK', g: 'intervensi', tipe: 'pilih', opsi: Object.keys(MAK), labelOpsi: MAK, wajib: true },
   { k: 'no_sk', x: 'NO SK', g: 'sk', otomatis: true },
   { k: 'tgl_sk', x: 'TGL SK', g: 'sk', otomatis: true },
   { k: 'link_sk', x: 'LINK SK', g: 'sk', otomatis: true },
@@ -60,7 +59,7 @@ export const KOLOM = [
 export const GRUP = {
   umum: 'Umum', ktp: 'Alamat KTP', dom: 'Alamat Domisili (opsional — isi bila berbeda dengan KTP)', profil: 'Profil PPKS',
   intervensi: 'Rencana Intervensi', ekonomi: 'Data Dasar Ekonomi (Sebelum Bantuan)', sk: 'Keterangan SK (otomatis dari Tahap 6)',
-  keu: 'Keuangan (diisi Pokja Keuangan pada Tahap 5)',
+  keu: 'Keuangan (akun bantuan: Tahap 5 · nama bank & rekening: Tahap 8 SP2D)',
 };
 export const KOLOM_EKONOMI = [
   { k: 'pendapatan_kotor_awal', x: 'PENDAPATAN KOTOR AWAL (BLN)', g: 'ekonomi', tipe: 'uang' },
@@ -162,7 +161,31 @@ export function usia(tgl) {
   return isFinite(u) ? u : '';
 }
 export const tglID = (v) => (v ? String(v).slice(0, 10).split('-').reverse().join('/') : '');
-export const lengkapPM = (b) => !!(b.klaster_ppks && b.jenis_bantuan && b.nilai_bantuan != null && b.nama && /^\d{16}$/.test(b.nik || ''));
+/** Kategori usulan → jenis bantuan yang terkunci ('' = dipilih per PM, yaitu kategori "Bantuan ATENSI" polos). Cermin app.jenis_dari_kategori. */
+export function jenisDariKategori(k) {
+  const t = String(k || '').toLowerCase();
+  return /kewirausahaan/.test(t) ? 'KWU' : /pemulangan/.test(t) ? 'PEMULANGAN' : /sembako|nutrisi/.test(t) ? 'PHL' : '';
+}
+/** Total rincian barang: [{nama, jumlah, harga}] → angka. */
+export const totalRincian = (items) => (items || []).reduce((a, i) => a + (Number(i.jumlah) || 1) * (Number(i.harga) || 0), 0);
+
+/** Kolom wajib (cermin aturan submit di basis data). Kembali: daftar judul kolom yang masih kosong. */
+export function kolomKurang(b) {
+  const kurang = [];
+  KOLOM.filter((c) => c.wajib).forEach((c) => {
+    const v = b[c.k];
+    let ok = v != null && String(v).trim() !== '';
+    if (c.k === 'nik') ok = /^\d{16}$/.test(v || '');
+    if (c.k === 'no_kk') ok = ok || !!b.no_kk_samar;     // tersamar = sudah terisi
+    if (c.k === 'nama_ibu') ok = ok || !!b.nama_ibu_samar;
+    if (c.k === 'ktp_jalan') ok = ok || !!b.ktp_jalan_samar;
+    if (c.k === 'nilai_bantuan') ok = v != null && Number(v) > 0;
+    if (c.k === 'desil') ok = /^(10|[1-9])$/.test(String(v ?? ''));
+    if (!ok) kurang.push(c.g === 'ktp' ? c.x + ' (KTP)' : c.x);
+  });
+  return kurang;
+}
+export const lengkapPM = (b) => kolomKurang(b).length === 0;
 
 export function chipPokjaU(u) {
   return html`<span class="chip-pokja" style="--c:${u.warna || '#5B6B7F'};--ct:${u.warna_tint || '#E8ECF1'};--cx:${u.warna_teks || '#3A4656'}">${u.pokja_nama || ''}</span>`;
@@ -187,3 +210,19 @@ export function barisEkspor(b, u = {}) {
 /** Urutan kolom ekspor BNBA (jsonb dari basis data tidak menjaga urutan kunci). */
 export const KOLOM_EKSPOR = ['BUNDLE', 'JUDUL USULAN', 'POKJA', ...KOLOM.map((c) => (c.g === 'dom' ? c.x + ' (DOMISILI)' : c.g === 'ktp' ? c.x + ' (KTP)' : c.x)), 'STATUS VERIFIKASI', 'TAHAP AKTIF'];
 export const urutEkspor = (rows) => rows.map((r) => Object.fromEntries(KOLOM_EKSPOR.map((k) => [k, r[k] ?? ''])));
+
+// ---------------------------------------------------------------- rekap data pencairan untuk bank (Tahap 5 & Lampiran Burekol Tahap 7)
+export const KOLOM_BANK = ['NAMA', 'NIK', 'NAMA IBU KANDUNG', 'ALAMAT KTP PROVINSI', 'KABUPATEN_KOTA', 'KECAMATAN', 'KELURAHAN_DESA', 'ALAMAT LENGKAP',
+  'JENIS PPKS', 'JENIS ATENSI', 'JENIS BANTUAN', 'NILAI BANTUAN', 'NO SK', 'TGL SK', 'NAMA BANK', 'NOMOR REKENING', 'NAMA DAN NOMOR REKENING', 'AKUN BANTUAN'];
+/** Satu baris rekap untuk bank dari baris data_pencairan + info usulan. Nama bank & rekening kosong sampai Tahap 8. */
+export function barisBank(b, u = {}) {
+  const alamat = [b.ktp_jalan, b.ktp_kelurahan && 'Kel/Desa ' + b.ktp_kelurahan, b.ktp_kecamatan && 'Kec. ' + b.ktp_kecamatan, b.ktp_kabkota, b.ktp_provinsi].filter(Boolean).join(', ');
+  return {
+    NAMA: b.nama || '', NIK: b.nik || '', 'NAMA IBU KANDUNG': b.nama_ibu || '', 'ALAMAT KTP PROVINSI': b.ktp_provinsi || '', KABUPATEN_KOTA: b.ktp_kabkota || '',
+    KECAMATAN: b.ktp_kecamatan || '', KELURAHAN_DESA: b.ktp_kelurahan || '', 'ALAMAT LENGKAP': alamat, 'JENIS PPKS': b.klaster_ppks || '',
+    'JENIS ATENSI': u.kategori || '', 'JENIS BANTUAN': b.jenis_bantuan || '', 'NILAI BANTUAN': b.nilai_bantuan != null ? Number(b.nilai_bantuan) : '',
+    'NO SK': u.no_sk || '', 'TGL SK': tglID(u.tgl_sk), 'NAMA BANK': b.nama_bank || '', 'NOMOR REKENING': b.nomor_rekening || '',
+    'NAMA DAN NOMOR REKENING': b.nomor_rekening ? `${b.nama_pemilik_rek || b.nama} - ${b.nomor_rekening}` : '', 'AKUN BANTUAN': b.akun_bantuan || '',
+  };
+}
+export const BANK_UMUM = ['BNI', 'BRI', 'Mandiri', 'BTN', 'BSI', 'BCA', 'CIMB Niaga', 'Bank DKI', 'Bank Jateng', 'Bank Jabar Banten (BJB)', 'Bank Jatim', 'Bank Kalsel', 'Bank Sumut', 'Bank Nagari', 'Bank Riau Kepri', 'Pos Indonesia'];
