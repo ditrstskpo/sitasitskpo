@@ -34,6 +34,25 @@ const MODUL = [
   ['lks', 'Data LKS, Aster & Manajemen Internal', 'Pemetaan LKS TSKPO di 38 provinsi, data Aster, kepegawaian, jadwal pegawai, dokumen, dan komunikasi antar-Pokja.', 'Peta 38 provinsi · Jadwal pegawai'],
 ];
 
+// ---------------------------------------------------------------- kepanjangan SITASI TSKPO (v2.10.0)
+// Baris 1 huruf latin bersambung bergradasi hijau → emas; baris 2 biru tebal. Setiap kata maju–mundur bergantian (gelombang).
+const KP1 = 'Sistem Integrasi Data dan Informasi';
+const KP2 = 'Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang';
+const AWAL = [10, 168, 26], AKHIR = [201, 166, 62];   // #0AA81A → #C9A63E (sedikit lebih pekat dari contoh agar tetap terbaca di latar putih)
+const campur = (t) => '#' + AWAL.map((a, k) => Math.round(a + (AKHIR[k] - a) * t).toString(16).padStart(2, '0')).join('');
+function kepanjangan() {
+  const kata1 = KP1.split(' '); let pos = 0;
+  const b1 = kata1.map((k, i) => {
+    const t0 = pos / KP1.length, t1 = (pos + k.length) / KP1.length; pos += k.length + 1;
+    return `<span class="kp-kata" style="--i:${i};--c0:${campur(t0)};--c1:${campur(t1)}">${k}</span>`;
+  }).join(' ');
+  const b2 = KP2.split(' ').map((k, i) => `<span class="kp-kata" style="--i:${kata1.length + i}">${k}</span>`).join(' ');
+  return raw(`<div class="lp-kp" role="group" aria-label="SITASI TSKPO: ${KP1} ${KP2}">
+          <p class="lp-kp-1">${b1}</p>
+          <p class="lp-kp-2">${b2}</p>
+        </div>`);
+}
+
 export async function render(el) {
   el.innerHTML = String(html`<div class="lp">
     <header class="lp-nav">
@@ -41,6 +60,7 @@ export async function render(el) {
         <a class="lp-merek" href="#/">${logo(40)}<span><b>SITASI TSKPO<em>INTERNAL</em></b><small>Kementerian Sosial Republik Indonesia</small></span></a>
         <nav class="lp-tautan" aria-label="Bagian halaman">
           <button type="button" data-gulir="alur">Alur Pencairan</button>
+          <button type="button" data-gulir="profil-pm">Profil PM</button>
           <button type="button" data-gulir="modul">Modul</button>
           <button type="button" data-gulir="keamanan">Keamanan Data</button>
         </nav>
@@ -53,15 +73,17 @@ export async function render(el) {
 
     <section class="lp-hero">
       <div class="aurora terang" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="lp-wadah lp-kp-wadah">
+        <span class="pill">Portal Kerja Internal RSTSKPO</span>
+        ${kepanjangan()}
+      </div>
       <div class="lp-wadah">
         <div class="rv">
-          <span class="pill">Portal Kerja Internal RSTSKPO</span>
           <h1><span class="hl hl-sapu">Satu data</span> untuk setiap langkah pelayanan.</h1>
-          <p class="lead"><strong>Sistem Integrasi Data dan Informasi Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang.</strong> Terpadu dari asesmen, usulan BNBA, pengusulan SK, pencairan bantuan ATENSI, hingga Supermonev.</p>
+          <p class="lead">Terpadu dari asesmen, usulan BNBA, pengusulan SK, pencairan bantuan ATENSI, hingga Supermonev.</p>
           <div class="lp-hero-aksi">
             <button type="button" class="btn btn-primary btn-lg" data-masuk>${logoGoogle} Masuk dengan Google</button>
-            <button type="button" class="btn btn-secondary btn-lg" data-gulir="profil-pm">Profil 1 Orang 1 Profil ${raw(ikon('arrow-right', 18, 'arah'))}</button>
-            <button type="button" class="btn btn-ghost btn-lg" data-gulir="waktu">Alur 11 Tahap</button>
+            <a class="btn btn-secondary btn-lg btn-kemensos" href="#/masuk?cara=kemensos" data-masuk-kemensos>${raw(ikon('mail', 20))} Masuk dengan Akun Kemensos</a>
           </div>
           <p class="lp-catatan">${raw(ikon('lock', 18))} Akses internal terbatas — hanya untuk pegawai dan petugas yang terdaftar di Direktorat.</p>
         </div>

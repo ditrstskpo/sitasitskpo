@@ -1,0 +1,51 @@
+/* v2.10.0 — Halaman depan: kepanjangan SITASI TSKPO di atas judul, dua warna, tiap kata maju–mundur bergantian.
+   Baris 1: huruf latin bersambung (Lobster) bergradasi hijau → emas. Baris 2: Montserrat tebal biru. */
+.lp-hero .lp-kp-wadah { display: block; text-align: center; margin-bottom: 30px; }
+.lp-kp { position: relative; isolation: isolate; margin: 14px auto 0; }
+/* cahaya hangat lembut yang menyapu di belakang tulisan */
+.lp-kp::before {
+  content: ''; position: absolute; z-index: -1; top: -20%; bottom: -20%; left: -30%; width: 34%;
+  background: radial-gradient(closest-side, rgba(255,226,140,.55), rgba(255,236,170,.22) 60%, rgba(255,236,170,0));
+  filter: blur(6px); animation: kp-sorot 7s cubic-bezier(.45,.05,.35,1) infinite;
+}
+.lp-kp p { margin: 0; text-wrap: balance; }
+.lp-kp-1 { font-family: 'Lobster', 'Lobster Two', 'Brush Script MT', cursive; font-weight: 400; font-size: clamp(2.25rem, 1rem + 3.4vw, 4.25rem); line-height: 1.18; letter-spacing: .005em; }
+.lp-kp-2 { font-family: 'Montserrat', 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: clamp(1.15rem, .62rem + 1.45vw, 2rem); line-height: 1.32; color: #004AAD;
+  max-width: 34em; margin: 6px auto 0 !important; }
+.kp-kata { display: inline-block; margin: 0 .07em; transform-origin: 50% 70%; will-change: transform; animation: kp-maju 6.4s cubic-bezier(.36,.07,.3,1) infinite; animation-delay: calc(var(--i) * .2s); }
+/* tiap kata baris 1 punya potongan gradasinya sendiri sehingga satu baris tampak bergradasi utuh */
+.lp-kp-1 .kp-kata {
+  padding: 0 .04em .12em; margin: 0 .03em;   /* ruang untuk ekor huruf bersambung agar tidak terpotong */
+  background: linear-gradient(90deg, var(--c0), var(--c1)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(40,70,10,.30)) drop-shadow(0 4px 6px rgba(20,40,10,.14));
+}
+.lp-kp-2 .kp-kata { filter: drop-shadow(0 1px 0 rgba(0,40,100,.18)) drop-shadow(0 3px 5px rgba(0,40,100,.10)); }
+/* maju (mendekat & lebih terang) → mundur sedikit → kembali */
+@keyframes kp-maju {
+  0%, 26%, 100% { transform: perspective(600px) translate3d(0, 0, 0); }
+  7% { transform: perspective(600px) translate3d(0, -3px, 30px); }
+  15% { transform: perspective(600px) translate3d(0, 1px, -16px); }
+}
+@keyframes kp-sorot { 0% { left: -30%; opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .kp-kata, .lp-kp::before { animation: none; } .lp-kp::before { display: none; } }
+/* kolom judul & tombol dimulai tepat di bawah kepanjangan */
+.lp-hero .lp-wadah:not(.lp-kp-wadah) { align-items: start; }
+/* judul "Satu data…" sedikit lebih kecil agar kepanjangan menjadi tulisan terbesar */
+.lp-hero h1 { font-size: clamp(2.1rem, 3.4vw, 3.25rem); margin-top: 0; }
+
+/* tombol masuk akun Kemensos di samping tombol Google */
+.lp-hero-aksi .btn-kemensos { gap: 10px; }
+.lp-hero-aksi .btn-kemensos .ik { color: var(--hijau); }
+
+/* halaman Masuk: sorot formulir akun Kemensos bila datang dari tombol "Masuk dengan Akun Kemensos" */
+[data-form-email].sorot { border-radius: 16px; box-shadow: 0 0 0 3px rgba(23,130,74,.25); padding: 12px; margin: -12px; transition: box-shadow .3s; }
+.em-aksi { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.em-aksi .btn { flex: none; }
+.em-info { line-height: 1.5; }
+
+/* kolom kiri hero sedikit lebih lebar agar dua tombol masuk muat dalam satu baris */
+@media (min-width: 1024px) {
+  .lp-hero .lp-wadah { grid-template-columns: 1.14fr .86fr; gap: 48px; }
+  .lp-hero-aksi { flex-wrap: nowrap; }
+  .lp-hero-aksi .btn-lg { padding-inline: 20px; font-size: 1rem; white-space: nowrap; }
+}

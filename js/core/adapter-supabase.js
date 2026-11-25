@@ -36,14 +36,35 @@ export async function masukGoogle() {
   if (error) throw error;
 }
 /** Login tanpa Google: kode sekali pakai (OTP) dikirim ke email Kemensos. Hanya email terdaftar yang dapat masuk. */
+/** Terjemahkan galat Supabase Auth (login kode email) menjadi penyebab + jalan keluar dalam bahasa Indonesia. */
+export function galatKodeEmail(e) {
+  const m = String(e?.message || e || ''), k = String(e?.code || ''), st = e?.status;
+  const tunggu = /after (\d+) seconds?/i.exec(m);
+  let pesan;
+  if (k === 'email_address_not_authorized' || /not authori[sz]ed/i.test(m))
+    pesan = 'Email Kemensos ditolak oleh server email bawaan Supabase (hanya mengirim ke anggota tim Supabase). Super Admin perlu mengaktifkan SMTP sendiri — lihat Panduan 2.10.0, Langkah 2.';
+  else if (tunggu) pesan = `Demi keamanan, kode baru dapat diminta lagi setelah ${tunggu[1]} detik. Gunakan kode yang sudah dikirim, atau tunggu sebentar.`;
+  else if (k === 'over_email_send_rate_limit' || /email rate limit/i.test(m))
+    pesan = 'Batas kirim email per jam di Supabase sudah tercapai. Tunggu beberapa menit, atau Super Admin menaikkan batasnya di Authentication → Rate Limits.';
+  else if (k === 'over_request_rate_limit' || st === 429 || /rate limit|too many/i.test(m)) pesan = 'Terlalu banyak percobaan dari jaringan ini. Tunggu beberapa menit lalu coba lagi.';
+  else if (/error sending|smtp|535|authentication (failed|unsuccessful)|connection refused|timeout/i.test(m))
+    pesan = 'Server email (SMTP) gagal mengirim kode. Super Admin: periksa pengaturan SMTP di Supabase (host, port, nama pengguna, sandi aplikasi).';
+  else if (k === 'signup_disabled' || /signups? not allowed/i.test(m))
+    pesan = 'Supabase menolak membuat akun baru lewat email. Super Admin: izinkan pendaftaran pengguna baru di Authentication → Sign In / Providers.';
+  else if (k === 'email_provider_disabled' || k === 'otp_disabled' || /provider is disabled|otp.*disabled/i.test(m))
+    pesan = 'Login email belum diaktifkan di Supabase. Super Admin: nyalakan Email di Authentication → Sign In / Providers.';
+  else if (k === 'otp_expired' || /expired|invalid/i.test(m)) pesan = 'Kode salah atau sudah kedaluwarsa. Tekan "Kirim ulang kode" untuk mendapatkan kode baru.';
+  else pesan = m || 'Login email gagal. Silakan coba lagi.';
+  return Object.assign(new Error(pesan), { code: k || e?.code, asli: m });
+}
 export async function kirimKodeEmail(email) {
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
-  if (error) throw error;
+  if (error) throw galatKodeEmail(error);
   return { ok: true };
 }
 export async function masukDenganKode(email, kode) {
-  const { error } = await sb.auth.verifyOtp({ email, token: String(kode).replace(/\s/g, ''), type: 'email' });
-  if (error) throw error;
+  const { error } = await sb.auth.verifyOtp({ email, token: String(kode).replace(/\D/g, ''), type: 'email' });
+  if (error) throw galatKodeEmail(error);
   sessionStorage.setItem('sitasi:baru-login', '1');
   location.replace(location.origin + location.pathname);
 }

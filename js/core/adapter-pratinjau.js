@@ -147,7 +147,13 @@ export async function masukGoogle(email) {
   location.replace(location.pathname + '?pratinjau=masuk');
 }
 // Login email Kemensos (pratinjau): kode contoh selalu 123456
-export async function kirimKodeEmail() { await tunggu(300); return { ok: true }; }
+let kodeTerakhir = 0;
+export async function kirimKodeEmail() {
+  await tunggu(300);
+  const sisa = Math.ceil((kodeTerakhir + 60_000 - Date.now()) / 1000);
+  if (sisa > 0) throw galat(`Demi keamanan, kode baru dapat diminta lagi setelah ${sisa} detik. Gunakan kode yang sudah dikirim, atau tunggu sebentar.`);
+  kodeTerakhir = Date.now(); return { ok: true };
+}
 export async function masukDenganKode(email, kode) {
   await tunggu(300);
   if (String(kode).trim() !== '123456') throw galat('Kode salah atau sudah kedaluwarsa. Di mode pratinjau kodenya 123456.');

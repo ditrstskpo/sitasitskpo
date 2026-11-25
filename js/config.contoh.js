@@ -21,10 +21,12 @@ export const CONFIG = {
 
   // Domain email yang boleh memakai login kode lewat email (tanpa Google).
   DOMAIN_EMAIL: ['kemensos.go.id', 'kemsos.go.id'],
+  // Jumlah angka kode masuk lewat email. Samakan dengan Supabase → Authentication → Sign In / Providers → Email → Email OTP Length (disarankan 6).
+  PANJANG_KODE_EMAIL: 6,
 
   // Keluar otomatis bila tidak ada aktivitas selama sekian jam (bawaan 4).
   IDLE_JAM: 4,
-  VERSI: '2.9.0',
+  VERSI: '2.10.0',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
   LOGO: 'assets/logo-sitasi.png',
