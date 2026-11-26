@@ -1,9 +1,9 @@
-// v2.9.0 — Cetak / simpan PDF profil PM lengkap (semua bagian, bukan hanya tab yang terbuka). Data sensitif disamarkan.
+// v2.9.0 — Cetak / simpan PDF profil PM lengkap (semua bagian, bukan hanya tab yang terbuka). NIK lengkap untuk keperluan instansi; No. KK & rekening disamarkan.
 import { html, raw, angka, tanggal } from '../core/util.js';
 import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_BNBA, STATUS_USULAN, infoTahap, URUT_TAHAP, rupiah, usia } from '../core/bnba.js';
 
 const samarNik = (n) => (n && n.length >= 8 ? n.slice(0, 4) + '••••••••' + n.slice(-4) : n || '—');
-export function cetakProfil({ d, smv, nikPenuh = false }) {
+export function cetakProfil({ d, smv, nikPenuh = true }) {
   const b = d.bnba, u = d.usulan || {}, nik = nikPenuh ? b.nik : samarNik(b.nik);
   const nilai = (c) => {
     if (c.k === 'usia') return usia(b.tgl_lahir) !== '' ? usia(b.tgl_lahir) + ' tahun' : '—';

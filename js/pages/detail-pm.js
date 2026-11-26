@@ -83,17 +83,17 @@ export async function render(el, { sesi: s, param: nik }) {
     if (tab === 'smv' || tab === 'cair') muatSmv();
     if (tab === 'diskusi') panelDiskusi(el.querySelector('[data-diskusi]'), { tabel: 'bnba', ref: b.id }).then((f) => { lepasDiskusi = f; });
   }
-  // Ekspor profil lengkap (1 orang 1 profil): PPTX atau cetak/PDF. Data sensitif disamarkan; NIK lengkap hanya bila dipilih.
+  // Ekspor profil lengkap (1 orang 1 profil): PPTX atau cetak/PDF. NIK tampil lengkap (keperluan instansi); bisa disamarkan bila berkas dibagikan keluar.
   async function bukaEkspor(jenis) {
     const m = bukaModal({ judul: jenis === 'pptx' ? 'Unduh Profil PM (PowerPoint)' : 'Cetak / Simpan PDF Profil PM', ukuran: 'kecil',
-      isi: String(html`<p class="redup" style="margin-top:0">Berisi data dari awal sampai Supermonev: BNBA, 11 tahap SK, pencairan &amp; penyalur, dokumentasi, dan hasil monitoring.</p>
+      isi: String(html`<p class="redup" style="margin-top:0">Berisi data dari awal sampai Supermonev: BNBA, 11 tahap SK, pencairan &amp; penyalur, dokumentasi, dan hasil monitoring. Untuk keperluan internal instansi — NIK ditampilkan lengkap.</p>
         ${jenis === 'pptx' ? html`<label class="cek-pil" style="margin:6px 0"><input type="checkbox" data-ek-foto checked><span>Sertakan foto dokumentasi</span></label>` : ''}
-        <label class="cek-pil" style="margin:6px 0"><input type="checkbox" data-ek-nik><span>Tampilkan NIK lengkap (bawaan: disamarkan)</span></label>
+        <label class="cek-pil" style="margin:6px 0"><input type="checkbox" data-ek-samar><span>Samarkan NIK (centang bila berkas akan dibagikan ke luar instansi)</span></label>
         <div class="galat" data-ek-progres hidden style="margin-top:12px"></div>`),
       kaki: String(html`<button type="button" class="btn btn-ghost" data-batal>Batal</button><button type="button" class="btn btn-primary" data-ek-ok>${raw(ikon(jenis === 'pptx' ? 'download' : 'printer', 18))} ${jenis === 'pptx' ? 'Unduh PPTX' : 'Cetak / PDF'}</button>`) });
     m.el.querySelector('[data-ek-ok]').onclick = async (ev) => {
       const pulih = tombolMuat(ev.currentTarget, 'Menyiapkan…');
-      const nikPenuh = m.el.querySelector('[data-ek-nik]').checked, foto = !!m.el.querySelector('[data-ek-foto]')?.checked;
+      const nikPenuh = !m.el.querySelector('[data-ek-samar]').checked, foto = !!m.el.querySelector('[data-ek-foto]')?.checked;
       try {
         const [smv, dok] = await Promise.all([api.smvRiwayatPm(b.id).catch(() => null), (jenis === 'pptx' && foto ? api.statusDokPm(b.id) : Promise.resolve(null)).catch(() => null)]);
         if (nikPenuh) await api.bnbaLengkap(nik).catch(() => null);   // tercatat di audit log

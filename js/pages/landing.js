@@ -34,10 +34,17 @@ const MODUL = [
   ['lks', 'Data LKS, Aster & Manajemen Internal', 'Pemetaan LKS TSKPO di 38 provinsi, data Aster, kepegawaian, jadwal pegawai, dokumen, dan komunikasi antar-Pokja.', 'Peta 38 provinsi · Jadwal pegawai'],
 ];
 
+// Kolase foto pudar bertumpuk di kiri tulisan (potongan dari desain pengguna + ilustrasi antrean imigrasi;
+// dibuat oleh tools/buat_kolase.py & tools/buat_antrean.py). Tanpa diamond & titik-titik dekorasi.
+function kolase() {
+  const f = (k) => `<img class="kl kl-${k}" src="assets/kolase/${k}.webp" alt="" decoding="async">`;
+  return raw(`<div class="lp-kolase" aria-hidden="true">${['konseling', 'menangis', 'borgol', 'pengemis', 'antrean'].map(f).join('')}</div>`);
+}
+
 // ---------------------------------------------------------------- kepanjangan SITASI TSKPO (v2.10.0)
 // Baris 1 huruf latin bersambung bergradasi hijau → emas; baris 2 biru tebal. Setiap kata maju–mundur bergantian (gelombang).
 const KP1 = 'Sistem Integrasi Data dan Informasi';
-const KP2 = 'Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang';
+const KP2 = ['Direktorat Rehabilitasi Sosial', 'Tuna Sosial dan Korban Perdagangan Orang'];   // dua baris tetap, masing-masing tidak terputus
 const AWAL = [10, 168, 26], AKHIR = [201, 166, 62];   // #0AA81A → #C9A63E (sedikit lebih pekat dari contoh agar tetap terbaca di latar putih)
 const campur = (t) => '#' + AWAL.map((a, k) => Math.round(a + (AKHIR[k] - a) * t).toString(16).padStart(2, '0')).join('');
 function kepanjangan() {
@@ -46,11 +53,32 @@ function kepanjangan() {
     const t0 = pos / KP1.length, t1 = (pos + k.length) / KP1.length; pos += k.length + 1;
     return `<span class="kp-kata" style="--i:${i};--c0:${campur(t0)};--c1:${campur(t1)}">${k}</span>`;
   }).join(' ');
-  const b2 = KP2.split(' ').map((k, i) => `<span class="kp-kata" style="--i:${kata1.length + i}">${k}</span>`).join(' ');
-  return raw(`<div class="lp-kp" role="group" aria-label="SITASI TSKPO: ${KP1} ${KP2}">
-          <p class="lp-kp-1">${b1}</p>
+  let n = kata1.length;
+  const b2 = KP2.map((baris) => `<span class="kp-baris">${baris.split(' ').map((k) => `<span class="kp-kata" style="--i:${n++}">${k}</span>`).join(' ')}</span>`).join(' ');
+  return raw(`<div class="lp-kp" role="group" aria-label="SITASI TSKPO: ${KP1} ${KP2.join(' ')}">
+          <p class="lp-kp-1"><span class="kp-baris">${b1}</span></p>
           <p class="lp-kp-2">${b2}</p>
         </div>`);
+}
+
+// Kepanjangan: tiap baris (.kp-baris) tetap sebaris utuh. Bila kolom lebih sempit dari tulisan, ukuran huruf dikecilkan seperlunya.
+function pasKepanjangan(el) {
+  const ps = [...el.querySelectorAll('.lp-kp-1, .lp-kp-2')]; if (!ps.length) return;
+  const lalu = new WeakMap();
+  const atur = (p, paksa) => {
+    const lebar = p.clientWidth; if (!lebar || (!paksa && lebar === lalu.get(p))) return; lalu.set(p, lebar);
+    p.style.fontSize = '';
+    const baris = [...p.querySelectorAll('.kp-baris')];
+    if (!baris.length || getComputedStyle(baris[0]).whiteSpace !== 'nowrap') return;   // di HP baris 1 boleh turun
+    const maks = parseFloat(getComputedStyle(p).fontSize), terlebar = Math.max(...baris.map((b) => b.offsetWidth));
+    if (terlebar > lebar) p.style.fontSize = Math.max(11, Math.floor(maks * (lebar / terlebar) * 0.98 * 10) / 10) + 'px';
+  };
+  // judul "Satu data untuk setiap langkah pelayanan" selalu lebih kecil daripada baris "Sistem Integrasi Data dan Informasi"
+  const ikatJudul = () => { const p1 = el.querySelector('.lp-kp-1'), w = el.querySelector('.lp-hero-teks'); if (p1 && w) w.style.setProperty('--kp1', getComputedStyle(p1).fontSize); };
+  const semua = (paksa) => { ps.forEach((p) => atur(p, paksa)); ikatJudul(); };
+  semua(true);
+  document.fonts?.ready?.then(() => semua(true));
+  if ('ResizeObserver' in window) { const ro = new ResizeObserver(() => semua(false)); ps.forEach((p) => ro.observe(p)); }
 }
 
 export async function render(el) {
@@ -73,13 +101,12 @@ export async function render(el) {
 
     <section class="lp-hero">
       <div class="aurora terang" aria-hidden="true"><i></i><i></i><i></i></div>
-      <div class="lp-wadah lp-kp-wadah">
-        <span class="pill">Portal Kerja Internal RSTSKPO</span>
-        ${kepanjangan()}
-      </div>
-      <div class="lp-wadah">
-        <div class="rv">
-          <h1><span class="hl hl-sapu">Satu data</span> untuk setiap langkah pelayanan.</h1>
+      <div class="lp-hero-tiga">
+        ${kolase()}
+        <div class="rv lp-hero-teks">
+          <span class="pill">Portal Kerja Internal RSTSKPO</span>
+          ${kepanjangan()}
+          <h1>Satu data untuk setiap langkah pelayanan.</h1>
           <p class="lead">Terpadu dari asesmen, usulan BNBA, pengusulan SK, pencairan bantuan ATENSI, hingga Supermonev.</p>
           <div class="lp-hero-aksi">
             <button type="button" class="btn btn-primary btn-lg" data-masuk>${logoGoogle} Masuk dengan Google</button>
@@ -107,7 +134,7 @@ export async function render(el) {
             <span class="pill">Unggulan</span>
             <h2 id="judul-profil"><span class="hl hl-sapu">1 Orang 1 Profil</span> — dari BNBA sampai Supermonev</h2>
             <p>Setiap penerima manfaat punya satu profil yang menyatukan seluruh perjalanannya: data BNBA, 11 tahap pengusulan SK, pencairan dan petugas penyalur, foto dokumentasi, hingga hasil monitoring pascapenyaluran. Cukup satu tombol di <b>Detail PM</b> untuk mengunduhnya sebagai <b>PowerPoint (PPTX)</b> atau <b>PDF</b>.</p>
-            <div class="lp-profil-ekspor"><span class="badge b-gold">${raw(ikon('presentation', 15))} PPTX</span><span class="badge b-ok">${raw(ikon('printer', 15))} PDF</span><span class="badge b-draft">${raw(ikon('eye-off', 15))} NIK disamarkan</span></div>
+            <div class="lp-profil-ekspor"><span class="badge b-gold">${raw(ikon('presentation', 15))} PPTX</span><span class="badge b-ok">${raw(ikon('printer', 15))} PDF</span></div>
           </div>
           <ol class="lp-profil-alur" aria-label="Perjalanan satu profil">
             <li><b>BNBA</b><small>Profil, alamat, ekonomi awal</small></li>
@@ -256,6 +283,7 @@ export async function render(el) {
     if (t.matches('[data-bantuan]')) bantuan();
   });
   pasangReveal(el);
+  pasKepanjangan(el);
 }
 
 function bantuan() {

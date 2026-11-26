@@ -1,7 +1,6 @@
 /* v2.10.0 — Halaman depan: kepanjangan SITASI TSKPO di atas judul, dua warna, tiap kata maju–mundur bergantian.
    Baris 1: huruf latin bersambung (Lobster) bergradasi hijau → emas. Baris 2: Montserrat tebal biru. */
-.lp-hero .lp-kp-wadah { display: block; text-align: center; margin-bottom: 30px; }
-.lp-kp { position: relative; isolation: isolate; margin: 14px auto 0; }
+.lp-kp { position: relative; isolation: isolate; margin: 16px auto 22px; text-align: center; }
 /* cahaya hangat lembut yang menyapu di belakang tulisan */
 .lp-kp::before {
   content: ''; position: absolute; z-index: -1; top: -20%; bottom: -20%; left: -30%; width: 34%;
@@ -10,8 +9,11 @@
 }
 .lp-kp p { margin: 0; text-wrap: balance; }
 .lp-kp-1 { font-family: 'Lobster', 'Lobster Two', 'Brush Script MT', cursive; font-weight: 400; font-size: clamp(2.25rem, 1rem + 3.4vw, 4.25rem); line-height: 1.18; letter-spacing: .005em; }
-.lp-kp-2 { font-family: 'Montserrat', 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: clamp(1.15rem, .62rem + 1.45vw, 2rem); line-height: 1.32; color: #004AAD;
-  max-width: 34em; margin: 6px auto 0 !important; }
+.lp-kp-2 { font-family: 'Montserrat', 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-size: clamp(1.05rem, .5rem + 1.15vw, 1.6rem); line-height: 1.34; color: #004AAD;
+  margin-top: 6px !important; text-wrap: nowrap !important; }
+/* tiap baris kepanjangan tidak terputus: "Sistem Integrasi Data dan Informasi" / "Direktorat Rehabilitasi Sosial" / "Tuna Sosial dan Korban Perdagangan Orang" */
+.kp-baris { display: block; width: max-content; max-width: none; white-space: nowrap; margin-inline: auto; }
+@media (max-width: 699px) { .lp-kp-1 .kp-baris { width: auto; white-space: normal; } }
 .kp-kata { display: inline-block; margin: 0 .07em; transform-origin: 50% 70%; will-change: transform; animation: kp-maju 6.4s cubic-bezier(.36,.07,.3,1) infinite; animation-delay: calc(var(--i) * .2s); }
 /* tiap kata baris 1 punya potongan gradasinya sendiri sehingga satu baris tampak bergradasi utuh */
 .lp-kp-1 .kp-kata {
@@ -28,10 +30,8 @@
 }
 @keyframes kp-sorot { 0% { left: -30%; opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .kp-kata, .lp-kp::before { animation: none; } .lp-kp::before { display: none; } }
-/* kolom judul & tombol dimulai tepat di bawah kepanjangan */
-.lp-hero .lp-wadah:not(.lp-kp-wadah) { align-items: start; }
 /* judul "Satu data…" sedikit lebih kecil agar kepanjangan menjadi tulisan terbesar */
-.lp-hero h1 { font-size: clamp(2.1rem, 3.4vw, 3.25rem); margin-top: 0; }
+.lp-hero h1 { font-size: clamp(2rem, 2.9vw, 2.85rem); margin-top: 0; }
 
 /* tombol masuk akun Kemensos di samping tombol Google */
 .lp-hero-aksi .btn-kemensos { gap: 10px; }
@@ -43,9 +43,62 @@
 .em-aksi .btn { flex: none; }
 .em-info { line-height: 1.5; }
 
-/* kolom kiri hero sedikit lebih lebar agar dua tombol masuk muat dalam satu baris */
-@media (min-width: 1024px) {
-  .lp-hero .lp-wadah { grid-template-columns: 1.14fr .86fr; gap: 48px; }
-  .lp-hero-aksi { flex-wrap: nowrap; }
-  .lp-hero-aksi .btn-lg { padding-inline: 20px; font-size: 1rem; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- v2.10.1 — pita hijau "1 Orang 1 Profil" selebar layar */
+.lp-profil { padding: 0; margin: 12px 0 40px; background: linear-gradient(135deg, #0B3B2A 0%, #0F5A3A 45%, #17824A 100%); position: relative; overflow: hidden; }
+.lp-profil::before { content: ''; position: absolute; inset: -40% auto auto -10%; width: 55%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(closest-side, rgba(242,201,76,.16), transparent); pointer-events: none; }
+.lp-profil .lp-profil-kartu { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 56px 0; position: relative; }
+@media (max-width: 860px) { .lp-profil .lp-profil-kartu { padding: 36px 0; } }
+/* menu atas: tautan tidak patah baris; di bawah 1024 px disembunyikan (seperti di HP) agar tidak berdesakan */
+.lp-tautan button { white-space: nowrap; }
+@media (max-width: 1023px) { .lp-tautan { display: none !important; } .lp-nav-aksi { margin-left: auto; } }
+
+/* ---------------------------------------------------------------- v2.10.3 — bagian atas 3 kolom
+   Kiri: kolase foto pudar bertumpuk. Tengah: tulisan (rata tengah). Kanan: foto gedung Kemensos (bentuk awal, tidak memanjang).
+   Ketiganya mulai sejajar dengan label "Portal Kerja Internal". */
+.lp-hero { overflow-x: clip; }
+.lp-hero-tiga { position: relative; width: min(1720px, calc(100% - 40px)); margin: 0 auto; display: grid; gap: 28px;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; }
+.lp-hero-teks { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+.lp-hero-teks .pill { align-self: center; }
+.lp-hero-teks > .lp-kp { align-self: stretch; width: 100%; }
+/* judul "Satu data…" selalu lebih kecil daripada baris Lobster (--kp1 diisi skrip dari ukuran baris Lobster) */
+.lp-hero-teks h1 { margin-inline: auto; text-wrap: balance; font-size: min(clamp(1.55rem, 2.1vw, 2.35rem), calc(var(--kp1, 64px) * .68)); line-height: 1.15; }
+.lp-hero-teks .lead { margin-inline: auto; max-width: 36em; }
+.lp-hero-teks .lp-hero-aksi { justify-content: center; flex-wrap: wrap; }
+.lp-hero-teks .lp-catatan { justify-content: center; text-align: left; }
+.lp-hero-aksi .btn-lg { padding-inline: 20px; font-size: 1rem; white-space: nowrap; }
+
+/* layar 1180–1399 px (mis. laptop 13"): kolom tengah sedikit lebih lebar & tombol sedikit lebih ringkas agar tetap sebaris */
+@media (min-width: 1180px) and (max-width: 1399px) {
+  .lp-hero-tiga { grid-template-columns: minmax(0, .82fr) minmax(0, 1.6fr) minmax(0, .9fr); gap: 22px; }
+  .lp-hero-teks .lp-hero-aksi { gap: 10px; }
+  .lp-hero-aksi .btn-lg { padding-inline: 15px; font-size: .9375rem; }
+}
+
+/* kolase: posisi & ukuran memakai satuan lebar kolase (cqw) → proporsi sama di semua layar.
+   Tepi kanan & bawah memudar halus ke latar agar menyatu dengan tulisan. */
+.lp-kolase { position: relative; container-type: inline-size; aspect-ratio: 100 / 132; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, #000 78%, transparent 100%), linear-gradient(to bottom, #000 86%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, #000 78%, transparent 100%), linear-gradient(to bottom, #000 86%, transparent 100%); mask-composite: intersect; }
+.lp-kolase .kl { position: absolute; display: block; height: auto; user-select: none; opacity: .84; }
+.kl-konseling { left: 0; top: 0; width: 60cqw; z-index: 1; }
+.kl-menangis { left: 50cqw; top: 4cqw; width: 50cqw; z-index: 1; }
+.kl-antrean { left: 4cqw; top: 35cqw; width: 92cqw; z-index: 3; opacity: .86; }
+.kl-borgol { left: 0; top: 88cqw; width: 52cqw; z-index: 2; }
+.kl-pengemis { left: 44cqw; top: 82cqw; width: 56cqw; z-index: 2; }
+
+/* foto gedung: bentuk awal (lebar, hampir persegi), tidak memanjang */
+.lp-hero-tiga > .lp-foto { max-width: 540px; width: 100%; justify-self: center; aspect-ratio: 5 / 5.2; height: auto; }
+
+/* layar sedang: tulisan di atas, lalu kolase & foto gedung berdampingan */
+@media (max-width: 1179px) {
+  .lp-hero-tiga { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); width: min(920px, calc(100% - 32px)); align-items: center; }
+  .lp-hero-teks { grid-column: 1 / -1; order: -1; }
+}
+/* HP: tulisan, foto gedung, lalu kolase */
+@media (max-width: 699px) {
+  .lp-hero-tiga { grid-template-columns: minmax(0, 1fr); }
+  .lp-hero-tiga > .lp-foto { aspect-ratio: 4 / 3.4; }
+  .lp-kolase { order: 2; width: min(100%, 420px); justify-self: center; }
 }

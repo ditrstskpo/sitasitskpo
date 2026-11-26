@@ -1,5 +1,5 @@
 // v2.9.0 — Profil PM lengkap (1 orang = 1 profil) sebagai PPTX: dari BNBA, 11 tahap SK, pencairan, dokumentasi, sampai Supermonev.
-// Data sensitif disamarkan (NIK, No. KK, rekening) kecuali pengguna memilih menampilkan NIK lengkap.
+// Untuk keperluan internal instansi: NIK tampil lengkap (bisa disamarkan bila dipilih). No. KK & rekening tetap disamarkan.
 import { angka, tanggal } from '../core/util.js';
 import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_BNBA, STATUS_USULAN, infoTahap, URUT_TAHAP, rupiah, usia } from '../core/bnba.js';
 import { namaUnduhan } from '../core/komp.js';
@@ -12,7 +12,7 @@ const potong = (t, n) => { t = String(t ?? '—'); return t.length > n ? t.slice
 const label = (m, k) => (m && m[k] && (m[k].l || m[k].label)) || k;
 
 /** d = api.bnbaPerNik · smv = api.smvRiwayatPm · dok = api.statusDokPm (boleh null) · opsi { foto, nikPenuh } */
-export async function unduhProfilPptx({ d, smv, dok, foto = true, nikPenuh = false, progres }) {
+export async function unduhProfilPptx({ d, smv, dok, foto = true, nikPenuh = true, progres }) {
   const { muatPptx, blobKeData, fotoData } = await import('./smv-ekspor.js');
   const Pptx = await muatPptx(); const p = new Pptx();
   const b = d.bnba, u = d.usulan || {};
@@ -86,7 +86,7 @@ export async function unduhProfilPptx({ d, smv, dok, foto = true, nikPenuh = fal
   kotak(s, 0.4, 1.3, 4.1, 5.6, GRUP.profil.replace(/ \(.*\)$/, '')); tabelKv(s, barisGrup('profil'), 0.55, 1.75, 3.8, { maks: 14, ukuran: 10 });
   kotak(s, 4.65, 1.3, 4.1, 5.6, 'Alamat KTP'); tabelKv(s, barisGrup('ktp'), 4.8, 1.75, 3.8, { maks: 14, ukuran: 10 });
   kotak(s, 8.9, 1.3, 4.03, 5.6, 'Alamat domisili & umum'); tabelKv(s, [...barisGrup('dom'), ...barisGrup('umum')], 9.05, 1.75, 3.73, { maks: 14, ukuran: 10 });
-  kaki(s, 'Data sensitif (NIK, No. KK, rekening) disamarkan.');
+  kaki(s, nikPenuh ? 'Dokumen internal instansi — tidak untuk disebarluaskan. No. KK dan rekening disamarkan.' : 'NIK, No. KK, dan rekening disamarkan.');
 
   // ---- 3. intervensi & ekonomi
   s = p.addSlide(); kepala(s, '2 · Rencana Intervensi & Ekonomi Awal', '');

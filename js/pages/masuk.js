@@ -117,6 +117,7 @@ function pasangMasukEmail(el) {
     } catch (err) {
       pulih(); btn.textContent = tahap === 1 ? 'Kirim kode ke email' : 'Masuk';
       if (tahap === 2) { kode.select(); }
+      else info.innerHTML = String(html`<b style="color:var(--merah,#B42318)">Kode belum terkirim.</b> ${pesanGalat(err)}${err?.asli && err.asli !== pesanGalat(err) ? html`<br><span style="font-size:.75rem">Detail teknis (untuk dilaporkan): ${err.asli}${err.code ? ` · ${err.code}` : ''}</span>` : ''}`);
       toast(pesanGalat(err), 'galat', tahap === 1 ? 'Kode belum terkirim' : 'Kode tidak cocok');
     }
     sibuk = false;
