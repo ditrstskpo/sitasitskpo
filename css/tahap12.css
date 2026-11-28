@@ -102,3 +102,51 @@
   .lp-hero-tiga > .lp-foto { aspect-ratio: 4 / 3.4; }
   .lp-kolase { order: 2; width: min(100%, 420px); justify-self: center; }
 }
+
+/* ---------------------------------------------------------------- v2.11.0 — "Sistem Integrasi Data dan Informasi" jauh lebih besar
+   Kolom tengah dilebarkan (kolase & foto gedung sedikit mengecil, bentuknya tetap) supaya baris Lobster yang sebaris itu
+   mendapat ruang lebih; judul "Satu data untuk setiap langkah pelayanan" dibatasi ±52% ukuran baris Lobster. */
+.lp-kp-1 { font-size: clamp(2.5rem, 1rem + 4.2vw, 5.5rem); }
+.lp-hero-teks h1 { font-size: min(clamp(1.4rem, 1.85vw, 2.1rem), calc(var(--kp1, 64px) * .52)); }
+@media (min-width: 1400px) {
+  .lp-hero-tiga { grid-template-columns: minmax(0, .78fr) minmax(0, 1.85fr) minmax(0, .86fr); gap: 26px; }
+}
+@media (min-width: 1180px) and (max-width: 1399px) {
+  .lp-hero-tiga { grid-template-columns: minmax(0, .7fr) minmax(0, 1.95fr) minmax(0, .8fr); gap: 20px; }
+}
+
+/* ---------------------------------------------------------------- v2.11.0 — grafik Supermonev per minggu (satu PM) */
+.grafik-minggu { margin: 0; }
+.grafik-minggu svg { width: 100%; height: auto; display: block; overflow: visible; }
+.gm-grid { stroke: var(--garis-halus, #EEF1F4); stroke-width: 1; }
+.gm-sumbu { font: 500 12px var(--font, system-ui); fill: var(--redup, #66717E); }
+.gm-sumbu.redup { font-size: 11px; fill: #8A96A3; }
+.gm-dasar { stroke: #8A96A3; stroke-width: 2; stroke-dasharray: 6 5; }
+.gm-label-dasar { font: 500 12px var(--font, system-ui); fill: var(--redup, #66717E); }
+.gm-label-dasar.kuat { font-weight: 700; fill: var(--teks, #142033); }
+.gm-garis { fill: none; stroke: var(--hijau, #17824A); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.gm-titik circle { fill: var(--hijau, #17824A); stroke: var(--kartu, #fff); stroke-width: 1.5; transition: r .15s var(--ease, ease); }
+.gm-batang { fill: var(--hijau, #17824A); }
+.gm-k-batang { width: 12px; height: 12px; background: var(--hijau, #17824A); border-radius: 3px; }
+.gm-titik circle.kosong { fill: var(--kartu, #fff); stroke: #B7C0CA; stroke-width: 1.5; }
+.gm-titik:hover circle:not(.kosong) { r: 7; }
+.gm-sentuh { fill: transparent; }
+.gm-nilai { font: 700 13px var(--font, system-ui); fill: var(--teks, #142033); }
+.grafik-minggu figcaption { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: .8125rem; margin-top: 8px; color: var(--teks, #142033); }
+.gm-kunci { display: inline-flex; align-items: center; gap: 6px; }
+.gm-k-garis { width: 18px; height: 3px; background: var(--hijau, #17824A); border-radius: 2px; }
+.gm-k-dasar { width: 18px; height: 0; border-top: 2px dashed #8A96A3; }
+.linimasa-smv li.lm-sembunyi { display: none; }
+.linimasa-smv.semua li.lm-sembunyi { display: grid; }
+/* slide ke-3 (grafik per minggu dalam satu bulan) di pratinjau ekspor & cetak */
+.sl-isi.dua-satu { grid-template-columns: 1.75fr 1fr; }
+.sl-kotak.sl-grafik { align-content: stretch; grid-template-rows: auto minmax(0, 1fr); }
+.sl-kotak.sl-grafik .grafik-minggu { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+.sl-kotak.sl-grafik .grafik-minggu svg { height: 100%; min-height: 0; }
+.sl-kotak.sl-grafik .grafik-minggu figcaption { font-size: 1.1cqw; margin-top: .4cqw; gap: .4cqw 1.4cqw; }
+.sl-minggu { width: 100%; border-collapse: collapse; font-size: 1.15cqw; }
+.sl-minggu th, .sl-minggu td { text-align: left; padding: .45cqw .6cqw; border-bottom: 1px solid #EEF1F4; }
+.sl-minggu th { background: #F2F7F4; }
+.sl-minggu td.k { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sl-ringkas-bulan { display: grid; gap: .3cqw; padding: 1cqw 1.2cqw; border-radius: .9cqw; background: #F2F7F4; }
+.sl-ringkas-bulan b { font-size: 2cqw; color: #17824A; }

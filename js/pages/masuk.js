@@ -4,7 +4,11 @@ import { ikon } from '../core/icons.js';
 import { api, modePratinjau } from '../core/api.js';
 import { logo, logoGoogle, pasangReveal, toast, pesanGalat, tombolMuat } from '../core/ui.js';
 import { CONFIG } from '../config.js';
-const PANJANG_KODE = Math.min(10, Math.max(6, Number(CONFIG.PANJANG_KODE_EMAIL) || 6));   // panjang kode email (Supabase: Email OTP Length)
+const PANJANG_KODE = Math.min(10, Math.max(6, Number(CONFIG.PANJANG_KODE_EMAIL) || 6));   // panjang kode (Supabase: Email OTP Length)
+// v2.11.0: kode Akun Kemensos dikirim lewat WhatsApp (Send Email Hook). Isi KODE_MASUK_LEWAT: 'email' di config.js untuk kembali ke email.
+const LEWAT_WA = String(CONFIG.KODE_MASUK_LEWAT || 'whatsapp').toLowerCase() !== 'email';
+const SALURAN = LEWAT_WA ? 'WhatsApp' : 'email';
+const TOMBOL_KIRIM = `Kirim kode ke ${SALURAN}`;
 
 /** Mulai login Google. Di mode pratinjau, arahkan ke pemilih akun contoh. */
 export async function mulaiMasuk(tombol) {
@@ -31,16 +35,16 @@ export async function render(el) {
           <button type="button" class="btn btn-google btn-lg btn-block" data-masuk style="margin-top:12px">${logoGoogle} Masuk dengan Google</button>`}
         <div class="atau" style="display:flex;align-items:center;gap:12px;width:100%;margin:16px 0 8px;color:var(--teks-2,#66717E);font-size:.875rem"><hr style="flex:1;border:0;border-top:1px solid var(--garis,#D8DEE5)">atau<hr style="flex:1;border:0;border-top:1px solid var(--garis,#D8DEE5)"></div>
         <form data-form-email style="width:100%;text-align:left;display:grid;gap:10px" novalidate>
-          <label class="label" for="em-email">${raw(ikon('mail', 18))} Masuk dengan Akun Kemensos (tanpa Google)</label>
+          <label class="label" for="em-email">${raw(ikon('mail', 18))} Masuk dengan Akun Kemensos${LEWAT_WA ? ' (kode lewat WhatsApp)' : ' (tanpa Google)'}</label>
           <input id="em-email" class="input" type="email" inputmode="email" autocomplete="email" placeholder="nama@kemensos.go.id" data-em-email>
           <div data-em-kode-wadah hidden style="display:grid;gap:10px">
-            <label class="label" for="em-kode">Kode dari email</label>
+            <label class="label" for="em-kode">Kode dari ${SALURAN}</label>
             <input id="em-kode" class="input" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="${'1234567890'.slice(0, PANJANG_KODE)}" data-em-kode style="font-size:1.375rem;letter-spacing:.3em;font-weight:700;text-align:center">
             <div class="em-aksi"><button type="button" class="btn btn-ghost btn-sm" data-em-ulang disabled>${raw(ikon('refresh', 16))} Kirim ulang kode</button>
               <button type="button" class="btn btn-ghost btn-sm" data-em-ganti>${raw(ikon('pencil', 16))} Ganti email</button></div>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg btn-block" data-em-kirim>Kirim kode ke email</button>
-          <small class="redup em-info" data-em-info>Kode dikirim ke email Kemensos Anda (@kemensos.go.id / @kemsos.go.id). Hanya email yang sudah didaftarkan Super Admin yang dapat masuk.</small>
+          <button type="submit" class="btn btn-primary btn-lg btn-block" data-em-kirim>${TOMBOL_KIRIM}</button>
+          <small class="redup em-info" data-em-info>${LEWAT_WA ? 'Tulis email Kemensos Anda (@kemensos.go.id / @kemsos.go.id). Kode masuk dikirim ke nomor WhatsApp yang terdaftar untuk email itu.' : 'Kode dikirim ke email Kemensos Anda (@kemensos.go.id / @kemsos.go.id). Hanya email yang sudah didaftarkan Super Admin yang dapat masuk.'}</small>
         </form>
         <div class="info-card biru" style="text-align:left;margin-top:8px;width:100%">${raw(ikon('shield', 20))}
           <span>Hanya email yang terdaftar di daftar izin (allowlist) yang dapat masuk. Setiap login tercatat di log aktivitas.</span></div>
@@ -91,12 +95,15 @@ function pasangMasukEmail(el) {
     tulis();
     jam = setInterval(() => { detik -= 1; tulis(); if (detik <= 0) { clearInterval(jam); ulang.disabled = false; } }, 1000);
   };
-  const keTahap1 = () => { tahap = 1; clearInterval(jam); wadah.hidden = true; em.readOnly = false; kode.value = ''; btn.textContent = 'Kirim kode ke email'; info.textContent = 'Tulis email Kemensos Anda, lalu tekan Kirim kode.'; em.focus(); };
+  const keTahap1 = () => { tahap = 1; clearInterval(jam); wadah.hidden = true; em.readOnly = false; kode.value = ''; btn.textContent = TOMBOL_KIRIM; info.textContent = `Tulis email Kemensos Anda, lalu tekan ${TOMBOL_KIRIM}.`; em.focus(); };
   async function kirim(email) {
     await api.kirimKodeEmail(email);
     try { localStorage.setItem(KUNCI_EMAIL, email); } catch {}
     tahap = 2; wadah.hidden = false; em.readOnly = true; kode.value = ''; kode.focus(); btn.textContent = 'Masuk';
-    info.innerHTML = String(html`Kode sudah dikirim ke <b>${email}</b>. Biasanya tiba dalam kurang dari 1 menit di <b>Kotak Masuk</b> email Kemensos (Zimbra).
+    info.innerHTML = LEWAT_WA
+      ? String(html`Kode sudah dikirim ke <b>WhatsApp</b> yang terdaftar untuk <b>${email}</b>. Biasanya tiba dalam beberapa detik.
+      Tulis kodenya di atas — Anda langsung masuk begitu kode lengkap. Belum datang setelah 1 menit? Tekan <b>Kirim ulang kode</b>.`)
+      : String(html`Kode sudah dikirim ke <b>${email}</b>. Biasanya tiba dalam kurang dari 1 menit di <b>Kotak Masuk</b> email Kemensos.
       Tulis kodenya di atas — Anda langsung masuk begitu kode lengkap. Belum datang setelah 1 menit? Tekan <b>Kirim ulang kode</b>.`);
     hitungMundur(60);
   }
@@ -104,18 +111,18 @@ function pasangMasukEmail(el) {
     if (sibuk) return;
     const email = em.value.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Tulis alamat email dengan benar.', 'peringatan');
-    if (!domainOk(email)) return toast('Login kode email hanya untuk email Kemensos (@kemensos.go.id / @kemsos.go.id). Gunakan tombol Google untuk email lain.', 'peringatan');
+    if (!domainOk(email)) return toast('Masuk dengan Akun Kemensos hanya untuk email @kemensos.go.id / @kemsos.go.id. Gunakan tombol Google untuk email lain.', 'peringatan');
     sibuk = true;
     const pulih = tombolMuat(btn, tahap === 1 ? 'Mengirim kode…' : 'Memeriksa kode…');
     try {
       if (tahap === 1) { await kirim(email); pulih(); btn.textContent = 'Masuk'; }
       else {
         const k = kode.value.replace(/\D/g, '');
-        if (k.length < 6) { pulih(); btn.textContent = 'Masuk'; sibuk = false; return toast('Tulis kode dari email (minimal 6 angka).', 'peringatan'); }
+        if (k.length < 6) { pulih(); btn.textContent = 'Masuk'; sibuk = false; return toast(`Tulis kode dari ${SALURAN} (minimal 6 angka).`, 'peringatan'); }
         await api.masukDenganKode(email, k);
       }
     } catch (err) {
-      pulih(); btn.textContent = tahap === 1 ? 'Kirim kode ke email' : 'Masuk';
+      pulih(); btn.textContent = tahap === 1 ? TOMBOL_KIRIM : 'Masuk';
       if (tahap === 2) { kode.select(); }
       else info.innerHTML = String(html`<b style="color:var(--merah,#B42318)">Kode belum terkirim.</b> ${pesanGalat(err)}${err?.asli && err.asli !== pesanGalat(err) ? html`<br><span style="font-size:.75rem">Detail teknis (untuk dilaporkan): ${err.asli}${err.code ? ` · ${err.code}` : ''}</span>` : ''}`);
       toast(pesanGalat(err), 'galat', tahap === 1 ? 'Kode belum terkirim' : 'Kode tidak cocok');

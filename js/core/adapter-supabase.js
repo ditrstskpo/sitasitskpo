@@ -41,11 +41,15 @@ export function galatKodeEmail(e) {
   const m = String(e?.message || e || ''), k = String(e?.code || ''), st = e?.status;
   const tunggu = /after (\d+) seconds?/i.exec(m);
   let pesan;
-  if (k === 'email_address_not_authorized' || /not authori[sz]ed/i.test(m))
+  // Pesan dari hook "kirim_kode_masuk_wa" (sudah berbahasa Indonesia) ditampilkan apa adanya
+  if (/WhatsApp|SITASI TSKPO|Super Admin|Kepegawaian/.test(m)) pesan = m;
+  else if (/hook/i.test(m) || k.startsWith('hook'))
+    pesan = 'Pengiriman kode lewat WhatsApp gagal di server (Send Email Hook). Super Admin: buka Pengaturan → Notifikasi WA & Email → kartu "Kode masuk lewat WhatsApp" untuk memeriksa.';
+  else if (k === 'email_address_not_authorized' || /not authori[sz]ed/i.test(m))
     pesan = 'Email Kemensos ditolak oleh server email bawaan Supabase (hanya mengirim ke anggota tim Supabase). Super Admin perlu mengaktifkan SMTP sendiri — lihat Panduan 2.10.0, Langkah 2.';
   else if (tunggu) pesan = `Demi keamanan, kode baru dapat diminta lagi setelah ${tunggu[1]} detik. Gunakan kode yang sudah dikirim, atau tunggu sebentar.`;
   else if (k === 'over_email_send_rate_limit' || /email rate limit/i.test(m))
-    pesan = 'Batas kirim email per jam di Supabase sudah tercapai. Tunggu beberapa menit, atau Super Admin menaikkan batasnya di Authentication → Rate Limits.';
+    pesan = 'Batas kirim kode per jam di Supabase sudah tercapai. Tunggu beberapa menit, atau Super Admin menaikkan batasnya di Authentication → Rate Limits (Rate limit for sending emails).';
   else if (k === 'over_request_rate_limit' || st === 429 || /rate limit|too many/i.test(m)) pesan = 'Terlalu banyak percobaan dari jaringan ini. Tunggu beberapa menit lalu coba lagi.';
   else if (/error sending|smtp|535|authentication (failed|unsuccessful)|connection refused|timeout/i.test(m))
     pesan = 'Server email (SMTP) gagal mengirim kode. Super Admin: periksa pengaturan SMTP di Supabase (host, port, nama pengguna, sandi aplikasi).';
@@ -382,6 +386,10 @@ export async function pengaturanNotif() {
 }
 export const aturNotifikasi = (d) => rpc('atur_notifikasi', { p_data: d });
 export const ujiNotifikasi = (kanal, tujuan) => rpc('uji_notifikasi', { p_kanal: kanal, p_tujuan: tujuan });
+// Kode masuk Akun Kemensos lewat WhatsApp (v2.11.0): token Fonnte disimpan di basis data (tabel rahasia), tidak terbaca aplikasi
+export const statusKodeWa = () => rpc('status_kode_wa');
+export const aturTokenKodeWa = (token) => rpc('atur_token_wa_kode', { p_token: token });
+export const ujiKodeWa = (nomor) => rpc('uji_kode_wa', { p_nomor: nomor || null });
 export const ringkasanAntrian = () => rpc('ringkasan_antrian');
 export async function daftarAntrian({ status = '', hal = 1, per = 30 } = {}) {
   let qr = sb.from('antrian_notif').select('id,kanal,tujuan,nama_penerima,subjek,event,status,percobaan,respon,dibuat_pada,dikirim_pada', { count: 'exact' });

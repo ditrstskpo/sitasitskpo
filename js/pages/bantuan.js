@@ -40,7 +40,7 @@ const PANDUAN = {
     latihan: [['Buka Workspace Tata Usaha', '/tata-usaha'], ['Buka Kelola Pengumuman', '/pengaturan/pengumuman'], ['Buka Dokumen Bersama', '/dokumen-bersama']] },
   keuangan: { judul: 'Pokja Keuangan', ikon: 'wallet', ringkas: 'Data pencairan, SK final, SP2D, SI, dan konfirmasi cair.',
     langkah: [['Buka "Workspace Keuangan"', 'Kerjakan tahap 5 dan 7–11 untuk usulan semua Pokja.', '/keuangan'],
-      ['Isi tanggal cair di tahap 11', 'Tanggal cair memulai jadwal Supermonev (3 bulan sesudahnya).'],
+      ['Isi tanggal cair di tahap 11', 'Tanggal cair memulai jadwal Supermonev (minggu ke-1 = 3 bulan sesudahnya, lalu setiap minggu).'],
       ['Koreksi rekap', 'Menu "Rekap SP2D & Koreksi": nilai asli tetap tersimpan.', '/keuangan/koreksi-rekap']],
     latihan: [['Buka Workspace Keuangan', '/keuangan'], ['Buka Rekap Data Pencairan', '/rekap-pencairan']] },
   smv: { judul: 'Pokja Supermonev', ikon: 'clipboard-list', ringkas: 'Menugaskan petugas, memverifikasi isian & belanja, dan menyusun laporan.',

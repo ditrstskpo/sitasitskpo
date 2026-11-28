@@ -1127,6 +1127,31 @@ export async function ujiNotifikasi(kanal, tujuan) {
   db.antrian.unshift({ id: ++db.seq_a, kanal, tujuan: tujuan.trim(), nama_penerima: namaSaya(), subjek: '[SITASI TSKPO] Uji notifikasi', pesan: 'Ini pesan uji dari SITASI TSKPO.', event: 'UJI', status: 'antri', percobaan: 0, respon: null, dibuat_pada: sekarang(), dikirim_pada: null });
   simpan();
 }
+// Kode masuk lewat WhatsApp (pratinjau: tiruan, tidak benar-benar mengirim)
+const kodeWa = { token: '', log: [] };
+const samarHp = (h) => (h && h.length >= 8 ? h.slice(0, 4) + '••••' + h.slice(-3) : h);
+export async function statusKodeWa() {
+  if (!isSA()) throw galat('Hanya Super Admin.', '42501');
+  await tunggu(80);
+  return { token_ada: !!kodeWa.token, token_samar: kodeWa.token ? kodeWa.token.slice(0, 4) + '••••' + kodeWa.token.slice(-3) : null, pg_net: true,
+    log: salin(kodeWa.log), kirim_24jam: kodeWa.log.filter((x) => x.status === 'dikirim').length,
+    tanpa_hp: db.pengguna.filter((p) => p.aktif && !String(p.no_hp || '').replace(/\D/g, '')).map((p) => ({ nama: p.nama, email: p.email })) };
+}
+export async function aturTokenKodeWa(token) {
+  if (!isSA()) throw galat('Hanya Super Admin.', '42501');
+  const v = String(token || '').replace(/\s/g, '');
+  if (v && v.length < 10) throw galat('Token Fonnte terlalu pendek. Salin token dari menu Device di fonnte.com.');
+  kodeWa.token = v; return statusKodeWa();
+}
+export async function ujiKodeWa(nomor) {
+  if (!isSA()) throw galat('Hanya Super Admin.', '42501');
+  if (!kodeWa.token) throw galat('Simpan token Fonnte terlebih dahulu.');
+  const d = String(nomor || '').replace(/\D/g, ''); const hp = d.startsWith('62') ? '0' + d.slice(2) : d.startsWith('8') ? '0' + d : d;
+  if (!/^0\d{8,13}$/.test(hp)) throw galat('Isi nomor WhatsApp tujuan uji (contoh 081234567890).');
+  kodeWa.log.unshift({ id: kodeWa.log.length + 1, waktu: sekarang(), email: sayaAktif()?.email || '', nomor: samarHp(hp), jenis: 'uji', status: 'uji',
+    keterangan: 'kirim uji oleh Super Admin (pratinjau: tidak benar-benar dikirim)', http: 200, jawaban: '{"status":true,"detail":"success! message in queue"}' });
+  return { ok: true, nomor: samarHp(hp) };
+}
 export async function ringkasanAntrian() {
   const a = isSA() ? db.antrian : [];
   return { antri: a.filter((x) => ['antri', 'proses'].includes(x.status)).length, terkirim: a.filter((x) => x.status === 'terkirim').length,

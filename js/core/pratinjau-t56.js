@@ -28,8 +28,11 @@ const hitung = (rows, fn) => { const m = new Map(); rows.forEach((r) => [].conca
 const halaman = (rows, f = {}) => { const per = Math.min(500, Math.max(1, Number(f.per) || 25)), hal = Math.max(1, Number(f.hal) || 1); return rows.slice((hal - 1) * per, hal * per); };
 const bulat1 = (x) => Math.round(x * 10) / 10;
 
-const CFG_BAWAAN = { interval_bulan: 3, maks_putaran: 4, jenis_bantuan: ['KWU'], jenis_belanja: ['KWU'], tampil_sebelum_hari: 14 };
+// v2.11.0: bawaan mingguan — minggu ke-1 = 3 bulan setelah cair, lalu setiap 7 hari (interval_hari 0 = cara lama per bulan)
+const CFG_BAWAAN = { interval_bulan: 3, interval_hari: 7, mulai_bulan: 3, maks_putaran: 52, jenis_bantuan: ['KWU'], jenis_belanja: ['KWU'], tampil_sebelum_hari: 3 };
 const cfg = () => ({ ...CFG_BAWAAN, ...(d().smv_cfg || {}) });
+const mingguan = () => Number(cfg().interval_hari) > 0;
+const labelPut = (n) => (mingguan() ? 'Minggu ke-' : 'Putaran ') + n;
 const LABEL_HASIL = { berhasil: 'Berhasil', berhasil_catatan: 'Berhasil dengan Catatan', perlu_pendampingan: 'Perlu Pendampingan', tidak_berhasil: 'Tidak Berhasil' };
 const labelHasil = (h) => LABEL_HASIL[h] || 'Belum dinilai';
 
@@ -46,14 +49,18 @@ const anggotaSmv = (uid) => d().pengguna_pokja.some((pp) => pp.pengguna_id === u
 const statusCair = (uid) => (I.tahapU(uid, '11')?.status === 'selesai' ? 'cair' : 'proses');
 
 // ---------------------------------------------------------------- jadwal, penilaian, kendala (port fungsi SQL)
-function jadwal(sampai = null) {
+function jadwal(sampai = null, hanya = null) {
   const c = cfg(), batas = sampai || tambahHari(hariIni(), Number(c.tampil_sebelum_hari) || 0), out = [];
-  const maks = Math.max(1, Math.min(24, Number(c.maks_putaran) || 4)), iv = Number(c.interval_bulan) || 3;
+  const ih = Math.max(0, Number(c.interval_hari) || 0), mb = Math.max(0, Number(c.mulai_bulan) || 0), iv = Math.max(1, Number(c.interval_bulan) || 3);
+  const maks = Math.max(1, Math.min(ih > 0 ? 9999 : 24, Number(c.maks_putaran) || 4));
   for (const b of d().bnba) {
-    if (b.status_verifikasi !== 'terverifikasi' || !c.jenis_bantuan.includes(b.jenis_bantuan)) continue;
+    if ((hanya && b.id !== hanya) || b.status_verifikasi !== 'terverifikasi' || !c.jenis_bantuan.includes(b.jenis_bantuan)) continue;
     const u = d().usulan.find((x) => x.id === b.usulan_id), cair = u?.tgl_cair || b.tgl_sp2d;   // data impor: TGL SP2D
     if (!u || u.status !== 'selesai' || !cair) continue;
-    for (let k = 1; k <= maks; k++) { const jt = tambahBulan(String(cair).slice(0, 10), iv * k); if (jt > batas) break; out.push({ bnba_id: b.id, putaran: k, jatuh_tempo: jt }); }
+    if (ih > 0) {   // mingguan: minggu ke-k = cair + mulai_bulan + (k − 1) × interval_hari
+      const awal = tambahBulan(String(cair).slice(0, 10), mb);
+      for (let k = 1; k <= maks; k++) { const jt = tambahHari(awal, ih * (k - 1)); if (jt > batas) break; out.push({ bnba_id: b.id, putaran: k, jatuh_tempo: jt }); }
+    } else for (let k = 1; k <= maks; k++) { const jt = tambahBulan(String(cair).slice(0, 10), iv * k); if (jt > batas) break; out.push({ bnba_id: b.id, putaran: k, jatuh_tempo: jt }); }
   }
   return out;
 }
@@ -137,9 +144,24 @@ const KENDALA = [
 const PERKEMBANGAN = ['Menambah varian produk dan mulai menerima pesanan.', 'Pelanggan tetap bertambah dari lingkungan sekitar.', 'Mulai menabung sebagian keuntungan setiap minggu.',
   'Usaha berjalan stabil seperti bulan sebelumnya.', 'Merekrut satu tetangga untuk membantu produksi.'];
 
+// Data pratinjau lama (sebelum 2.11.0, jadwal 3-bulanan): nomor putaran dipindah ke nomor minggu pada tanggal yang sama, seperti SQL Tahap 12
+function pindahKeMingguan(D) {
+  const ib = Math.max(1, Number(D.smv_cfg?.interval_bulan) || 3);
+  const peta = (bid, k) => {
+    const b = D.bnba.find((x) => x.id === bid), u = b && D.usulan.find((x) => x.id === b.usulan_id), cair = u?.tgl_cair || b?.tgl_sp2d;
+    if (!cair) return k;
+    const a = Date.parse(tambahBulan(String(cair).slice(0, 10), ib * k)), m = Date.parse(tambahBulan(String(cair).slice(0, 10), 3));
+    return Math.max(1, Math.floor((a - m) / (7 * 864e5)) + 1);
+  };
+  D.supermonev.forEach((x) => { x.putaran = peta(x.bnba_id, x.putaran); });
+  D.smv_tugas.forEach((x) => { x.putaran = peta(x.bnba_id, x.putaran); });
+  D.smv_pengingat = D.smv_pengingat.map((k) => { const [bid, n] = k.split(':'); return bid + ':' + peta(bid, Number(n)); });
+  D.smv_cfg = { ...D.smv_cfg, interval_hari: 7, mulai_bulan: 3, maks_putaran: 52, tampil_sebelum_hari: 3 };
+  I.simpan();
+}
 function siapkan() {
   const D = d();
-  if (D.supermonev) return;
+  if (D.supermonev) { if (D.smv_cfg && !('interval_hari' in D.smv_cfg)) pindahKeMingguan(D); return; }
   D.smv_cfg = { ...CFG_BAWAAN };
   if (D.notif_atur?.notif_matriks) D.notif_atur.notif_matriks = { SMV_JATUH_TEMPO: { wa: true, email: true }, SMV_DITUGASKAN: { wa: true, email: true }, SMV_MENUNGGU: { wa: false, email: true },
     SMV_DIKEMBALIKAN: { wa: true, email: true }, SMV_TERVERIFIKASI: { wa: false, email: true }, BELANJA_MENUNGGU: { wa: false, email: true }, BELANJA_DIKEMBALIKAN: { wa: true, email: true },
@@ -173,17 +195,22 @@ function siapkan() {
       : k === 10 || k === 11 ? [null, null] : [petugas[k % petugas.length], 'terverifikasi'];
     rencana.push({ j, pid: r[0], st: r[1] });
   });
+  const urutPm = new Map();   // pola keberhasilan per PM (bukan per minggu) agar grafik mingguan tiap PM wajar
   rencana.forEach(({ j, pid, st }, i) => {
     const b = bnba(j.bnba_id);
+    if (!urutPm.has(j.bnba_id)) urutPm.set(j.bnba_id, urutPm.size);
+    const pm = urutPm.get(j.bnba_id), w = j.putaran;
     const umur = Math.max(0, Math.round((Date.parse(hi) - Date.parse(j.jatuh_tempo)) / 864e5));
     if (!pid) return;
     D.smv_tugas.push({ id: I.uid(), bnba_id: j.bnba_id, putaran: j.putaran, petugas_id: pid, ditugaskan_oleh: kSmv, ditugaskan_nama: 'Kapokja Supermonev',
       ditugaskan_pada: lalu(Math.max(1, umur + 10)), catatan: null });
     if (!st) return;
-    const dz = dasar(j.bnba_id).nilai ?? 400000, pola = i % 20;
+    const dz = dasar(j.bnba_id).nilai ?? 400000, pola = (pm * 7) % 20;
     const hasil = pola < 11 ? 'berhasil' : pola < 14 ? 'berhasil_catatan' : pola < 18 ? 'perlu_pendampingan' : 'tidak_berhasil';
     const berjalan = hasil !== 'tidak_berhasil', berubah = hasil === 'berhasil_catatan';
-    const bersih = !berjalan ? null : hasil === 'perlu_pendampingan' ? Math.round(dz * (0.6 + (i % 4) * 0.1) / 1000) * 1000 : Math.round(dz * (1.15 + (i % 7) * 0.12) / 1000) * 1000;
+    const goyang = ((w * 7 + pm * 3) % 5) * 0.03;
+    const bersih = !berjalan ? null : hasil === 'perlu_pendampingan' ? Math.round(dz * (0.66 + Math.min(0.2, w * 0.006) + goyang) / 1000) * 1000
+      : Math.round(dz * (1.1 + Math.min(0.6, w * 0.012) + (pm % 4) * 0.05 + goyang) / 1000) * 1000;
     const kotor = bersih == null ? null : bersih + 350000 + (i % 5) * 50000, kel = kotor == null ? null : kotor - bersih;
     const kd = hasil === 'tidak_berhasil' ? 'Usaha tutup karena PM sakit dan modal habis.' : KENDALA[i % KENDALA.length];
     const kunjungan = tambahHari(j.jatuh_tempo, 2 + (i % 5));
@@ -266,7 +293,7 @@ function pengingat() {
   if (!baru.length) return 0;
   baru.forEach((j) => d().smv_pengingat.push(j.bnba_id + ':' + j.putaran));
   I.beriTahu(pengurus('SUPERMONEV', 'kapokja').concat(pengurus('TU', 'kapokja')), 'SMV_JATUH_TEMPO', 'Jadwal Supermonev jatuh tempo',
-    `${baru.length} PM jatuh tempo monitoring Supermonev. Tugaskan petugas di menu Penugasan Petugas.`, '#/penugasan-supermonev');
+    `${baru.length} jadwal monitoring Supermonev jatuh tempo. Tugaskan petugas di menu Penugasan Petugas.`, '#/penugasan-supermonev');
   return baru.length;
 }
 const bebanPetugas = (pid) => d().smv_tugas.filter((t) => t.petugas_id === pid && !d().supermonev.some((s) => s.bnba_id === t.bnba_id && s.putaran === t.putaran && s.status === 'terverifikasi')).length;
@@ -297,7 +324,7 @@ export async function smvPenugasan(f = {}) {
     && (!f.kabkota || r.kabkota === f.kabkota) && (!f.pokja || r.pokja_id === f.pokja) && (!f.petugas || r.petugas_id === f.petugas)
     && (!q || r.nama.toLowerCase().includes(q) || String(r.nik).startsWith(q)));
   const hi = hariIni();
-  return { boleh_tugaskan: bolehTugaskan(),
+  return { boleh_tugaskan: bolehTugaskan(), mingguan: mingguan(),
     ringkas: { total: fl.length, belum: fl.filter((r) => r.status === 'belum_ditugaskan').length, ditugaskan: fl.filter((r) => r.status === 'ditugaskan').length,
       diisi: fl.filter((r) => ['draft', 'menunggu', 'perlu_perbaikan'].includes(r.status)).length, selesai: fl.filter((r) => r.status === 'terverifikasi').length,
       lewat: fl.filter((r) => ['belum_ditugaskan', 'ditugaskan'].includes(r.status) && r.jatuh_tempo < hi).length },
@@ -314,12 +341,12 @@ export async function smvTugaskan(items, petugasId, catatan = null) {
   let baru = 0, pindah = 0; const lewat = [];
   for (const it of items) {
     const b = bnba(it.bnba_id), put = Number(it.putaran);
-    if (!jw.some((j) => j.bnba_id === it.bnba_id && j.putaran === put)) { lewat.push({ nama: b?.nama, alasan: 'tidak ada jadwal monitoring putaran ini' }); continue; }
+    if (!jw.some((j) => j.bnba_id === it.bnba_id && j.putaran === put)) { lewat.push({ nama: b?.nama, alasan: 'tidak ada jadwal monitoring ' + labelPut(put).toLowerCase() }); continue; }
     if (d().supermonev.some((s) => s.bnba_id === it.bnba_id && s.putaran === put)) { lewat.push({ nama: b.nama, alasan: 'formulir sudah mulai diisi' }); continue; }
     const t = d().smv_tugas.find((x) => x.bnba_id === it.bnba_id && x.putaran === put);
     if (!t) { d().smv_tugas.push({ id: I.uid(), bnba_id: it.bnba_id, putaran: put, petugas_id: p.id, ditugaskan_oleh: sayaId(), ditugaskan_nama: I.namaSaya(), ditugaskan_pada: I.sekarang(), catatan: teks(catatan) }); baru++; }
     else if (t.petugas_id !== p.id) {
-      I.log('UPDATE', 'smv_tugas', t.id, `Memindahkan penugasan Supermonev ${b.nama} putaran ${put} ke ${p.nama}`, { dari: t.petugas_id, ke: p.id });
+      I.log('UPDATE', 'smv_tugas', t.id, `Memindahkan penugasan Supermonev ${b.nama} ${labelPut(put).toLowerCase()} ke ${p.nama}`, { dari: t.petugas_id, ke: p.id });
       Object.assign(t, { petugas_id: p.id, ditugaskan_oleh: sayaId(), ditugaskan_nama: I.namaSaya(), ditugaskan_pada: I.sekarang(), catatan: teks(catatan) || t.catatan }); pindah++;
     }
   }
@@ -356,18 +383,18 @@ export async function smvTugasSaya() {
       ditugaskan_nama: t.ditugaskan_nama, belanja_layak: belanjaLayak(b.id), belanja_status: bl?.status || 'belum' };
   });
   baris.sort((a, b) => (a.status === 'terverifikasi') - (b.status === 'terverifikasi') || a.putaran - b.putaran || a.nama.localeCompare(b.nama));
-  return { baris, ringkas: { total: baris.length, selesai: baris.filter((r) => r.status === 'terverifikasi').length, menunggu: baris.filter((r) => r.status === 'menunggu').length,
+  return { mingguan: mingguan(), baris, ringkas: { total: baris.length, selesai: baris.filter((r) => r.status === 'terverifikasi').length, menunggu: baris.filter((r) => r.status === 'menunggu').length,
     perbaikan: baris.filter((r) => r.status === 'perlu_perbaikan').length, belum: baris.filter((r) => ['ditugaskan', 'draft'].includes(r.status)).length } };
 }
 export async function smvFormulir(bid, putaran) {
   await jeda(); siapkan();
   const b = bnba(bid), put = Number(putaran);
   if (!b || !(I.isPeg() || ditugaskan(bid, put))) throw g('Data PM tidak ditemukan atau tidak ditugaskan kepada Anda.');
-  const jt = jadwal(tambahHari(hariIni(), 400)).find((j) => j.bnba_id === bid && j.putaran === put)?.jatuh_tempo;
-  if (!jt) throw g(`PM ini tidak memiliki jadwal monitoring putaran ${put}.`);
+  const jt = jadwal(tambahHari(hariIni(), 400), bid).find((j) => j.putaran === put)?.jatuh_tempo;
+  if (!jt) throw g(`PM ini tidak memiliki jadwal monitoring ${labelPut(put).toLowerCase()}.`);
   const s = d().supermonev.find((x) => x.bnba_id === bid && x.putaran === put), t = d().smv_tugas.find((x) => x.bnba_id === bid && x.putaran === put), dz = dasar(bid);
   const lengkap = !I.isPeg() || I.isSA() || I.diPokja('SUPERMONEV');
-  return { ...pmJson(b), putaran: put, jatuh_tempo: jt, alamat: lengkap ? b.dom_jalan || b.ktp_jalan : I.samarAlamat(b.dom_jalan || b.ktp_jalan),
+  return { ...pmJson(b), putaran: put, label_putaran: labelPut(put), mingguan: mingguan(), jatuh_tempo: jt, alamat: lengkap ? b.dom_jalan || b.ktp_jalan : I.samarAlamat(b.dom_jalan || b.ktp_jalan),
     petugas_nama: t ? namaPengguna(t.petugas_id) : null, dasar: dz.nilai, dasar_sumber: dz.sumber, dasar_kotor: b.pendapatan_kotor_awal ?? null, dasar_biaya: b.biaya_awal ?? null,
     boleh_isi: (I.isSA() || t?.petugas_id === sayaId()) && ['draft', 'perlu_perbaikan', undefined].includes(s?.status),
     boleh_verifikasi: verifikator() && s?.status === 'menunggu', isian: s ? smvJson(s) : null,
@@ -381,8 +408,8 @@ export async function smvSimpan(p, ajukan = false) {
   if (!b) throw g('Data PM tidak ditemukan.');
   const t = d().smv_tugas.find((x) => x.bnba_id === bid && x.putaran === put);
   if (!(I.isSA() || t?.petugas_id === sayaId())) throw g('Formulir hanya dapat diisi petugas yang ditugaskan untuk PM ini.', '42501');
-  const jt = jadwal(tambahHari(hariIni(), 400)).find((j) => j.bnba_id === bid && j.putaran === put)?.jatuh_tempo;
-  if (!jt) throw g(`PM ini tidak memiliki jadwal monitoring putaran ${put}.`);
+  const jt = jadwal(tambahHari(hariIni(), 400), bid).find((j) => j.putaran === put)?.jatuh_tempo;
+  if (!jt) throw g(`PM ini tidak memiliki jadwal monitoring ${labelPut(put).toLowerCase()}.`);
   let s = d().supermonev.find((x) => x.bnba_id === bid && x.putaran === put);
   if (s && !['draft', 'perlu_perbaikan'].includes(s.status)) throw g('Isian sudah diajukan atau terverifikasi; tidak dapat diubah.');
   const berjalan = bool(p.usaha_berjalan), berubah = bool(p.usaha_berubah), kotor = num(p.pendapatan_kotor), kel = num(p.pengeluaran);
@@ -403,9 +430,9 @@ export async function smvSimpan(p, ajukan = false) {
       : !s.kondisi_barang ? 'Pilih kondisi barang bantuan.' : null;
     if (err) { I.simpan(); throw g(err); }
     Object.assign(s, { status: 'menunggu', diajukan_pada: I.sekarang(), catatan_verifikasi: null });
-    I.beriTahu(pengurus('SUPERMONEV', 'kapokja'), 'SMV_MENUNGGU', 'Supermonev menunggu verifikasi', `Isian Supermonev ${b.nama} (putaran ${put}) dari ${I.namaSaya()} menunggu verifikasi.`, '#/supermonev?tab=antrean');
+    I.beriTahu(pengurus('SUPERMONEV', 'kapokja'), 'SMV_MENUNGGU', 'Supermonev menunggu verifikasi', `Isian Supermonev ${b.nama} (${labelPut(put).toLowerCase()}) dari ${I.namaSaya()} menunggu verifikasi.`, '#/supermonev?tab=antrean');
   }
-  I.log(ajukan ? 'AJUKAN' : 'UPDATE', 'supermonev', s.id, (ajukan ? 'Mengajukan' : 'Menyimpan draft') + ` Supermonev ${b.nama} putaran ${put}`);
+  I.log(ajukan ? 'AJUKAN' : 'UPDATE', 'supermonev', s.id, (ajukan ? 'Mengajukan' : 'Menyimpan draft') + ` Supermonev ${b.nama} ${labelPut(put).toLowerCase()}`);
   I.simpan(); siarkan('supermonev', s);
   return smvJson(s);
 }
@@ -421,14 +448,14 @@ export async function smvVerifikasi(id, setuju, hasil = null, ringkasan = null, 
     if (s.hasil_otomatis && h !== s.hasil_otomatis && !teks(catatan)) throw g('Tuliskan alasan bila hasil berbeda dari penilaian otomatis.');
     Object.assign(s, { status: 'terverifikasi', hasil: h, ringkasan_kendala: teks(ringkasan) || s.ringkasan_kendala, catatan_verifikasi: teks(catatan), diverifikasi_oleh: sayaId(),
       diverifikasi_nama: I.namaSaya(), diverifikasi_pada: I.sekarang() });
-    I.beriTahu([s.petugas_id], 'SMV_TERVERIFIKASI', 'Isian Supermonev terverifikasi', `Isian ${b.nama} (putaran ${s.putaran}): ${labelHasil(h)}.`, '#/supermonev');
+    I.beriTahu([s.petugas_id], 'SMV_TERVERIFIKASI', 'Isian Supermonev terverifikasi', `Isian ${b.nama} (${labelPut(s.putaran).toLowerCase()}): ${labelHasil(h)}.`, '#/supermonev');
   } else {
     if (!teks(catatan)) throw g('Catatan wajib diisi saat mengembalikan.');
     Object.assign(s, { status: 'perlu_perbaikan', catatan_verifikasi: teks(catatan), diverifikasi_nama: I.namaSaya() });
-    I.beriTahu([s.petugas_id], 'SMV_DIKEMBALIKAN', 'Isian Supermonev perlu perbaikan', `Isian ${b.nama} (putaran ${s.putaran}) dikembalikan: ${teks(catatan)}`, '#/supermonev');
+    I.beriTahu([s.petugas_id], 'SMV_DIKEMBALIKAN', 'Isian Supermonev perlu perbaikan', `Isian ${b.nama} (${labelPut(s.putaran).toLowerCase()}) dikembalikan: ${teks(catatan)}`, '#/supermonev');
   }
   s.diubah_pada = I.sekarang();
-  I.log('VERIFIKASI', 'supermonev', s.id, `${setuju ? 'Menyetujui' : 'Mengembalikan'} Supermonev ${b.nama} putaran ${s.putaran}`);
+  I.log('VERIFIKASI', 'supermonev', s.id, `${setuju ? 'Menyetujui' : 'Mengembalikan'} Supermonev ${b.nama} ${labelPut(s.putaran).toLowerCase()}`);
   I.simpan(); siarkan('supermonev', s);
   return smvJson(s);
 }
@@ -450,16 +477,17 @@ export async function smvDaftar(f = {}) {
       && (!f.provinsi || (b.dom_provinsi || b.ktp_provinsi) === f.provinsi)
       && (!q || b.nama.toLowerCase().includes(q) || String(b.nik).startsWith(q) || String(s.petugas_nama || '').toLowerCase().includes(q));
   }).sort((a, b) => String(b.diajukan_pada || '').localeCompare(String(a.diajukan_pada || '')) || String(b.diubah_pada).localeCompare(String(a.diubah_pada)));
-  return { total: rows.length, boleh_verifikasi: verifikator(), baris: halaman(rows, f).map((s) => ({ ...smvJson(s), ...pmJson(bnba(s.bnba_id)) })) };
+  return { total: rows.length, boleh_verifikasi: verifikator(), mingguan: mingguan(), baris: halaman(rows, f).map((s) => ({ ...smvJson(s), ...pmJson(bnba(s.bnba_id)) })) };
 }
 export async function smvRiwayatPm(bid) {
   await jeda(); siapkan();
   const b = bnba(bid); if (!b || !I.bnbaTerlihat(b)) throw g('Data PM tidak ditemukan.');
   const dz = dasar(bid), bl = d().belanja.find((x) => x.bnba_id === bid);
   return { dasar: dz.nilai, dasar_sumber: dz.sumber, dasar_kotor: b.pendapatan_kotor_awal ?? null, dasar_biaya: b.biaya_awal ?? null, dimonitor: cfg().jenis_bantuan.includes(b.jenis_bantuan),
-    putaran: jadwal(tambahHari(hariIni(), 800)).filter((j) => j.bnba_id === bid).map((j) => {
+    mingguan: mingguan(),
+    putaran: jadwal(tambahHari(hariIni(), 800), bid).map((j) => {
       const t = d().smv_tugas.find((x) => x.bnba_id === bid && x.putaran === j.putaran), s = d().supermonev.find((x) => x.bnba_id === bid && x.putaran === j.putaran);
-      return { putaran: j.putaran, jatuh_tempo: j.jatuh_tempo, petugas_nama: t ? namaPengguna(t.petugas_id) : null, isian: s && (s.status !== 'draft' || I.isSA()) ? smvJson(s) : null };
+      return { putaran: j.putaran, label: labelPut(j.putaran), jatuh_tempo: j.jatuh_tempo, petugas_nama: t ? namaPengguna(t.petugas_id) : null, isian: s && (s.status !== 'draft' || I.isSA()) ? smvJson(s) : null };
     }),
     belanja: bl ? { ...I.salin(bl), jumlah_berkas: d().berkas.filter((q) => q.konteks === 'belanja' && q.ref_id === bid && !q.dihapus).length } : null, belanja_layak: belanjaLayak(bid) };
 }
@@ -476,7 +504,8 @@ function saringTerverifikasi(f = {}) {
   return d().supermonev.filter((s) => s.status === 'terverifikasi').map((s) => ({ s, b: bnba(s.bnba_id) })).filter(({ s, b }) => b
     && (!f.putaran || s.putaran === Number(f.putaran)) && (!f.pokja || b.pokja_id === f.pokja) && (!f.provinsi || (b.dom_provinsi || b.ktp_provinsi) === f.provinsi)
     && (!f.klaster || b.klaster_ppks === f.klaster) && (!f.hasil || s.hasil === f.hasil)
-    && (!f.tahun || String(s.tgl_kunjungan || s.diverifikasi_pada).slice(0, 4) === String(f.tahun)));
+    && (!f.tahun || String(s.tgl_kunjungan || s.diverifikasi_pada).slice(0, 4) === String(f.tahun))
+    && (!f.bulan || String(s.jatuh_tempo || s.tgl_kunjungan).slice(0, 7) === f.bulan) && (!f.bnba || b.id === f.bnba));
 }
 export async function smvDashboard(f = {}) {
   await jeda(140); siapkan(); butuhPeg();
@@ -508,7 +537,10 @@ export async function smvDashboard(f = {}) {
         pendampingan: r.filter(({ s }) => s.hasil === 'perlu_pendampingan').length, tidak: r.filter(({ s }) => s.hasil === 'tidak_berhasil').length }; }),
     per_klaster: [...grup(({ b }) => b.klaster_ppks || 'Belum diisi')].map(([label, r]) => ({ label, n: r.length, berhasil: bh(r) })).sort((a, b) => b.n - a.n),
     per_provinsi: [...grup(({ b }) => b.dom_provinsi || b.ktp_provinsi)].map(([provinsi, r]) => ({ provinsi, kode_peta: PROV_KODE[provinsi] || null, n: r.length, berhasil: bh(r) })).sort((a, b) => b.n - a.n),
-    per_putaran: [...grup(({ s }) => s.putaran)].sort((a, b) => a[0] - b[0]).map(([p, r]) => ({ label: 'Putaran ' + p, n: r.length, berhasil: bh(r) })),
+    per_putaran: [...grup(({ s }) => s.putaran)].sort((a, b) => a[0] - b[0]).map(([p, r]) => ({ label: labelPut(p), n: r.length, berhasil: bh(r) })),
+    per_bulan_hasil: [...grup(({ s }) => String(s.jatuh_tempo || s.tgl_kunjungan || s.diverifikasi_pada).slice(0, 7))].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([bulan, r]) => ({ bulan, n: r.length, berhasil: bh(r), rata_bersih: rata(r.filter(({ s }) => s.pendapatan_bersih != null).map(({ s }) => s.pendapatan_bersih)) })),
+    mingguan: mingguan(),
     per_bulan: [...grup(({ s }) => String(s.tgl_kunjungan || s.diverifikasi_pada).slice(0, 7))].sort((a, b) => a[0].localeCompare(b[0])).map(([bulan, r]) => ({ bulan, n: r.length })),
     kendala: hitung(v, ({ s }) => s.kategori_kendala || []),
     kendala_terbaru: v.filter(({ s }) => s.ringkasan_kendala).sort((a, b) => String(b.s.diverifikasi_pada).localeCompare(String(a.s.diverifikasi_pada))).slice(0, 6)
@@ -525,8 +557,14 @@ export async function smvEkspor(f = {}) {
   const urut = (x) => I.pokjaById(x.b.pokja_id)?.urutan || 0;
   const rows = saringTerverifikasi(f).sort((a, b) => urut(a) - urut(b) || String(a.b.dom_kabkota || a.b.ktp_kabkota).localeCompare(String(b.b.dom_kabkota || b.b.ktp_kabkota)) || a.b.nama.localeCompare(b.b.nama) || a.s.putaran - b.s.putaran)
     .map(({ s, b }) => { const bl = d().belanja.find((x) => x.bnba_id === b.id);
+      const bln = String(s.jatuh_tempo || s.tgl_kunjungan).slice(0, 7);
       return { ...smvJson(s), ...pmJson(b), foto: d().berkas.filter((q) => q.konteks === 'smv' && q.ref_id === s.id && !q.dihapus).map((q) => q.id),
-        belanja: bl ? { status: bl.status, inventaris: I.salin(bl.inventaris), total_nilai: bl.total_nilai } : null }; });
+        belanja: bl ? { status: bl.status, inventaris: I.salin(bl.inventaris), total_nilai: bl.total_nilai } : null, label_putaran: labelPut(s.putaran), bulan: bln,
+        // semua minggu PM ini pada bulan yang sama (grafik per minggu di slide ke-3)
+        jadwal_bulan: jadwal(tambahHari(hariIni(), 800), b.id).filter((j) => j.jatuh_tempo.slice(0, 7) === bln).map((j) => {
+          const z = d().supermonev.find((x) => x.bnba_id === b.id && x.putaran === j.putaran && x.status === 'terverifikasi');
+          return { putaran: j.putaran, label: labelPut(j.putaran), jatuh_tempo: j.jatuh_tempo, pendapatan_bersih: z?.pendapatan_bersih ?? null, pendapatan_kotor: z?.pendapatan_kotor ?? null, hasil: z?.hasil || null, status: z?.status || null };
+        }) }; });
   I.log('EKSPOR', 'supermonev', null, `Ekspor Supermonev (${rows.length} isian)`, f); I.simpan();
   return rows;
 }
@@ -534,10 +572,13 @@ export async function aturSupermonev(p) {
   await jeda(); siapkan();
   if (!I.isSA()) throw g('Hanya Super Admin.', '42501');
   const c = { ...cfg() };
-  ['interval_bulan', 'maks_putaran', 'tampil_sebelum_hari'].forEach((k) => { if (int(p[k]) != null) c[k] = int(p[k]); });
+  ['interval_bulan', 'interval_hari', 'mulai_bulan', 'maks_putaran', 'tampil_sebelum_hari'].forEach((k) => { if (int(p[k]) != null) c[k] = int(p[k]); });
   ['jenis_bantuan', 'jenis_belanja'].forEach((k) => { if (Array.isArray(p[k])) c[k] = p[k]; });
   if (c.interval_bulan < 1 || c.interval_bulan > 12) throw g('Jarak monitoring 1–12 bulan.');
-  if (c.maks_putaran < 1 || c.maks_putaran > 24) throw g('Jumlah putaran 1–24.');
+  if (c.interval_hari < 0 || c.interval_hari > 90) throw g('Jarak monitoring 0–90 hari (7 = setiap minggu, 0 = pakai jarak bulan).');
+  if (c.mulai_bulan < 0 || c.mulai_bulan > 24) throw g('Mulai monitoring 0–24 bulan setelah penyaluran.');
+  if (c.interval_hari > 0 && (c.maks_putaran < 1 || c.maks_putaran > 520)) throw g('Jumlah minggu monitoring 1–520.');
+  if (c.interval_hari === 0 && (c.maks_putaran < 1 || c.maks_putaran > 24)) throw g('Jumlah putaran 1–24.');
   if (c.tampil_sebelum_hari < 0 || c.tampil_sebelum_hari > 60) throw g('Tampil sebelum jatuh tempo 0–60 hari.');
   d().smv_cfg = c; I.log('UPDATE', 'pengaturan', 'supermonev', 'Mengubah pengaturan Supermonev', c); I.simpan();
   return c;

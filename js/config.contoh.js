@@ -19,14 +19,17 @@ export const CONFIG = {
 
   NAMA_APLIKASI: 'SITASI TSKPO',
 
-  // Domain email yang boleh memakai login kode lewat email (tanpa Google).
+  // Domain email yang boleh memakai "Masuk dengan Akun Kemensos" (tanpa Google).
   DOMAIN_EMAIL: ['kemensos.go.id', 'kemsos.go.id'],
-  // Jumlah angka kode masuk lewat email. Samakan dengan Supabase → Authentication → Sign In / Providers → Email → Email OTP Length (disarankan 6).
+  // Ke mana kode masuk Akun Kemensos dikirim: 'whatsapp' (bawaan sejak 2.11.0, perlu Send Email Hook — lihat panduan)
+  // atau 'email' (cara lama lewat SMTP). Hanya mengubah tulisan di halaman masuk; pengirimnya diatur di Supabase.
+  KODE_MASUK_LEWAT: 'whatsapp',
+  // Jumlah angka kode masuk. Samakan dengan Supabase → Authentication → Sign In / Providers → Email → Email OTP Length (disarankan 6).
   PANJANG_KODE_EMAIL: 6,
 
   // Keluar otomatis bila tidak ada aktivitas selama sekian jam (bawaan 4).
   IDLE_JAM: 4,
-  VERSI: '2.10.4',
+  VERSI: '2.11.0',
 
   // Berkas aset resmi dari Direktorat (letakkan di folder assets/)
   LOGO: 'assets/logo-sitasi.png',

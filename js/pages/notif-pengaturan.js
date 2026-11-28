@@ -1,10 +1,12 @@
 // Pengaturan > Notifikasi WhatsApp & Email (Super Admin): saklar kanal, matriks kejadian, token Fonnte
 // (disimpan di Script Properties Apps Script, tampil tersamar), uji kirim, dan antrean pengiriman.
+// v2.11.0: kartu "Kode Masuk Akun Kemensos lewat WhatsApp" (Send Email Hook Supabase → Fonnte).
 import { html, raw, angka, tanggalJam } from '../core/util.js';
 import { ikon } from '../core/icons.js';
 import { api } from '../core/api.js';
 import { gas, gasAktif } from '../core/gas.js';
 import { judulHalaman, kosong, kotakGalat, toast, pesanGalat, tombolMuat, pager } from '../core/ui.js';
+import { modePratinjau } from '../core/api.js';
 import { kpi, opsi } from '../core/komp.js';
 
 const EVENT = {
@@ -28,7 +30,7 @@ const EVENT = {
 const STATUS = { antri: ['b-wait', 'clock', 'Antri'], proses: ['b-proc', 'refresh', 'Diproses'], terkirim: ['b-ok', 'check-circle', 'Terkirim'], gagal: ['b-no', 'circle-x', 'Gagal'], batal: ['b-lock', 'ban', 'Batal'] };
 
 export async function render(el) {
-  let atur, status = null, fAntri = '', hal = 1;
+  let atur, status = null, fAntri = '', hal = 1, kodeWa = null;
   el.innerHTML = String(html`${judulHalaman({ pill: 'Pengaturan Super Admin · Notifikasi', sorot: 'Notifikasi', sisa: 'WhatsApp & Email Perpindahan Tahap',
     sub: 'Setiap kali tahap alur pencairan terbuka, pelaksana tahap berikutnya dan Pokja pemilik menerima pemberitahuan di lonceng, WhatsApp (Fonnte), dan email (Gmail Super Admin). Pesan tidak memuat NIK, rekening, atau data pribadi PM.' })}
     <div data-isi><div class="skel" style="height:300px;border-radius:20px"></div></div>`);
@@ -40,6 +42,7 @@ export async function render(el) {
       atur = await api.pengaturanNotif();
       gambar();
       muatAntrean();
+      muatKodeWa();
       if (janjiStatus) { status = await janjiStatus; gambarGateway(); }
     } catch (e) { $('[data-isi]').innerHTML = String(kotakGalat(pesanGalat(e))); }
   }
@@ -70,6 +73,10 @@ export async function render(el) {
             <button class="btn btn-primary" data-simpan-token ${!gasAktif() ? raw('disabled') : ''}>Simpan Token</button></div>
         </section>
       </div>
+      <section class="card" style="margin-top:24px" id="kode-wa"><div class="card-head"><span class="ubin">${raw(ikon('shield', 20))}</span><div><h2 class="card-title">Kode Masuk Akun Kemensos lewat WhatsApp</h2>
+          <p class="card-sub">Saat pegawai memilih <b>Masuk dengan Akun Kemensos</b>, kode masuk dikirim ke nomor WhatsApp-nya (bukan ke email Zimbra). Pengiriman langsung dari Supabase, tidak lewat antrean Apps Script.</p></div>
+          <span class="spacer"></span><button type="button" class="btn btn-ghost btn-sm" data-kode-muat>${raw(ikon('refresh', 16))} Perbarui</button></div>
+        <div data-kode-wa><div class="skel" style="height:120px;border-radius:14px"></div></div></section>
       <section class="card" style="margin-top:24px"><div class="card-head"><span class="ubin emas">${raw(ikon('sliders', 20))}</span><div><h2 class="card-title">Pengiriman WhatsApp (Anti-Spam)</h2>
           <p class="card-sub">Pesan dikirim berkelompok dengan jeda acak antar pesan, supaya nomor pengirim tidak dianggap spam oleh WhatsApp.</p></div></div>
         <div class="grid grid-3" style="gap:16px">
@@ -99,6 +106,48 @@ export async function render(el) {
       <section class="card table-card" style="margin-top:24px"><div class="card-head" style="padding:20px 20px 8px"><span class="ubin biru">${raw(ikon('inbox', 20))}</span><div><h2 class="card-title">Antrean Pengiriman</h2><p class="card-sub">Gagal dicoba ulang otomatis hingga 3 kali.</p></div><span class="spacer"></span>
         <select class="select" data-f-antri style="max-width:180px">${opsi(Object.entries(STATUS).map(([k, v]) => [k, v[2]]), fAntri, 'Semua status')}</select>
         <button class="btn btn-ghost btn-sm" data-ulang-gagal>${raw(ikon('repeat', 16))} Kirim ulang yang gagal</button></div><div data-antri></div></section>`);
+  }
+  async function muatKodeWa() {
+    try { kodeWa = await api.statusKodeWa(); } catch (e) { kodeWa = { galat: pesanGalat(e) }; }
+    gambarKodeWa();
+  }
+  function hasilFonnte(x) {
+    if (x.status === 'ditolak') return html`<span class="badge b-no">${raw(ikon('circle-x', 14))} Tidak dikirim</span><small class="redup" style="display:block">${x.keterangan || ''}</small>`;
+    if (x.galat || x.habis_waktu) return html`<span class="badge b-no">${raw(ikon('circle-x', 14))} Gagal</span><small class="redup" style="display:block">${x.galat || 'Fonnte tidak menjawab (habis waktu)'}</small>`;
+    if (x.http == null) return html`<span class="badge b-wait">${raw(ikon('clock', 14))} Diproses</span>`;
+    let j = null; try { j = JSON.parse(x.jawaban || ''); } catch {}
+    if (Number(x.http) === 200 && j && j.status !== false) return html`<span class="badge b-ok">${raw(ikon('check-circle', 14))} Diterima Fonnte</span>`;
+    return html`<span class="badge b-no">${raw(ikon('circle-x', 14))} Ditolak Fonnte</span><small class="redup" style="display:block">${j?.reason || j?.detail || x.jawaban || ('HTTP ' + x.http)}</small>`;
+  }
+  function gambarKodeWa() {
+    const w = $('[data-kode-wa]'); if (!w) return;
+    const k = kodeWa || {};
+    if (k.galat) { w.innerHTML = String(html`<div class="galat">${raw(ikon('alert', 20))}<span>${k.galat}<br><small>Bila pesannya "Could not find the function", jalankan SETUP_SUPABASE.sql versi 2.11.0 terlebih dahulu.</small></span></div>`); return; }
+    const langkah = [
+      [k.pg_net, 'Ekstensi pg_net aktif', 'Supabase → Database → Extensions → cari pg_net → aktifkan.'],
+      [k.token_ada, 'Token Fonnte tersimpan', 'Tempel token perangkat Fonnte di kolom di bawah, lalu Simpan.'],
+      [null, 'Send Email Hook dipasang', html`Supabase → Authentication → Hooks → <b>Add hook</b> → <b>Send Email hook</b> → jenis <b>Postgres</b> → schema <b>public</b> → fungsi <code>kirim_kode_masuk_wa</code> → Create.`],
+      [!(k.tanpa_hp || []).length, 'Semua pengguna aktif punya nomor WhatsApp', html`${(k.tanpa_hp || []).length} akun belum ada nomornya — isi di <a href="#/pengguna">Pengguna &amp; Hak Akses</a> (kolom No. HP).`],
+    ];
+    w.innerHTML = String(html`
+      <ol class="langkah-kode" style="display:grid;gap:10px;margin:0 0 16px;padding:0;list-style:none">
+        ${langkah.map(([ok, judul, ket], i) => html`<li style="display:flex;gap:12px;align-items:flex-start">
+          <span class="badge ${ok === true ? 'b-ok' : ok === false ? 'b-fix' : 'b-lock'}" style="min-width:28px;justify-content:center">${ok === true ? raw(ikon('check', 14)) : String(i + 1)}</span>
+          <span><b>${judul}</b>${ok === null ? html` <small class="redup">(tidak bisa diperiksa dari aplikasi; cek di Dashboard Supabase)</small>` : ''}<small class="redup" style="display:block">${ok === true ? 'Sudah.' : ket}</small></span></li>`)}
+      </ol>
+      <dl class="kv"><div><dt>Token kode masuk</dt><dd class="mono">${k.token_samar || 'Belum diisi'}</dd></div>
+        <div><dt>Kode terkirim 24 jam</dt><dd>${angka(k.kirim_24jam || 0)}</dd></div></dl>
+      <div class="baris-input" style="margin-top:12px"><input class="input mono" data-kode-token type="password" placeholder="Tempel token Fonnte (boleh sama dengan token notifikasi)" autocomplete="off">
+        <button class="btn btn-primary" data-kode-simpan>Simpan Token</button>${k.token_ada ? html`<button class="btn btn-ghost" data-kode-hapus>Hapus</button>` : ''}</div>
+      <div class="baris-input" style="margin-top:12px"><input class="input" data-kode-uji inputmode="tel" placeholder="Nomor WhatsApp uji (kosong = nomor Anda sendiri)">
+        <button class="btn btn-secondary" data-kode-kirim-uji ${!k.token_ada ? raw('disabled') : ''}>${raw(ikon('send', 16))} Kirim uji</button></div>
+      ${(k.tanpa_hp || []).length ? html`<details style="margin-top:12px"><summary><b>${(k.tanpa_hp || []).length} akun aktif belum punya nomor WhatsApp</b> — tidak bisa memakai kode WhatsApp</summary>
+        <p style="margin:8px 0 0">${(k.tanpa_hp || []).slice(0, 40).map((u, i) => html`${i ? ', ' : ''}${u.nama} <small class="redup">(${u.email})</small>`)}${(k.tanpa_hp || []).length > 40 ? ' …' : ''}</p></details>` : ''}
+      <h3 style="font-size:1rem;margin:20px 0 8px">Riwayat kode masuk (25 terakhir)</h3>
+      ${(k.log || []).length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>Waktu</th><th>Email</th><th>Nomor</th><th>Hasil</th></tr></thead><tbody>
+        ${k.log.map((x) => html`<tr><td>${tanggalJam(x.waktu)}${x.jenis === 'uji' ? html` <span class="badge b-lock">Uji</span>` : ''}</td><td>${x.email || '—'}</td><td class="mono">${x.nomor || '—'}</td><td>${hasilFonnte(x)}</td></tr>`)}
+      </tbody></table></div>` : html`<p class="redup">Belum ada kode yang diminta.</p>`}
+      ${modePratinjau ? html`<div class="info-card emas" style="margin-top:12px">${raw(ikon('info', 20))}<span>Mode pratinjau: tidak ada pesan yang benar-benar dikirim. Kode masuk pratinjau selalu 123456.</span></div>` : ''}`);
   }
   async function muatAntrean() {
     try {
@@ -138,6 +187,17 @@ export async function render(el) {
       atur = await api.aturNotifikasi({ matriks: m });
     }, 'Matriks kejadian tersimpan.');
     if (b.matches('[data-simpan-token]')) return jalan(async () => { status = await gas('simpan_token', { token: el.querySelector('[data-token]').value.trim() }, { tulis: true }); gambarGateway(); el.querySelector('[data-token]').value = ''; muatAntrean(); }, 'Token Fonnte tersimpan di Script Properties.');
+    if (b.matches('[data-kode-muat]')) return jalan(muatKodeWa);
+    if (b.matches('[data-kode-simpan]')) return jalan(async () => {
+      const v = el.querySelector('[data-kode-token]').value.trim(); if (!v) throw new Error('Tempel token Fonnte terlebih dahulu.');
+      kodeWa = await api.aturTokenKodeWa(v); gambarKodeWa();
+    }, 'Token kode masuk tersimpan.');
+    if (b.matches('[data-kode-hapus]')) return jalan(async () => { kodeWa = await api.aturTokenKodeWa(''); gambarKodeWa(); }, 'Token kode masuk dihapus. Kode tidak bisa dikirim lewat WhatsApp sampai token diisi lagi.');
+    if (b.matches('[data-kode-kirim-uji]')) return jalan(async () => {
+      const r = await api.ujiKodeWa(el.querySelector('[data-kode-uji]').value.trim());
+      toast(`Pesan uji dikirim ke ${r.nomor}. Periksa WhatsApp dalam beberapa detik.`, 'sukses');
+      setTimeout(muatKodeWa, 4000); await muatKodeWa();
+    });
     if (b.matches('[data-uji]')) return jalan(async () => { await api.ujiNotifikasi(el.querySelector('[data-uji-kanal]').value, el.querySelector('[data-uji-tujuan]').value); await muatAntrean(); }, 'Pesan uji masuk antrean.');
     if (b.matches('[data-proses]')) return jalan(async () => { const r = await gas('proses_sekarang', {}, { tulis: true }); toast(`Diproses: ${r.wa || 0} WA, ${r.email || 0} email, ${r.gagal || 0} gagal.`, 'info'); await muatAntrean(); });
     if (b.matches('[data-ulang-gagal]')) return jalan(async () => { const n = await api.kirimUlangAntrian(); toast(`${n} pesan dikembalikan ke antrean.`, 'info'); await muatAntrean(); });

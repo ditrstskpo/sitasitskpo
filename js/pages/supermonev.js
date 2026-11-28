@@ -2,7 +2,8 @@
 // • Petugas (lapangan maupun Pokja Supermonev): kartu tugas besar dengan hitung mundur jatuh tempo, isi formulir bertahap.
 // • Kapokja Supermonev: antrean verifikasi (Setujui / Kembalikan beralasan), koreksi ringkasan kendala.
 // • Semua pegawai: daftar isian (data resmi hanya yang terverifikasi), unduh Excel.
-// • Super Admin: pengaturan jadwal (jarak bulan, jumlah putaran, jenis bantuan yang dimonitor).
+// • Super Admin: pengaturan jadwal (mulai bulan ke-, jarak hari/minggu, jumlah minggu, jenis bantuan yang dimonitor).
+// v2.11.0: monitoring mingguan (minggu ke-1 = 3 bulan setelah cair, lalu setiap 7 hari).
 import { html, raw, angka, tanggal, tanggalJam, debounce } from '../core/util.js';
 import { ikon } from '../core/icons.js';
 import { api } from '../core/api.js';
@@ -13,7 +14,8 @@ import { pasangEfek, segarkanEfek } from '../core/efek.js';
 import { unduhExcel } from '../core/xlsx.js';
 import { rupiah, chipPokjaU, JENIS_BANTUAN } from '../core/bnba.js';
 import { segmen, ambilSemua } from './_t34.js';
-import { HASIL, URUT_HASIL, STATUS_SMV, STATUS_BELANJA, lencanaHasil, lencanaStatus, chipJatuhTempo, sisaHari, cincin, bandingPendapatan, bukaFormSmv, bukaBelanja, catatanPratinjau } from './_smv.js';
+import { HASIL, URUT_HASIL, STATUS_SMV, STATUS_BELANJA, lencanaHasil, lencanaStatus, chipJatuhTempo, sisaHari, cincin, bandingPendapatan, bukaFormSmv, bukaBelanja, catatanPratinjau,
+  aturMingguan, labelPutaran, namaPutaran, daftarPutaran, mingguanAktif } from './_smv.js';
 import * as P from '../core/peran.js';
 
 export async function render(el, { sesi: s, query }) {
@@ -29,7 +31,7 @@ export async function render(el, { sesi: s, query }) {
     <div class="latar-hidup smv-latar">
     ${judulHalaman({ pill: petugas ? 'Monitoring Lapangan' : 'Monitoring & Evaluasi Pascapenyaluran', sorot: 'Supermonev', sisa: petugas ? '— Tugas Saya' : '— Formulir & Verifikasi',
       sub: petugas ? 'Daftar PM yang ditugaskan kepada Anda. Kunjungi PM, lalu isi formulir langkah demi langkah. Hasil dinilai otomatis dan diverifikasi Kapokja Supermonev.'
-        : 'Monitoring dijadwalkan otomatis setiap 3 bulan setelah bantuan cair. Petugas mengisi formulir; Kapokja Supermonev memverifikasi. Hanya isian terverifikasi yang masuk dashboard.',
+        : 'Monitoring dijadwalkan otomatis setiap minggu, mulai 3 bulan setelah bantuan cair. Petugas mengisi formulir; Kapokja Supermonev memverifikasi. Hanya isian terverifikasi yang masuk dashboard.',
       aksi: pegawai ? String(html`<a class="btn btn-secondary" href="#/dashboard-supermonev">${raw(ikon('chart', 18))} Dashboard</a>
         ${P.isSuperAdmin(s) || P.diPokja(s, 'SUPERMONEV', 'kapokja') || P.diPokja(s, 'TU', 'kapokja') ? html`<a class="btn btn-primary" href="#/penugasan-supermonev">${raw(ikon('user-check', 18))} Penugasan Petugas</a>` : ''}`) : '' })}
     ${catatanPratinjau()}
@@ -59,7 +61,7 @@ export async function render(el, { sesi: s, query }) {
       : st === 'perlu_perbaikan' ? ['undo', 'Perbaiki Isian', 'btn-primary btn-sinar'] : ['eye', 'Lihat Isian', 'btn-secondary'];
     return html`<article class="tugas-smv st-${st} ${['ditugaskan', 'draft'].includes(st) ? 'tempo-' + tempo.kelas : ''}" data-tilt="3">
       <span class="ts-sinar" aria-hidden="true"></span>
-      <div class="ts-atas"><span class="ts-putaran">${raw(ikon('repeat', 14))} Putaran ${r.putaran}</span>${['ditugaskan', 'draft', 'perlu_perbaikan'].includes(st) ? chipJatuhTempo(r.jatuh_tempo) : ''}
+      <div class="ts-atas"><span class="ts-putaran">${raw(ikon('repeat', 14))} ${labelPutaran(r.putaran)}</span>${['ditugaskan', 'draft', 'perlu_perbaikan'].includes(st) ? chipJatuhTempo(r.jatuh_tempo) : ''}
         <span class="spacer"></span>${r.hasil ? lencanaHasil(r.hasil) : lencanaStatus(STATUS_SMV, st)}</div>
       <h3>${r.nama}</h3>
       <p class="mono ts-nik">NIK ${r.nik}</p>
@@ -74,7 +76,7 @@ export async function render(el, { sesi: s, query }) {
   async function tugas() {
     const w = $('[data-isi]');
     try {
-      const d = await api.smvTugasSaya();
+      const d = await api.smvTugasSaya(); aturMingguan(d.mingguan);
       jml.tugas = d.ringkas.belum + d.ringkas.perbaikan || null; gSeg();
       const g = (sts) => d.baris.filter((r) => sts.includes(r.status));
       const kelompok = [['Perlu diperbaiki', 'alert', g(['perlu_perbaikan']), 'emas'], ['Belum diisi', 'pencil', g(['ditugaskan', 'draft']).sort((a, b) => String(a.jatuh_tempo).localeCompare(String(b.jatuh_tempo))), ''],
@@ -108,7 +110,7 @@ export async function render(el, { sesi: s, query }) {
 
   // ---------------------------------------------------------------- antrean verifikasi
   const kartuAntre = (r) => html`<article class="antre-smv" data-tilt="2">
-    <div class="as-kiri"><div class="ts-atas"><span class="ts-putaran">${raw(ikon('repeat', 14))} Putaran ${r.putaran}</span>${chipPokjaU(r)}</div>
+    <div class="as-kiri"><div class="ts-atas"><span class="ts-putaran">${raw(ikon('repeat', 14))} ${labelPutaran(r.putaran)}</span>${chipPokjaU(r)}</div>
       <h3>${r.nama}</h3><p class="redup">${[r.kabkota, r.provinsi].filter(Boolean).join(', ')} · kunjungan ${tanggal(r.tgl_kunjungan)}</p>
       <p class="redup">Diisi <b>${r.petugas_nama || '—'}</b> · diajukan ${tanggalJam(r.diajukan_pada)}</p>
       ${r.ringkasan_kendala ? html`<p class="ringkas-kendala">${raw(ikon('sparkles', 16))} <span>${r.ringkasan_kendala}</span></p>` : ''}</div>
@@ -118,7 +120,7 @@ export async function render(el, { sesi: s, query }) {
   async function antrean() {
     const w = $('[data-isi]');
     try {
-      const d = await api.smvDaftar({ mode: 'antrean', per: 100 });
+      const d = await api.smvDaftar({ mode: 'antrean', per: 100 }); aturMingguan(d.mingguan);
       jml.antrean = d.total || null; gSeg();
       w.innerHTML = String(d.baris.length ? html`<div class="info-card biru rv" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span>Periksa isian dan foto. <b>Setujui</b> bila sesuai (hasil otomatis dapat diubah dengan alasan), atau <b>Kembalikan</b> dengan catatan agar petugas memperbaiki.</span></div>
         <div class="daftar-antre rv-anak rv">${d.baris.map(kartuAntre)}</div>`
@@ -136,13 +138,13 @@ export async function render(el, { sesi: s, query }) {
         <div class="dash-filter"><label class="input-ikon lebar">${raw(ikon('search', 18))}<input class="input" data-q placeholder="Nama PM, NIK, atau nama petugas" aria-label="Cari" value="${f.q}"></label>
           <select class="select" data-f="status" aria-label="Status">${opsi(Object.entries(STATUS_SMV).filter(([k]) => !['ditugaskan', 'belum_ditugaskan'].includes(k)).map(([k, x]) => [k, x.l]), f.status, 'Semua status')}</select>
           <select class="select" data-f="hasil" aria-label="Hasil">${opsi(URUT_HASIL.map((k) => [k, HASIL[k].l]), f.hasil, 'Semua hasil')}</select>
-          <select class="select" data-f="putaran" aria-label="Putaran">${opsi([1, 2, 3, 4].map((n) => [String(n), 'Putaran ' + n]), f.putaran, 'Semua putaran')}</select></div></section>
+          <select class="select" data-f="putaran" aria-label="${namaPutaran()}">${opsi(daftarPutaran(), f.putaran, mingguanAktif() ? 'Semua minggu' : 'Semua putaran')}</select></div></section>
         <section class="card table-card" data-tabel-smv>${skelTabel(8, 7)}</section>`);
     }
     const t = w.querySelector('[data-tabel-smv]');
     try {
-      const d = await api.smvDaftar({ ...Object.fromEntries(Object.entries(f).filter(([, x]) => x !== '')), mode: 'semua' });
-      t.innerHTML = String(d.baris.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>Penerima Manfaat</th><th>Putaran</th><th>Kunjungan</th><th>Petugas</th>
+      const d = await api.smvDaftar({ ...Object.fromEntries(Object.entries(f).filter(([, x]) => x !== '')), mode: 'semua' }); aturMingguan(d.mingguan);
+      t.innerHTML = String(d.baris.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>Penerima Manfaat</th><th>${namaPutaran()}</th><th>Kunjungan</th><th>Petugas</th>
           <th class="kanan">Sebelum → Bulan ini</th><th>Hasil</th><th>Status</th><th></th></tr></thead><tbody>
         ${d.baris.map((r) => html`<tr><td><b>${r.nama}</b><small class="redup" style="display:block">${chipPokjaU(r)} ${r.kabkota || ''}</small></td><td>${r.putaran}</td>
           <td>${tanggal(r.tgl_kunjungan)}</td><td>${r.petugas_nama || '—'}</td>
@@ -165,9 +167,11 @@ export async function render(el, { sesi: s, query }) {
       w.innerHTML = String(html`<section class="card" style="max-width:860px">
         <div class="card-head"><span class="ubin">${raw(ikon('calendar-clock', 22))}</span><div><h2 class="card-title">Pengaturan Jadwal Supermonev</h2><p class="card-sub">Berlaku untuk semua PM. Jadwal dihitung ulang otomatis dari tanggal cair.</p></div></div>
         <div class="form-grid">
-          <div class="field"><label class="label" for="at-iv">Jarak monitoring (bulan setelah cair)</label><input id="at-iv" class="input" type="number" min="1" max="12" data-c="interval_bulan" value="${c.interval_bulan}"><div class="help">Bawaan PRD: 3 bulan.</div></div>
-          <div class="field"><label class="label" for="at-mp">Jumlah putaran monitoring</label><input id="at-mp" class="input" type="number" min="1" max="24" data-c="maks_putaran" value="${c.maks_putaran}"><div class="help">mis. 4 putaran × 3 bulan = 1 tahun.</div></div>
-          <div class="field"><label class="label" for="at-ts">Tampil berapa hari sebelum jatuh tempo</label><input id="at-ts" class="input" type="number" min="0" max="60" data-c="tampil_sebelum_hari" value="${c.tampil_sebelum_hari}"><div class="help">PM muncul di Penugasan lebih awal agar sempat ditugaskan.</div></div>
+          <div class="field"><label class="label" for="at-mb">Mulai monitoring (bulan setelah cair)</label><input id="at-mb" class="input" type="number" min="0" max="24" data-c="mulai_bulan" value="${c.mulai_bulan ?? 3}"><div class="help">Minggu ke-1 jatuh tempo sekian bulan setelah bantuan cair. Bawaan: 3 bulan.</div></div>
+          <div class="field"><label class="label" for="at-ih">Jarak antar-monitoring (hari)</label><input id="at-ih" class="input" type="number" min="0" max="90" data-c="interval_hari" value="${c.interval_hari ?? 7}"><div class="help">7 = setiap minggu (bawaan). Isi 0 untuk kembali ke cara lama (per bulan).</div></div>
+          <div class="field"><label class="label" for="at-mp">Jumlah minggu monitoring</label><input id="at-mp" class="input" type="number" min="1" max="520" data-c="maks_putaran" value="${c.maks_putaran}"><div class="help">mis. 52 minggu = 1 tahun pemantauan.</div></div>
+          <div class="field"><label class="label" for="at-ts">Tampil berapa hari sebelum jatuh tempo</label><input id="at-ts" class="input" type="number" min="0" max="60" data-c="tampil_sebelum_hari" value="${c.tampil_sebelum_hari}"><div class="help">PM muncul di Penugasan lebih awal agar sempat ditugaskan. Mingguan: 3 hari cukup.</div></div>
+          <div class="field"><label class="label" for="at-iv">Jarak per bulan (cara lama)</label><input id="at-iv" class="input" type="number" min="1" max="12" data-c="interval_bulan" value="${c.interval_bulan}"><div class="help">Hanya dipakai bila jarak hari = 0.</div></div>
         </div>
         <div class="field" style="margin-top:16px"><span class="label">Jenis bantuan yang dimonitor Supermonev</span><div class="cek-grup">${['KWU', 'PHL', 'PEMULANGAN'].map((j) => cek('jenis_bantuan', j))}</div>
           <div class="help">Bawaan: Kewirausahaan (KWU) — penilaian membandingkan pendapatan usaha.</div></div>
@@ -196,7 +200,7 @@ export async function render(el, { sesi: s, query }) {
       const b = e.target.closest('[data-unduh]'), pulih = tombolMuat(b, 'Menyiapkan…');
       try {
         const rows = await ambilSemua(api.smvDaftar, { ...Object.fromEntries(Object.entries(f).filter(([k, x]) => x !== '' && !['hal', 'per'].includes(k))), mode: 'semua' }, 200);
-        await unduhExcel(namaUnduhan('Supermonev'), [{ nama: 'Supermonev', kolom: ['NAMA PM', 'NIK', 'POKJA', 'KAB/KOTA', 'PROVINSI', 'PUTARAN', 'JATUH TEMPO', 'TGL KUNJUNGAN', 'PETUGAS', 'USAHA BERJALAN', 'JENIS USAHA BERUBAH', 'USAHA BARU',
+        await unduhExcel(namaUnduhan('Supermonev'), [{ nama: 'Supermonev', kolom: ['NAMA PM', 'NIK', 'POKJA', 'KAB/KOTA', 'PROVINSI', mingguanAktif() ? 'MINGGU KE' : 'PUTARAN', 'JATUH TEMPO', 'TGL KUNJUNGAN', 'PETUGAS', 'USAHA BERJALAN', 'JENIS USAHA BERUBAH', 'USAHA BARU',
           'PENDAPATAN KOTOR', 'PENGELUARAN', 'PENDAPATAN BERSIH', 'PENDAPATAN SEBELUM BANTUAN', 'KENAIKAN (%)', 'TAMBAH PEKERJA', 'KONDISI BARANG', 'MODAL USAHA', 'SUMBER MODAL', 'KENDALA', 'RINGKASAN KENDALA',
           'HASIL OTOMATIS', 'HASIL', 'STATUS', 'VERIFIKATOR'],
         data: rows.map((r) => [r.nama, r.nik, r.pokja_nama, r.kabkota, r.provinsi, r.putaran, r.jatuh_tempo, r.tgl_kunjungan, r.petugas_nama, r.usaha_berjalan == null ? '' : r.usaha_berjalan ? 'Ya' : 'Tidak',

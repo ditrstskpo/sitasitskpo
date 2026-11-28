@@ -7,6 +7,72 @@ import { api, modePratinjau } from '../core/api.js';
 import { bukaModal, toast, pesanGalat, tombolMuat, konfirmasi } from '../core/ui.js';
 import { rupiah, chipPokjaU, JENIS_BANTUAN } from '../core/bnba.js';
 import { galeriFoto, daftarBerkas, pasangUnggah, muatGambarMini } from '../core/unggah.js';
+import { rupiahSingkat } from '../core/grafik.js';
+
+// ---------------------------------------------------------------- jadwal mingguan (v2.11.0)
+// Bawaan: monitoring setiap minggu, mulai 3 bulan setelah penyaluran. Server mengirim "mingguan" (true/false) di setiap
+// jawaban Supermonev; nilainya disimpan di sini agar semua label memakai "Minggu ke-n" atau "Putaran n" (cara lama).
+let MINGGUAN = true;
+export const aturMingguan = (v) => { if (typeof v === 'boolean') MINGGUAN = v; return MINGGUAN; };
+export const mingguanAktif = () => MINGGUAN;
+export const labelPutaran = (n) => (MINGGUAN ? 'Minggu ke-' : 'Putaran ') + n;
+export const namaPutaran = () => (MINGGUAN ? 'Minggu' : 'Putaran');
+/** Pilihan filter nomor minggu/putaran */
+export const daftarPutaran = (maks = MINGGUAN ? 52 : 4) => Array.from({ length: maks }, (_, i) => [String(i + 1), labelPutaran(i + 1)]);
+export const namaBulan = (ym) => (ym ? new Date(ym + '-01T00:00:00').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : '—');
+const tglPendek = (v) => (v ? new Date(v + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '');
+
+/** Skala sumbu Y yang "bulat" (mis. 0, 200 rb, 400 rb, 600 rb) */
+function skalaBulat(maks, garis = 4) {
+  const kasar = Math.max(1, maks) / garis, pangkat = 10 ** Math.floor(Math.log10(kasar));
+  const langkah = [1, 2, 2.5, 5, 10].map((k) => k * pangkat).find((x) => x >= kasar) || 10 * pangkat;
+  const atas = Math.ceil((Math.max(1, maks) * 1.08) / langkah) * langkah;
+  return { atas, garis: Array.from({ length: Math.round(atas / langkah) + 1 }, (_, i) => i * langkah) };
+}
+/**
+ * Grafik pendapatan bersih per minggu satu PM (SVG, tanpa pustaka).
+ * titik: [{ putaran, jatuh_tempo, nilai|null, hasil?, nanti? }] berurutan; dasar = pendapatan sebelum bantuan (garis putus-putus).
+ * jenis 'garis' (banyak minggu) atau 'batang' (satu bulan, 4–5 minggu, dengan angka di atas batang).
+ * Minggu tanpa isian terverifikasi dibiarkan kosong (garis terputus), bukan dianggap 0.
+ */
+export function grafikMingguan(titik, { dasar = null, tinggi = 240, lebar: W = 720, jenis = 'garis', judul = 'Pendapatan bersih per minggu' } = {}) {
+  const n = titik.length;
+  if (!n) return html`<p class="redup">Belum ada jadwal monitoring.</p>`;
+  const batang = jenis === 'batang';
+  const H = tinggi, kiri = 58, kanan = dasar != null ? 108 : 16, atas = batang ? 26 : 16, bawah = 40, lebar = W - kiri - kanan, tg = H - atas - bawah;
+  const nilai = titik.map((t) => (t.nilai == null ? null : Number(t.nilai)));
+  const sk = skalaBulat(Math.max(...nilai.filter((v) => v != null), Number(dasar) || 0, 1));
+  const lajur = lebar / n;
+  const x = batang ? (i) => kiri + lajur * (i + 0.5) : (i) => kiri + (n === 1 ? lebar / 2 : (i * lebar) / (n - 1));
+  const y = (v) => atas + tg - (Math.max(0, v) / sk.atas) * tg;
+  // label sumbu X: setiap k titik + titik terakhir (label sebelumnya dibuang bila terlalu dekat agar tidak bertumpuk)
+  const langkahLabel = batang ? 1 : Math.max(1, Math.ceil(n / 9)), berlabel = new Set();
+  for (let i = 0; i < n; i += langkahLabel) berlabel.add(i);
+  if (!berlabel.has(n - 1)) { const sblm = Math.max(...berlabel); if (n - 1 - sblm < langkahLabel * 0.7) berlabel.delete(sblm); berlabel.add(n - 1); }
+  let jalur = '', mulai = true;
+  if (!batang) nilai.forEach((v, i) => { if (v == null) { mulai = true; return; } jalur += `${mulai ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)} `; mulai = false; });
+  const lb = Math.min(56, lajur * 0.56);   // lebar batang
+  const terisi = nilai.filter((v) => v != null).length, iAkhir = nilai.map((v, k) => (v == null ? -1 : k)).filter((k) => k >= 0).pop();
+  return html`<figure class="grafik-minggu ${batang ? 'batang' : ''}">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${judul}: ${terisi} dari ${n} minggu terisi">
+      ${sk.garis.map((v) => html`<g><line x1="${kiri}" x2="${W - kanan}" y1="${y(v)}" y2="${y(v)}" class="gm-grid"/><text x="${kiri - 8}" y="${y(v) + 4}" class="gm-sumbu" text-anchor="end">${v ? rupiahSingkat(v).replace('Rp ', '') : '0'}</text></g>`)}
+      ${batang ? titik.map((t, i) => nilai[i] != null
+        ? html`<path d="M${x(i) - lb / 2} ${atas + tg} V${y(nilai[i]) + 4} q0 -4 4 -4 H${x(i) + lb / 2 - 4} q4 0 4 4 V${atas + tg} Z" class="gm-batang"/>
+          <text x="${x(i)}" y="${y(nilai[i]) - 8}" class="gm-nilai" text-anchor="middle">${rupiahSingkat(nilai[i]).replace('Rp ', '')}</text>`
+        : html`<text x="${x(i)}" y="${atas + tg - 8}" class="gm-sumbu redup" text-anchor="middle">${t.nanti ? 'belum jatuh tempo' : 'belum terverifikasi'}</text>`) : ''}
+      ${dasar != null ? html`<line x1="${kiri}" x2="${W - kanan}" y1="${y(dasar)}" y2="${y(dasar)}" class="gm-dasar"/>
+        <text x="${W - kanan + 8}" y="${y(dasar) - 4}" class="gm-label-dasar">Sebelum bantuan</text><text x="${W - kanan + 8}" y="${y(dasar) + 12}" class="gm-label-dasar kuat">${rupiahSingkat(dasar)}</text>` : ''}
+      ${jalur ? html`<path d="${jalur}" class="gm-garis"/>` : ''}
+      ${titik.map((t, i) => html`<g class="gm-titik">${batang ? '' : nilai[i] != null ? html`<circle cx="${x(i)}" cy="${y(nilai[i])}" r="4.5"/>` : html`<circle cx="${x(i)}" cy="${atas + tg}" r="3" class="kosong"/>`}
+        <rect x="${x(i) - Math.max(8, lajur / 2)}" y="${atas}" width="${Math.max(16, lajur)}" height="${tg}" class="gm-sentuh"><title>${labelPutaran(t.putaran)} · ${tanggal(t.jatuh_tempo)}
+${nilai[i] != null ? 'Pendapatan bersih ' + rupiah(nilai[i]) + (t.hasil ? ' · ' + (HASIL[t.hasil]?.l || '') : '') : t.nanti ? 'Belum jatuh tempo' : 'Belum ada isian terverifikasi'}</title></rect>
+        ${berlabel.has(i) ? html`<text x="${x(i)}" y="${H - bawah + 16}" class="gm-sumbu" text-anchor="middle">${(MINGGUAN ? (batang ? 'Mg ' : 'M') : 'P') + t.putaran}</text>
+          <text x="${x(i)}" y="${H - bawah + 30}" class="gm-sumbu redup" text-anchor="middle">${tglPendek(t.jatuh_tempo)}</text>` : ''}</g>`)}
+    </svg>
+    <figcaption><span class="gm-kunci"><i class="${batang ? 'gm-k-batang' : 'gm-k-garis'}"></i> Pendapatan bersih (isian terverifikasi)</span>${dasar != null ? html`<span class="gm-kunci"><i class="gm-k-dasar"></i> Sebelum bantuan</span>` : ''}
+      ${!batang && iAkhir != null ? html`<span>Terakhir <b>${rupiah(nilai[iAkhir])}</b> (${labelPutaran(titik[iAkhir].putaran)})</span>` : ''}
+      <span class="redup">${terisi} dari ${n} ${MINGGUAN ? 'minggu' : 'putaran'} terisi</span></figcaption></figure>`;
+}
 
 // ---------------------------------------------------------------- hasil & status
 // Lencana hasil: latar muda + tulisan tua + ikon (PRD 7.3)
@@ -101,7 +167,7 @@ const infoPm = (f) => html`<div class="smv-pm">
   <div><b>${f.nama}</b><small class="mono">NIK ${f.nik || '—'}</small>
     <small>${[f.alamat, f.kelurahan, f.kecamatan, f.kabkota, f.provinsi].filter(Boolean).join(', ')}</small></div>
   <div class="smv-pm-kanan">${chipPokjaU(f)}<small>${JENIS_BANTUAN[f.jenis_bantuan] || f.jenis_bantuan || ''} · ${rupiah(f.nilai_bantuan)}</small>
-    ${f.putaran != null ? html`<small>Putaran ${f.putaran} · jatuh tempo ${tanggal(f.jatuh_tempo)}</small>` : f.tgl_cair ? html`<small>Cair ${tanggal(f.tgl_cair)}</small>` : ''}</div></div>`;
+    ${f.putaran != null ? html`<small>${f.label_putaran || labelPutaran(f.putaran)} · jatuh tempo ${tanggal(f.jatuh_tempo)}</small>` : f.tgl_cair ? html`<small>Cair ${tanggal(f.tgl_cair)}</small>` : ''}</div></div>`;
 
 // ---------------------------------------------------------------- formulir monitoring (wizard)
 const LANGKAH = [['Kunjungan', 'map-pin'], ['Usaha', 'store'], ['Keuangan', 'banknote'], ['Barang & Kendala', 'box'], ['Periksa & Ajukan', 'send']];
@@ -113,7 +179,7 @@ const LANGKAH = [['Kunjungan', 'map-pin'], ['Usaha', 'store'], ['Keuangan', 'ban
 export async function bukaFormSmv({ bnba_id, putaran, onSelesai }) {
   const m = bukaModal({ judul: 'Formulir Supermonev', ukuran: 'besar smv-modal', isi: '<div class="skel" style="height:360px;border-radius:20px"></div>', kaki: '<span></span>' });
   let f;
-  try { f = await api.smvFormulir(bnba_id, putaran); } catch (e) { m.body.innerHTML = String(html`<div class="galat">${raw(ikon('alert', 20))}<span>${pesanGalat(e)}</span></div>`); return; }
+  try { f = await api.smvFormulir(bnba_id, putaran); aturMingguan(f.mingguan); } catch (e) { m.body.innerHTML = String(html`<div class="galat">${raw(ikon('alert', 20))}<span>${pesanGalat(e)}</span></div>`); return; }
   m.el.querySelector('.modal-head h2').textContent = (f.boleh_isi ? 'Isi Formulir Supermonev' : 'Hasil Monitoring Supermonev') + ' — ' + f.nama;
   const i = f.isian || {};
   const v = {
@@ -146,7 +212,7 @@ export async function bukaFormSmv({ bnba_id, putaran, onSelesai }) {
         ${f.dasar != null ? html`<p><span class="angka-besar">${rupiah(f.dasar)}</span> <small class="redup">${f.dasar_sumber === 'bnba' ? `dari data BNBA (pendapatan ${rupiah(f.dasar_kotor)} − biaya ${rupiah(f.dasar_biaya)})` : 'dicatat pada monitoring sebelumnya'}</small></p>`
           : html`<p class="redup">Belum tercatat di BNBA. Tanyakan kepada PM: <i>"Sebelum menerima bantuan, berapa kira-kira penghasilan bersih Bapak/Ibu per bulan?"</i></p>
             ${rp('dasar_pendapatan', 'Pendapatan bersih per bulan sebelum bantuan', 'Diisi sekali saja, pada monitoring pertama.')}`}</div></div>
-      ${(f.riwayat || []).length ? html`<div class="smv-riwayat-mini"><b>Monitoring sebelumnya</b>${f.riwayat.map((r) => html`<span>Putaran ${r.putaran}: ${lencanaHasil(r.hasil, { teks: r.hasil ? '' : (STATUS_SMV[r.status]?.l || r.status) })}</span>`)}</div>` : ''}`;
+      ${(f.riwayat || []).length ? html`<div class="smv-riwayat-mini"><b>Monitoring sebelumnya</b>${f.riwayat.map((r) => html`<span>${labelPutaran(r.putaran)}: ${lencanaHasil(r.hasil, { teks: r.hasil ? '' : (STATUS_SMV[r.status]?.l || r.status) })}</span>`)}</div>` : ''}`;
     if (langkah === 1) return html`
       <h3 class="tanya">1. Apakah usaha PM masih berjalan?</h3>
       <div class="pilih-dua">${ya('usaha_berjalan', true, 'Ya, masih berjalan', 'PM masih berjualan / berproduksi', 'store')}${ya('usaha_berjalan', false, 'Tidak, sudah berhenti', 'Usaha tutup atau tidak aktif', 'pause')}</div>
@@ -163,7 +229,7 @@ export async function bukaFormSmv({ bnba_id, putaran, onSelesai }) {
     if (langkah === 2) return html`
       ${v.usaha_berjalan === false ? html`<div class="info-card emas" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span>Usaha tidak berjalan, jadi pendapatan bulan ini tidak perlu diisi. Lanjutkan ke langkah berikutnya bila tidak ada data modal.</span></div>` : ''}
       <div class="form-grid">
-        ${v.usaha_berjalan !== false ? html`${rp('pendapatan_kotor', 'Pendapatan kotor per bulan *', 'Seluruh uang hasil penjualan dalam sebulan.')}${rp('pengeluaran', 'Pengeluaran usaha per bulan *', 'Belanja bahan, sewa, listrik, transportasi, dll.')}` : ''}
+        ${v.usaha_berjalan !== false ? html`${rp('pendapatan_kotor', 'Pendapatan kotor per bulan *', MINGGUAN ? 'Perkiraan seluruh hasil penjualan dalam sebulan pada kondisi minggu ini (agar bisa dibandingkan dengan pendapatan sebelum bantuan).' : 'Seluruh uang hasil penjualan dalam sebulan.')}${rp('pengeluaran', 'Pengeluaran usaha per bulan *', 'Belanja bahan, sewa, listrik, transportasi, dll.')}` : ''}
       </div>
       ${v.usaha_berjalan !== false ? html`<div class="field" style="margin-top:14px"><label class="label" for="smv-rinci">Rincian pengeluaran</label><input id="smv-rinci" class="input" data-v="rincian_pengeluaran" value="${v.rincian_pengeluaran}" placeholder="mis. bahan baku, gas, plastik kemasan"></div>
         <div class="kartu-bersih" data-bersih></div>` : ''}

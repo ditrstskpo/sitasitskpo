@@ -130,7 +130,8 @@ export async function render(el, { query, segarkanSesi }) {
             <div class="field"><label class="label" for="u-email">Email Google<span class="wajib">*</span></label><input id="u-email" name="email" type="email" class="input" value="${u?.email || ''}" autocomplete="off" inputmode="email"><div class="err" hidden></div>
               <span class="help" data-email-help>${baru ? 'Email ini yang dipakai untuk "Masuk dengan Google".' : ''}</span></div>
             <div class="field"><label class="label" for="u-nip">NIP / Nomor Induk <span class="redup" style="font-weight:500">(opsional)</span></label><input id="u-nip" name="nip" class="input" value="${u?.nip || ''}" inputmode="numeric"></div>
-            <div class="field"><label class="label" for="u-hp">Nomor HP <span class="redup" style="font-weight:500">(opsional)</span></label><input id="u-hp" name="no_hp" class="input" value="${u?.no_hp || ''}" inputmode="tel"></div>
+            <div class="field"><label class="label" for="u-hp">Nomor HP / WhatsApp</label><input id="u-hp" name="no_hp" class="input" value="${u?.no_hp || ''}" inputmode="tel" placeholder="08…">
+              <div class="help">Dipakai untuk kode masuk "Akun Kemensos" (dikirim lewat WhatsApp) dan notifikasi WhatsApp.</div></div>
           </div></div>
         <div class="form-section"><div class="form-section-head"><span class="no">2</span><h3>Jenis Akses</h3></div>
           <p class="help" style="margin:-4px 0 10px">Boleh memilih <b>Pegawai Direktorat dan Petugas Supermonev sekaligus</b>: seluruh Workspace tetap tampil, ditambah halaman Supermonev. Bila hanya Petugas Supermonev, yang tampil hanya halaman Supermonev. Petugas Bank berdiri sendiri.</p>

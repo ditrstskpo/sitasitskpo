@@ -12,7 +12,7 @@ import { gambarPeta } from '../core/peta.js';
 import { pasangEfek, segarkanEfek } from '../core/efek.js';
 import { rupiah } from '../core/bnba.js';
 import { KLASTER, PROVINSI, kepalaPita, kartuGrafik } from './_t34.js';
-import { HASIL, URUT_HASIL, lencanaHasil, cincin, bandingPendapatan, catatanPratinjau } from './_smv.js';
+import { HASIL, URUT_HASIL, lencanaHasil, cincin, bandingPendapatan, catatanPratinjau, aturMingguan, mingguanAktif, namaPutaran, daftarPutaran } from './_smv.js';
 import * as P from '../core/peran.js';
 
 export async function render(el, { sesi: s }) {
@@ -32,7 +32,7 @@ export async function render(el, { sesi: s }) {
       <div class="filter-head">${raw(ikon('sliders', 20))}<b>Saring dashboard</b><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-reset>${raw(ikon('refresh', 16))} Reset</button></div>
       <div class="dash-filter">
         <select class="select" data-f="tahun" aria-label="Tahun"><option value="">Semua tahun</option></select>
-        <select class="select" data-f="putaran" aria-label="Putaran">${opsi([1, 2, 3, 4].map((n) => [String(n), 'Putaran ' + n]), '', 'Semua putaran')}</select>
+        <select class="select" data-f="putaran" aria-label="${namaPutaran()}">${opsi(daftarPutaran(), '', mingguanAktif() ? 'Semua minggu' : 'Semua putaran')}</select>
         <select class="select" data-f="pokja" aria-label="Pokja">${opsi(pokja.filter((p) => p.kelompok === 'teknis').map((p) => [p.id, 'Pokja ' + p.nama_pendek]), '', 'Semua Pokja')}</select>
         <select class="select" data-f="provinsi" aria-label="Provinsi">${opsi(PROVINSI, '', 'Semua provinsi')}</select>
         <select class="select" data-f="klaster" aria-label="Klaster">${opsi(KLASTER, '', 'Semua klaster')}</select>
@@ -58,15 +58,17 @@ export async function render(el, { sesi: s }) {
   const kpi = (kelas, ik, label, nilai, satuan, note, opsiAngka = '') => html`<div class="kpi ${kelas}" data-tilt><span class="kpi-badge">${raw(ikon(ik, 22))}</span><span class="kpi-label">${label}</span>
     <span class="kpi-num">${nilai == null ? '—' : html`<span data-hitung="${nilai}" ${raw(opsiAngka)}>0</span>`}<small>${satuan}</small></span><span class="kpi-note">${note}</span></div>`;
   function gambar(d) {
+    aturMingguan(d.mingguan);
+    const satuan = mingguanAktif() ? 'isian' : 'PM';
     const sb = $('[data-f="tahun"]');
     if (sb.options.length <= 1 && d.tahun?.length) sb.innerHTML = String(html`<option value="">Semua tahun</option>${d.tahun.map((t) => html`<option value="${t}">${t}</option>`)}`);
     const ant = el.querySelector('[data-tombol-antre]');
     if (ant) ant.innerHTML = String(html`${raw(ikon('shield', 18))} Antrean Verifikasi${d.menunggu ? html` <span class="hitung">${angka(d.menunggu)}</span>` : ''}`);
     $('[data-kpi]').innerHTML = String(html`<div class="kpi-row kpi-5">
-      ${kpi('', 'clipboard-check', 'Isian Terverifikasi', d.total, 'PM', `${angka(d.jatuh_tempo)} PM sudah jatuh tempo`)}
+      ${kpi('', 'clipboard-check', 'Isian Terverifikasi', d.total, satuan, mingguanAktif() ? `${angka(d.jatuh_tempo)} jadwal mingguan sudah jatuh tempo` : `${angka(d.jatuh_tempo)} PM sudah jatuh tempo`)}
       ${kpi('teal', 'trending-up', 'Tingkat Keberhasilan', d.berhasil_persen, '%', 'berhasil + berhasil dengan catatan', 'data-desimal="1"')}
       ${kpi('gold', 'banknote', 'Rata-rata Kenaikan Pendapatan', d.kenaikan_rata, '%', d.bersih_rata != null ? `rata-rata ${rupiahSingkat(d.dasar_rata)} → ${rupiahSingkat(d.bersih_rata)}/bulan` : 'dibanding sebelum bantuan', 'data-desimal="1"')}
-      ${kpi('sky', 'gauge', 'Cakupan Monitoring', d.cakupan, '%', 'PM jatuh tempo yang sudah terverifikasi', 'data-desimal="1"')}
+      ${kpi('sky', 'gauge', 'Cakupan Monitoring', d.cakupan, '%', mingguanAktif() ? 'jadwal jatuh tempo yang sudah terverifikasi' : 'PM jatuh tempo yang sudah terverifikasi', 'data-desimal="1"')}
       ${kpi('coral', 'users', 'Tambahan Tenaga Kerja', d.pekerja_baru, 'orang', 'direkrut PM sejak bantuan')}</div>`);
 
     const hasil = d.hasil.filter((x) => x.n > 0).sort((a, b) => b.n - a.n);   // urut sama dengan grafik donat agar warna cocok
@@ -75,7 +77,7 @@ export async function render(el, { sesi: s }) {
       <div class="sp-kiri kaca-gelap">${cincin(d.berhasil_persen || 0, { ukuran: 190, tebal: 12, label: d.berhasil_persen == null ? '—' : angka(d.berhasil_persen) + '%', sub: 'usaha berhasil', warna: '#5FD39B' })}
         <div class="sp-legenda">${URUT_HASIL.map((k) => { const x = d.hasil.find((h) => h.kode === k); return html`<div>${lencanaHasil(k)}<b>${angka(x?.n || 0)}</b></div>`; })}</div></div>
       <div class="sp-tengah kaca-gelap"><h3>Distribusi hasil penilaian</h3>
-        ${donat(hasil, { tengah: 'PM', ukuran: 150, warna: hasil.map((x) => HASIL[x.kode].c) })}
+        ${donat(hasil, { tengah: satuan, ukuran: 150, warna: hasil.map((x) => HASIL[x.kode].c) })}
         <h3 style="margin-top:18px">Pendapatan bersih rata-rata per bulan</h3>${bandingPendapatan(d.dasar_rata, d.bersih_rata, { gelap: true })}</div>
       <div class="sp-kanan kaca-gelap"><h3>${raw(ikon('shield', 18))} Kinerja verifikator</h3>
         ${d.verifikator.length ? html`<div class="verifikator-daftar">${d.verifikator.map((v, i) => html`<div class="vf" style="--i:${i}"><span class="vf-av">${raw(ikon('badge-check', 18))}</span>
@@ -96,8 +98,13 @@ export async function render(el, { sesi: s }) {
         .map(([k, n]) => html`<i style="--w:${(n / p.n) * 100}%;--c:${HASIL[k].c}" data-tip="${HASIL[k].l}: ${angka(n)} PM" tabindex="0"></i>`)}</span><b>${angka(p.n)}</b></div>`)}
       <div class="legenda-mini">${URUT_HASIL.map((k) => html`<span><i style="background:${HASIL[k].c}"></i>${HASIL[k].l}</span>`)}</div></div>` : kosong({ ikonNama: 'chart', judul: 'Belum ada data' });
     el.querySelector('[data-g="pokja"]').innerHTML = String(kartuGrafik('Hasil per Pokja', 'Susunan hasil penilaian PM setiap Pokja pengusul', susun));
-    el.querySelector('[data-g="putaran"]').innerHTML = String(kartuGrafik('Isian per Putaran Monitoring', 'Putaran 1 = 3 bulan setelah cair, putaran 2 = 6 bulan, dst.',
-      html`${kolom3d(d.per_putaran, { warna: '#8C6A3E', satuan: 'isian' })}${tabelGrafik(d.per_putaran, [['label', 'Putaran'], ['n', 'Isian', angka], ['berhasil', 'Berhasil', angka]])}`, { tunda: 60 }));
+    // v2.11.0: monitoring mingguan → grafik per bulan (12 bulan terakhir); cara lama tetap per putaran
+    const perBulan = (d.per_bulan_hasil || []).slice(-12).map((x) => ({ label: new Date(x.bulan + '-01T00:00:00').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }), n: x.n, berhasil: x.berhasil }));
+    el.querySelector('[data-g="putaran"]').innerHTML = String(mingguanAktif()
+      ? kartuGrafik('Isian Mingguan per Bulan', 'Jumlah isian mingguan terverifikasi setiap bulan (12 bulan terakhir); minggu ke-1 = 3 bulan setelah cair',
+        html`${kolom3d(perBulan, { warna: '#8C6A3E', satuan: 'isian' })}${tabelGrafik(perBulan, [['label', 'Bulan'], ['n', 'Isian', angka], ['berhasil', 'Berhasil', angka]])}`, { tunda: 60 })
+      : kartuGrafik('Isian per Putaran Monitoring', 'Putaran 1 = 3 bulan setelah cair, putaran 2 = 6 bulan, dst.',
+        html`${kolom3d(d.per_putaran, { warna: '#8C6A3E', satuan: 'isian' })}${tabelGrafik(d.per_putaran, [['label', 'Putaran'], ['n', 'Isian', angka], ['berhasil', 'Berhasil', angka]])}`, { tunda: 60 }));
     el.querySelector('[data-g="kendala"]').innerHTML = String(kartuGrafik('Kendala Terbanyak', 'Dikelompokkan otomatis dari isian kendala petugas (satu isian bisa lebih dari satu kendala)',
       html`${batang(d.kendala, { warna: '#D9644A', tipLabel: 'PM', maks: 9 })}${tabelGrafik(d.kendala, [['label', 'Kendala'], ['n', 'PM', angka]])}`));
     el.querySelector('[data-g="terbaru"]').innerHTML = String(kartuGrafik('Ringkasan Kendala Terbaru', 'Ringkasan otomatis yang sudah diperiksa Kapokja Supermonev',

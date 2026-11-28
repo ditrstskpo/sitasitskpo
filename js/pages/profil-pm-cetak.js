@@ -1,6 +1,7 @@
 // v2.9.0 — Cetak / simpan PDF profil PM lengkap (semua bagian, bukan hanya tab yang terbuka). NIK lengkap untuk keperluan instansi; No. KK & rekening disamarkan.
 import { html, raw, angka, tanggal } from '../core/util.js';
 import { KOLOM, KOLOM_EKONOMI, GRUP, JENIS_BANTUAN, STATUS_BNBA, STATUS_USULAN, infoTahap, URUT_TAHAP, rupiah, usia } from '../core/bnba.js';
+import { grafikMingguan } from './_smv.js';
 
 const samarNik = (n) => (n && n.length >= 8 ? n.slice(0, 4) + '••••••••' + n.slice(-4) : n || '—');
 export function cetakProfil({ d, smv, nikPenuh = true }) {
@@ -17,7 +18,10 @@ export function cetakProfil({ d, smv, nikPenuh = true }) {
     return b[c.k] ?? '—';
   };
   const stt = Object.fromEntries((d.tahap || []).map((x) => [x.tahap, x]));
-  const put = smv?.putaran || [];
+  // v2.11.0: hanya minggu yang sudah jatuh tempo / terisi
+  const hiStr = new Date().toISOString().slice(0, 10), mingguan = smv?.mingguan !== false;
+  const put = (smv?.putaran || []).filter((x) => x.jatuh_tempo <= hiStr || x.isian);
+  const lbl = (x) => x.label || (mingguan ? 'Minggu ke-' : 'Putaran ') + x.putaran;
   const peny = (d.penyaluran || []).filter((x) => x.semua_pm || (x.nik_pm || []).includes(b.nik));
   const w = document.createElement('div'); w.className = 'cetak-profil';
   w.innerHTML = String(html`
@@ -37,9 +41,10 @@ export function cetakProfil({ d, smv, nikPenuh = true }) {
     <dl class="cp-kv"><div><dt>Status pencairan</dt><dd>${u.status === 'selesai' ? 'Sudah cair ' + tanggal(u.tgl_cair) : 'Belum cair'}</dd></div><div><dt>Bank / rekening</dt><dd>${b.nama_bank || '—'} · ${b.nomor_rekening_samar || '—'}</dd></div>
       <div><dt>No SP2D</dt><dd>${b.no_sp2d || '—'} · ${tanggal(b.tgl_sp2d)}</dd></div><div><dt>Petugas penyalur</dt><dd>${peny.length ? peny.map((x) => x.nama_petugas + (x.kabkota ? ' (' + x.kabkota + ')' : '')).join('; ') : 'Belum tercatat'}</dd></div></dl>
     <h2>Supermonev</h2>
-    ${put.length ? html`<table class="cp-tabel"><thead><tr><th>Putaran</th><th>Jatuh tempo</th><th>Status</th><th>Hasil</th><th>Pendapatan bersih</th><th>Perubahan</th></tr></thead><tbody>
-      ${put.map((x) => { const i = x.isian || {}; return html`<tr><td>${x.putaran}</td><td>${tanggal(x.jatuh_tempo)}</td><td>${i.status === 'terverifikasi' ? 'Terverifikasi' : i.status ? 'Terisi' : 'Belum diisi'}</td><td>${i.hasil || '—'}</td><td>${i.pendapatan_bersih == null ? '—' : rupiah(i.pendapatan_bersih)}</td><td>${i.kenaikan == null ? '—' : (i.kenaikan > 0 ? '+' : '') + angka(i.kenaikan) + '%'}</td></tr>`; })}</tbody></table>
-      ${put.filter((x) => x.isian?.ringkasan_kendala).map((x) => html`<p class="cp-kendala"><b>Putaran ${x.putaran}:</b> ${x.isian.ringkasan_kendala}</p>`)}` : html`<p>Belum ada jadwal monitoring.</p>`}`);
+    ${put.length ? html`<table class="cp-tabel"><thead><tr><th>${mingguan ? 'Minggu' : 'Putaran'}</th><th>Jatuh tempo</th><th>Status</th><th>Hasil</th><th>Pendapatan bersih</th><th>Perubahan</th></tr></thead><tbody>
+      ${put.map((x) => { const i = x.isian || {}; return html`<tr><td>${lbl(x)}</td><td>${tanggal(x.jatuh_tempo)}</td><td>${i.status === 'terverifikasi' ? 'Terverifikasi' : i.status ? 'Terisi' : 'Belum diisi'}</td><td>${i.hasil || '—'}</td><td>${i.pendapatan_bersih == null ? '—' : rupiah(i.pendapatan_bersih)}</td><td>${i.kenaikan == null ? '—' : (i.kenaikan > 0 ? '+' : '') + angka(i.kenaikan) + '%'}</td></tr>`; })}</tbody></table>
+      ${put.some((x) => x.isian?.status === 'terverifikasi') ? html`<div class="cp-grafik" style="margin:10px 0 14px;break-inside:avoid">${grafikMingguan(put.map((x) => ({ putaran: x.putaran, jatuh_tempo: x.jatuh_tempo, nilai: x.isian?.status === 'terverifikasi' ? x.isian.pendapatan_bersih : null, hasil: x.isian?.hasil })), { dasar: smv?.dasar, tinggi: 220 })}</div>` : ''}
+      ${put.filter((x) => x.isian?.ringkasan_kendala).map((x) => html`<p class="cp-kendala"><b>${lbl(x)}:</b> ${x.isian.ringkasan_kendala}</p>`)}` : html`<p>Belum ada jadwal monitoring.</p>`}`);
   document.body.appendChild(w);
   const gaya = document.createElement('style'); gaya.textContent = '@page { size: A4 portrait; margin: 12mm; }'; document.head.appendChild(gaya);
   document.documentElement.classList.add('mencetak-profil');

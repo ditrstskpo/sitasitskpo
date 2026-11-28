@@ -1,6 +1,7 @@
-// Ekspor Supermonev (PRD 5.4): PPTX 2 slide per PM (slide 1: keberhasilan, keuangan, kendala; slide 2: situasi
-// barang & permodalan) + slide sampul, Excel, dan cetak/PDF. Pratinjau slide tampil di "panggung" gelap dengan
-// lampu sorot dan kartu miring 3D. Hanya isian TERVERIFIKASI yang diekspor; NIK disamarkan pada slide.
+// Ekspor Supermonev (PRD 5.4): PPTX 3 slide per PM per bulan (slide 1: keberhasilan, keuangan, kendala; slide 2: situasi
+// barang & permodalan — keduanya dari minggu terakhir pada bulan itu; slide 3 (v2.11.0): grafik pendapatan per minggu
+// dalam satu bulan) + slide sampul, Excel, dan cetak/PDF. Pratinjau slide tampil di "panggung" gelap dengan lampu sorot
+// dan kartu miring 3D. Hanya isian TERVERIFIKASI yang diekspor; NIK disamarkan pada slide.
 import { html, raw, angka, tanggal, hariIni, debounce } from '../core/util.js';
 import { ikon } from '../core/icons.js';
 import { api, modePratinjau } from '../core/api.js';
@@ -11,7 +12,7 @@ import { unduhExcel } from '../core/xlsx.js';
 import { ambilBerkas } from '../core/berkas.js';
 import { rupiah, JENIS_BANTUAN } from '../core/bnba.js';
 import { PROVINSI } from './_t34.js';
-import { HASIL, URUT_HASIL, lencanaHasil } from './_smv.js';
+import { HASIL, URUT_HASIL, lencanaHasil, labelPutaran, namaBulan, grafikMingguan, aturMingguan, mingguanAktif, daftarPutaran, namaPutaran } from './_smv.js';
 import { CONFIG } from '../config.js';
 
 const nikSamar = (n) => (n && n.length >= 8 ? n.slice(0, 4) + '••••••••' + n.slice(-4) : n || '—');
@@ -21,7 +22,7 @@ const pct = (x) => (x == null ? '—' : (x > 0 ? '+' : '') + angka(x) + '%');
 function slide1(r) {
   const h = HASIL[r.hasil] || {};
   return html`<div class="slide" style="--t:${h.t};--x:${h.x};--c:${h.c}">
-    <div class="sl-kepala"><span class="sl-pita">Supermonev · Putaran ${r.putaran}</span><b>${r.nama}</b><small>${nikSamar(r.nik)} · ${r.pokja_nama} · ${[r.kabkota, r.provinsi].filter(Boolean).join(', ')}</small></div>
+    <div class="sl-kepala"><span class="sl-pita">Supermonev · ${r.label_putaran || labelPutaran(r.putaran)}</span><b>${r.nama}</b><small>${nikSamar(r.nik)} · ${r.pokja_nama} · ${[r.kabkota, r.provinsi].filter(Boolean).join(', ')}</small></div>
     <div class="sl-isi tiga">
       <div class="sl-kotak hasil"><small>1 · Keberhasilan</small><span class="sl-lencana">${h.l || '—'}</span><p>${h.k || ''}</p>
         <p class="sl-redup">Usaha ${r.usaha_berjalan ? 'berjalan' : 'tidak berjalan'}${r.usaha_berjalan ? (r.usaha_berubah ? ' · berubah ke: ' + (r.usaha_baru || '—') : ' · jenis usaha sama') : ''}</p></div>
@@ -37,7 +38,7 @@ function slide1(r) {
 function slide2(r) {
   const inv = r.belanja?.inventaris || [];
   return html`<div class="slide">
-    <div class="sl-kepala"><span class="sl-pita">Supermonev · Putaran ${r.putaran}</span><b>${r.nama}</b><small>Situasi barang &amp; permodalan</small></div>
+    <div class="sl-kepala"><span class="sl-pita">Supermonev · ${r.label_putaran || labelPutaran(r.putaran)}</span><b>${r.nama}</b><small>Situasi barang &amp; permodalan</small></div>
     <div class="sl-isi dua">
       <div class="sl-kotak"><small>4 · Situasi barang bantuan</small><span class="sl-lencana netral">${r.kondisi_barang || '—'}</span>
         <p class="sl-redup">${r.catatan_barang || ''}</p><p><b>Bantuan:</b> ${JENIS_BANTUAN[r.jenis_bantuan] || r.jenis_bantuan || '—'} · ${rupiah(r.nilai_bantuan)}</p><p class="sl-redup">${r.rincian_barang || ''}</p>
@@ -47,6 +48,39 @@ function slide2(r) {
         <div class="sl-foto">${(r.foto || []).slice(0, 2).map((id) => html`<img data-gambar-slide="${id}" alt="">`)}${!(r.foto || []).length ? html`<span>Tidak ada foto</span>` : ''}</div></div>
     </div>
     <div class="sl-kaki">Rekap Supermonev · ${hariIni()}<span>SITASI TSKPO · Dit. RSTSKPO</span></div></div>`;
+}
+
+// v2.11.0: satu kelompok = satu PM pada satu bulan; slide 1–2 memakai minggu terakhir yang terverifikasi pada bulan itu
+export function kelompokkan(rows) {
+  const m = new Map();
+  for (const r of rows) { const k = r.bnba_id + '|' + (r.bulan || String(r.jatuh_tempo || r.tgl_kunjungan || '').slice(0, 7)); (m.get(k) || m.set(k, []).get(k)).push(r); }
+  return [...m.values()].map((ms) => {
+    ms.sort((a, b) => a.putaran - b.putaran);
+    const akhir = ms[ms.length - 1], bulan = akhir.bulan || String(akhir.jatuh_tempo || akhir.tgl_kunjungan || '').slice(0, 7);
+    const jadwal = (akhir.jadwal_bulan || []).length ? akhir.jadwal_bulan
+      : ms.map((x) => ({ putaran: x.putaran, label: x.label_putaran, jatuh_tempo: x.jatuh_tempo, pendapatan_bersih: x.pendapatan_bersih, hasil: x.hasil, status: 'terverifikasi' }));
+    const nilai = ms.map((x) => Number(x.pendapatan_bersih)).filter((x) => Number.isFinite(x));
+    const rata = nilai.length ? Math.round(nilai.reduce((a, x) => a + x, 0) / nilai.length) : null;
+    return { ...akhir, akhir, minggu: ms, bulan, jadwal, rata_bersih: rata,
+      perubahan_bulan: rata != null && akhir.dasar_pendapatan > 0 ? Math.round(((rata - akhir.dasar_pendapatan) / akhir.dasar_pendapatan) * 1000) / 10 : null };
+  });
+}
+const tglPendek = (v) => (v ? new Date(String(v).slice(0, 10) + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '');
+const ketMinggu = (j) => (j.status === 'terverifikasi' ? HASIL[j.hasil]?.l || '—' : j.jatuh_tempo > hariIni() ? 'Belum jatuh tempo' : 'Belum terverifikasi');
+const mg = (j) => `${(j.label || labelPutaran(j.putaran)).replace('Minggu ke-', 'Mg ')} · ${tglPendek(j.jatuh_tempo)}`;
+function slide3(g) {
+  const titik = g.jadwal.map((j) => ({ putaran: j.putaran, jatuh_tempo: j.jatuh_tempo, nilai: j.status === 'terverifikasi' ? j.pendapatan_bersih : null, hasil: j.hasil, nanti: j.jatuh_tempo > hariIni() }));
+  return html`<div class="slide">
+    <div class="sl-kepala"><span class="sl-pita">Supermonev · Grafik per minggu</span><b>${g.nama}</b><small>${namaBulan(g.bulan)} · ${g.pokja_nama || ''} · ${[g.kabkota, g.provinsi].filter(Boolean).join(', ')}</small></div>
+    <div class="sl-isi dua-satu">
+      <div class="sl-kotak sl-grafik"><small>6 · Pendapatan bersih per minggu — ${namaBulan(g.bulan)}</small>${grafikMingguan(titik, { dasar: g.dasar_pendapatan, tinggi: 300, lebar: 520, jenis: 'batang' })}</div>
+      <div class="sl-kotak"><small>7 · Rincian minggu</small>
+        <table class="sl-minggu"><tr><th>Minggu</th><th>Bersih</th><th>Hasil</th></tr>
+          ${g.jadwal.map((j) => html`<tr><td>${mg(j)}</td><td class="k">${j.status === 'terverifikasi' ? rupiah(j.pendapatan_bersih) : '—'}</td><td>${ketMinggu(j)}</td></tr>`)}</table>
+        <div class="sl-ringkas-bulan"><span>Rata-rata bulan ini</span><b>${g.rata_bersih == null ? '—' : rupiah(g.rata_bersih)}</b>
+          <span class="sl-redup">Sebelum bantuan ${rupiah(g.dasar_pendapatan)} · perubahan ${pct(g.perubahan_bulan)}</span></div></div>
+    </div>
+    <div class="sl-kaki">${namaBulan(g.bulan)} · ${angka(g.minggu.length)} dari ${angka(g.jadwal.length)} minggu terverifikasi<span>SITASI TSKPO · Dit. RSTSKPO</span></div></div>`;
 }
 
 // ---------------------------------------------------------------- PPTX
@@ -75,18 +109,18 @@ export async function fotoData(id) {
   return c.toDataURL('image/jpeg', 0.85);
 }
 const hx = (c) => String(c || '#17824A').replace('#', '').toUpperCase();
-async function buatPptx(rows, { foto = true, judul = 'Laporan Supermonev', ket = '', ringkas, progres }) {
+async function buatPptx(kel, { foto = true, judul = 'Laporan Supermonev', ket = '', ringkas, progres }) {
   const Pptx = await muatPptx();
   const p = new Pptx();
   p.layout = 'LAYOUT_WIDE'; p.author = 'SITASI TSKPO'; p.company = 'Direktorat RSTSKPO, Kementerian Sosial RI'; p.title = judul;
   const F = 'Calibri', GELAP = '0B3B2A', HIJAU = '17824A', EMAS = 'E7B416', JUDUL = '142033', REDUP = '66717E';
   let logo = null;
   try { if (CONFIG.LOGO) { const r = await fetch(CONFIG.LOGO); if (r.ok) logo = await blobKeData(await r.blob()); } } catch {}
-  const kepala = (sl, r, sub) => {
+  const kepala = (sl, r, sub, pita = null) => {
     sl.background = { color: 'F7F9FB' };
     sl.addShape(p.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 1.15, fill: { color: GELAP } });
     sl.addShape(p.ShapeType.rect, { x: 0, y: 1.15, w: 13.33, h: 0.05, fill: { color: EMAS } });
-    sl.addText(`SUPERMONEV · PUTARAN ${r.putaran}`, { x: 0.5, y: 0.14, w: 6, h: 0.3, fontFace: F, fontSize: 11, bold: true, color: 'F2C94C', charSpacing: 2 });
+    sl.addText(pita || `SUPERMONEV · ${(r.label_putaran || labelPutaran(r.putaran)).toUpperCase()}`, { x: 0.5, y: 0.14, w: 6, h: 0.3, fontFace: F, fontSize: 11, bold: true, color: 'F2C94C', charSpacing: 2 });
     sl.addText(r.nama, { x: 0.5, y: 0.42, w: 8.4, h: 0.5, fontFace: F, fontSize: 26, bold: true, color: 'FFFFFF' });
     sl.addText(sub, { x: 8.6, y: 0.3, w: 4.3, h: 0.6, fontFace: F, fontSize: 12, color: 'B9CFC3', align: 'right' });
   };
@@ -108,22 +142,23 @@ async function buatPptx(rows, { foto = true, judul = 'Laporan Supermonev', ket =
   sm.addText(judul, { x: 0.7, y: 2.2, w: 11, h: 1.0, fontFace: F, fontSize: 44, bold: true, color: 'FFFFFF' });
   sm.addText('Evaluasi hasil pascapenyaluran bantuan ATENSI · Direktorat Rehabilitasi Sosial Tuna Sosial dan Korban Perdagangan Orang', { x: 0.7, y: 3.2, w: 11.5, h: 0.5, fontFace: F, fontSize: 15, color: 'B9CFC3' });
   sm.addText(ket || 'Semua isian terverifikasi', { x: 0.7, y: 3.7, w: 11.5, h: 0.4, fontFace: F, fontSize: 13, color: 'B9CFC3', italic: true });
-  const kpi = [[angka(rows.length), 'PM dimonitor (terverifikasi)'], [ringkas.berhasil, 'Usaha berhasil'], [ringkas.naik, 'Rata-rata kenaikan pendapatan']];
+  const kpi = [[angka(kel.length), 'PM dimonitor (terverifikasi)'], [ringkas.berhasil, 'Usaha berhasil'], [ringkas.naik, 'Rata-rata kenaikan pendapatan']];
   kpi.forEach(([v, l], i) => {
     sm.addShape(p.ShapeType.roundRect, { x: 0.7 + i * 3.2, y: 4.5, w: 3.0, h: 1.5, fill: { color: 'FFFFFF', transparency: 90 }, line: { color: 'FFFFFF', transparency: 80, width: 1 }, rectRadius: 0.15 });
     sm.addText(v, { x: 0.9 + i * 3.2, y: 4.62, w: 2.7, h: 0.75, fontFace: F, fontSize: 32, bold: true, color: 'FFFFFF' });
     sm.addText(l, { x: 0.9 + i * 3.2, y: 5.35, w: 2.7, h: 0.45, fontFace: F, fontSize: 12, color: 'B9CFC3' });
   });
   URUT_HASIL.forEach((k, i) => {
-    const n = rows.filter((r) => r.hasil === k).length;
+    const n = kel.filter((r) => r.hasil === k).length;
     sm.addShape(p.ShapeType.roundRect, { x: 10.5, y: 4.5 + i * 0.42, w: 2.2, h: 0.36, fill: { color: hx(HASIL[k].t) }, rectRadius: 0.08 });
     sm.addText(`${HASIL[k].l}: ${n}`, { x: 10.55, y: 4.5 + i * 0.42, w: 2.1, h: 0.36, fontFace: F, fontSize: 11, bold: true, color: hx(HASIL[k].x), align: 'center' });
   });
   sm.addText(`Dibuat ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} · SITASI TSKPO`, { x: 0.7, y: 6.7, w: 8, h: 0.35, fontFace: F, fontSize: 11, color: 'B9CFC3' });
 
   let n = 0;
-  for (const r of rows) {
-    n++; progres?.(n, rows.length);
+  for (const g of kel) {
+    const r = g.akhir;
+    n++; progres?.(n, kel.length);
     const h = HASIL[r.hasil] || { l: '—', t: '#E8ECF1', x: '#3A4656', c: '#8A96A3', k: '' };
     // ---- slide 1: keberhasilan, keuangan, kendala
     const s1 = p.addSlide();
@@ -174,24 +209,54 @@ async function buatPptx(rows, { foto = true, judul = 'Laporan Supermonev', ket =
       try { const dt = await fotoData(id); if (dt) { s2.addImage({ data: dt.replace(/^data:/, ''), x: fx, y: 3.25, w: 2.65, h: 3.3, sizing: { type: 'cover', w: 2.65, h: 3.3 }, rounding: false }); fx += 2.85; } } catch { /* foto dilewati */ }
     }
     if (fx === 7.05) s2.addText(foto ? 'Tidak ada foto monitoring.' : 'Foto tidak disertakan.', { x: 7.05, y: 3.3, w: 5.5, h: 0.4, fontFace: F, fontSize: 12, italic: true, color: REDUP });
-    kaki(s2, `Putaran ${r.putaran} · jatuh tempo ${tanggal(r.jatuh_tempo)} · ${r.no_register || ''}`);
+    kaki(s2, `${r.label_putaran || labelPutaran(r.putaran)} · jatuh tempo ${tanggal(r.jatuh_tempo)} · ${r.no_register || ''}`);
+    // ---- slide 3 (v2.11.0): grafik pendapatan bersih per minggu dalam satu bulan
+    const s3 = p.addSlide();
+    kepala(s3, r, `${namaBulan(g.bulan)}\n${r.pokja_nama || ''} · ${[r.kabkota, r.provinsi].filter(Boolean).join(', ')}`, 'SUPERMONEV · GRAFIK PER MINGGU');
+    kotak(s3, 0.5, 1.5, 8.2, 5.3, `6 · Pendapatan bersih per minggu — ${namaBulan(g.bulan)}`);
+    const lbl = g.minggu.map((x) => `${(x.label_putaran || labelPutaran(x.putaran)).replace('Minggu ke-', 'Mg ')} (${tglPendek(x.jatuh_tempo)})`);
+    const nilaiM = g.minggu.map((x) => Number(x.pendapatan_bersih) || 0), dasarM = Number(r.dasar_pendapatan) || 0;
+    s3.addChart([
+      { type: p.ChartType.bar, data: [{ name: 'Pendapatan bersih', labels: lbl, values: nilaiM }],
+        options: { barDir: 'col', chartColors: [HIJAU], barGapWidthPct: 70, showValue: true, dataLabelFormatCode: '#,##0', dataLabelFontSize: 10, dataLabelColor: JUDUL, dataLabelPosition: 'outEnd' } },
+      { type: p.ChartType.line, data: [{ name: 'Sebelum bantuan', labels: lbl, values: lbl.map(() => dasarM) }],
+        options: { chartColors: ['8A96A3'], lineSize: 2, lineDash: 'dash', lineDataSymbol: 'none' } },
+    ], { x: 0.7, y: 1.95, w: 7.8, h: 4.7, fontFace: F, showLegend: true, legendPos: 'b', legendFontSize: 11, legendColor: JUDUL,
+      valAxisLabelFormatCode: '#,##0', valAxisLabelFontSize: 10, valAxisLabelColor: REDUP, valAxisMinVal: 0, valGridLine: { color: 'EEF1F4', size: 0.75 },
+      catAxisLabelFontSize: 10, catAxisLabelColor: JUDUL, catGridLine: { style: 'none' } });
+    kotak(s3, 8.9, 1.5, 3.93, 5.3, '7 · Rincian minggu');
+    const kepalaT = (t) => ({ text: t, options: { bold: true, fill: { color: 'F2F7F4' } } });
+    s3.addTable([[kepalaT('Minggu'), kepalaT('Bersih'), kepalaT('Hasil')],
+      ...g.jadwal.map((j) => [mg(j), j.status === 'terverifikasi' ? rupiah(j.pendapatan_bersih) : '—', ketMinggu(j)])],
+    { x: 9.05, y: 1.95, w: 3.63, colW: [1.25, 1.15, 1.23], fontFace: F, fontSize: 9.5, color: JUDUL, border: { type: 'solid', color: 'E3E8EE', pt: 1 }, rowH: 0.36, valign: 'middle' });
+    const yR = Math.min(5.15, 2.15 + (g.jadwal.length + 1) * 0.38);
+    s3.addShape(p.ShapeType.roundRect, { x: 9.05, y: yR, w: 3.63, h: 1.45, fill: { color: 'F2F7F4' }, line: { color: 'DDF1E8', width: 1 }, rectRadius: 0.1 });
+    s3.addText([{ text: 'Rata-rata bulan ini', options: { fontSize: 11, color: REDUP, breakLine: true } },
+      { text: g.rata_bersih == null ? '—' : rupiah(g.rata_bersih), options: { fontSize: 20, bold: true, color: HIJAU, breakLine: true } },
+      { text: `Sebelum bantuan ${rupiah(r.dasar_pendapatan)} · perubahan ${pct(g.perubahan_bulan)}`, options: { fontSize: 10, color: REDUP } }],
+    { x: 9.2, y: yR + 0.08, w: 3.35, h: 1.3, fontFace: F, valign: 'middle' });
+    kaki(s3, `${namaBulan(g.bulan)} · ${angka(g.minggu.length)} dari ${angka(g.jadwal.length)} minggu terverifikasi · ${r.no_register || ''}`);
   }
   await p.writeFile({ fileName: namaUnduhan('Supermonev') + '.pptx' });
 }
 
 // ---------------------------------------------------------------- halaman
 export async function render(el) {
-  const f = { putaran: '', pokja: '', hasil: '', provinsi: '' };
+  // v2.11.0: bawaan bulan ini; satu PM per bulan = 3 slide (slide 3 = grafik per minggu bulan itu)
+  const BULAN_INI = hariIni().slice(0, 7);
+  const daftarBulan = Array.from({ length: 18 }, (_, i) => { const d = new Date(BULAN_INI + '-01T00:00:00'); d.setMonth(d.getMonth() - i); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); });
+  const f = { bulan: BULAN_INI, putaran: '', pokja: '', hasil: '', provinsi: '' };
   const pokja = await pokjaCepat().catch(() => []);
-  let rows = [], pilih = 0, cari = '';
+  let rows = [], kel = [], pilih = 0, cari = '';
   el.innerHTML = String(html`
     ${judulHalaman({ pill: 'Supermonev · Ekspor', sorot: 'Ekspor PPTX', sisa: '& Laporan',
-      sub: 'Susun bahan paparan otomatis: 1 slide sampul + 2 slide per PM. Slide 1 berisi keberhasilan, keuangan, dan kendala; slide 2 berisi situasi barang dan permodalan. Hanya isian terverifikasi.',
+      sub: 'Susun bahan paparan otomatis: 1 slide sampul + 3 slide per PM untuk bulan yang dipilih. Slide 1 berisi keberhasilan, keuangan, dan kendala; slide 2 situasi barang dan permodalan (minggu terakhir bulan itu); slide 3 grafik pendapatan per minggu dalam bulan itu. Hanya isian terverifikasi.',
       aksi: String(html`<a class="btn btn-ghost" href="#/dashboard-supermonev">${raw(ikon('arrow-left', 18))} Dashboard</a>`) })}
     <section class="card filter-card" style="margin-bottom:20px">
       <div class="filter-head">${raw(ikon('sliders', 20))}<b>Pilih data yang diekspor</b></div>
       <div class="dash-filter">
-        <select class="select" data-f="putaran" aria-label="Putaran">${opsi([1, 2, 3, 4].map((n) => [String(n), 'Putaran ' + n]), '', 'Semua putaran')}</select>
+        <select class="select" data-f="bulan" aria-label="Bulan">${opsi(daftarBulan.map((b) => [b, namaBulan(b)]), f.bulan, 'Semua bulan')}</select>
+        ${mingguanAktif() ? '' : html`<select class="select" data-f="putaran" aria-label="${namaPutaran()}">${opsi(daftarPutaran(), '', 'Semua putaran')}</select>`}
         <select class="select" data-f="pokja" aria-label="Pokja">${opsi(pokja.filter((p) => p.kelompok === 'teknis').map((p) => [p.id, 'Pokja ' + p.nama_pendek]), '', 'Semua Pokja')}</select>
         <select class="select" data-f="hasil" aria-label="Hasil">${opsi(URUT_HASIL.map((k) => [k, HASIL[k].l]), '', 'Semua hasil')}</select>
         <select class="select" data-f="provinsi" aria-label="Provinsi">${opsi(PROVINSI, '', 'Semua provinsi')}</select>
@@ -213,10 +278,12 @@ export async function render(el) {
     </section>`);
   pasangEfek(el);
   const $ = (q) => el.querySelector(q);
-  const tampil = () => rows.filter((r) => !cari || r.nama.toLowerCase().includes(cari));
-  const ringkas = () => ({ berhasil: rows.length ? angka(Math.round((rows.filter((r) => ['berhasil', 'berhasil_catatan'].includes(r.hasil)).length / rows.length) * 1000) / 10) + '%' : '—',
-    naik: (() => { const a = rows.filter((r) => r.kenaikan != null).map((r) => r.kenaikan); return a.length ? pct(Math.round((a.reduce((x, y) => x + y, 0) / a.length) * 10) / 10) : '—'; })() });
-  const ketFilter = () => [f.putaran && 'Putaran ' + f.putaran, f.pokja && 'Pokja ' + (pokja.find((p) => p.id === f.pokja)?.nama_pendek || ''), f.hasil && HASIL[f.hasil].l, f.provinsi].filter(Boolean).join(' · ') || 'Semua isian terverifikasi';
+  const tampil = () => kel.filter((r) => !cari || r.nama.toLowerCase().includes(cari));
+  const nSlide = () => kel.length * 3 + (kel.length ? 1 : 0);
+  // ringkasan sampul memakai minggu terakhir tiap PM per bulan (bukan setiap minggu) agar tidak berganda
+  const ringkas = () => ({ berhasil: kel.length ? angka(Math.round((kel.filter((r) => ['berhasil', 'berhasil_catatan'].includes(r.hasil)).length / kel.length) * 1000) / 10) + '%' : '—',
+    naik: (() => { const a = kel.filter((r) => r.kenaikan != null).map((r) => r.kenaikan); return a.length ? pct(Math.round((a.reduce((x, y) => x + y, 0) / a.length) * 10) / 10) : '—'; })() });
+  const ketFilter = () => [f.bulan && namaBulan(f.bulan), f.putaran && labelPutaran(f.putaran), f.pokja && 'Pokja ' + (pokja.find((p) => p.id === f.pokja)?.nama_pendek || ''), f.hasil && HASIL[f.hasil].l, f.provinsi].filter(Boolean).join(' · ') || 'Semua isian terverifikasi';
 
   async function gambarFotoSlide(root) {
     root.querySelectorAll('img[data-gambar-slide]:not([data-dimuat])').forEach(async (img) => {
@@ -226,19 +293,21 @@ export async function render(el) {
   }
   function gambarSlide() {
     const t = tampil();
-    $('[data-judul-panggung]').innerHTML = String(html`<span class="hl hl-sapu on">${angka(rows.length)} PM</span> · ${angka(rows.length * 2 + (rows.length ? 1 : 0))} slide`);
-    $('[data-daftar]').innerHTML = String(t.length ? html`<ul class="pd-daftar">${t.map((r) => { const i = rows.indexOf(r); return html`<li><button type="button" class="${i === pilih ? 'on' : ''}" data-pilih="${i}">
-      <b>${r.nama}</b><small>Putaran ${r.putaran} · ${r.kabkota || ''}</small>${lencanaHasil(r.hasil)}</button></li>`; })}</ul>` : html`<p class="redup">Tidak ada PM.</p>`);
-    const r = rows[pilih];
-    $('[data-slide]').innerHTML = String(r ? html`<figure class="slide-3d s1" data-tilt="6">${slide1(r)}<figcaption>Slide 1 · Keberhasilan, keuangan &amp; kendala</figcaption></figure>
-      <figure class="slide-3d s2" data-tilt="6">${slide2(r)}<figcaption>Slide 2 · Situasi barang &amp; permodalan</figcaption></figure>`
-      : kosong({ ikonNama: 'presentation', judul: 'Belum ada isian terverifikasi', teks: 'Slide akan tersusun setelah Kapokja Supermonev memverifikasi isian.' }));
+    $('[data-judul-panggung]').innerHTML = String(html`<span class="hl hl-sapu on">${angka(kel.length)} PM</span> · ${angka(nSlide())} slide${f.bulan ? ' · ' + namaBulan(f.bulan) : ''}`);
+    $('[data-daftar]').innerHTML = String(t.length ? html`<ul class="pd-daftar">${t.map((r) => { const i = kel.indexOf(r); return html`<li><button type="button" class="${i === pilih ? 'on' : ''}" data-pilih="${i}">
+      <b>${r.nama}</b><small>${namaBulan(r.bulan)} · ${angka(r.minggu.length)} minggu · ${r.kabkota || ''}</small>${lencanaHasil(r.hasil)}</button></li>`; })}</ul>` : html`<p class="redup">Tidak ada PM.</p>`);
+    const g = kel[pilih];
+    $('[data-slide]').innerHTML = String(g ? html`<figure class="slide-3d s1" data-tilt="6">${slide1(g.akhir)}<figcaption>Slide 1 · Keberhasilan, keuangan &amp; kendala (${g.akhir.label_putaran || labelPutaran(g.akhir.putaran)})</figcaption></figure>
+      <figure class="slide-3d s2" data-tilt="6">${slide2(g.akhir)}<figcaption>Slide 2 · Situasi barang &amp; permodalan</figcaption></figure>
+      <figure class="slide-3d s1" data-tilt="6" data-slide3>${slide3(g)}<figcaption>Slide 3 · Grafik pendapatan per minggu — ${namaBulan(g.bulan)}</figcaption></figure>`
+      : kosong({ ikonNama: 'presentation', judul: f.bulan ? `Belum ada isian terverifikasi pada ${namaBulan(f.bulan)}` : 'Belum ada isian terverifikasi',
+        teks: f.bulan ? 'Pilih bulan lain pada saringan "Bulan", atau pilih "Semua bulan".' : 'Slide akan tersusun setelah Kapokja Supermonev memverifikasi isian.' }));
     gambarFotoSlide($('[data-slide]'));
     segarkanEfek(el);
   }
   async function muat() {
     $('[data-slide]').innerHTML = '<div class="skel" style="height:300px;width:100%;opacity:.15;border-radius:20px"></div>';
-    try { rows = await api.smvEkspor(Object.fromEntries(Object.entries(f).filter(([, v]) => v))); pilih = 0; gambarSlide(); }
+    try { rows = await api.smvEkspor(Object.fromEntries(Object.entries(f).filter(([, v]) => v))); if (rows[0]) aturMingguan(/^Minggu/.test(rows[0].label_putaran || 'Minggu')); kel = kelompokkan(rows); pilih = 0; gambarSlide(); }
     catch (e) { $('[data-slide]').innerHTML = String(kotakGalat(pesanGalat(e))); }
   }
   const progres = (n, t, teks) => {
@@ -250,29 +319,29 @@ export async function render(el) {
   el.addEventListener('input', debounce((e) => { if (e.target.matches('[data-cari]')) { cari = e.target.value.trim().toLowerCase(); gambarSlide(); } }, 250));
   el.addEventListener('click', async (e) => {
     const pl = e.target.closest('[data-pilih]'); if (pl) { pilih = Number(pl.dataset.pilih); return gambarSlide(); }
-    const gs = e.target.closest('[data-geser]'); if (gs && rows.length) { pilih = (pilih + Number(gs.dataset.geser) + rows.length) % rows.length; return gambarSlide(); }
+    const gs = e.target.closest('[data-geser]'); if (gs && kel.length) { pilih = (pilih + Number(gs.dataset.geser) + kel.length) % kel.length; return gambarSlide(); }
     const b = e.target.closest('[data-pptx], [data-excel], [data-cetak]'); if (!b) return;
     if (!rows.length) return toast('Belum ada isian terverifikasi untuk diekspor.', 'peringatan');
     const pulih = tombolMuat(b, 'Menyiapkan…');
     try {
       if (b.matches('[data-pptx]')) {
-        progres(0, rows.length, 'Memuat pustaka PowerPoint…');
-        await buatPptx(rows, { foto: $('[data-foto]').checked, ket: ketFilter(), ringkas: ringkas(), progres });
-        progres(rows.length, rows.length);
-        toast(`PPTX ${angka(rows.length * 2 + 1)} slide terunduh.${modePratinjau ? ' (data contoh)' : ''}`, 'sukses', 'Ekspor selesai');
+        progres(0, kel.length, 'Memuat pustaka PowerPoint…');
+        await buatPptx(kel, { foto: $('[data-foto]').checked, ket: ketFilter(), ringkas: ringkas(), progres });
+        progres(kel.length, kel.length);
+        toast(`PPTX ${angka(nSlide())} slide terunduh.${modePratinjau ? ' (data contoh)' : ''}`, 'sukses', 'Ekspor selesai');
       } else if (b.matches('[data-excel]')) {
         await unduhExcel(namaUnduhan('Supermonev-Laporan'), [
-          { nama: 'Ringkasan', kolom: ['URAIAN', 'NILAI'], data: [['Filter', ketFilter()], ['Jumlah PM', rows.length], ['Usaha berhasil', ringkas().berhasil], ['Rata-rata kenaikan pendapatan', ringkas().naik],
-            ...URUT_HASIL.map((k) => [HASIL[k].l, rows.filter((r) => r.hasil === k).length])] },
-          { nama: 'Per PM', kolom: ['NAMA PM', 'NIK', 'POKJA', 'KAB/KOTA', 'PROVINSI', 'PUTARAN', 'TGL KUNJUNGAN', 'HASIL', 'USAHA BERJALAN', 'JENIS USAHA', 'PENDAPATAN KOTOR', 'PENGELUARAN',
+          { nama: 'Ringkasan', kolom: ['URAIAN', 'NILAI'], data: [['Filter', ketFilter()], ['Jumlah PM', kel.length], ['Jumlah isian mingguan', rows.length], ['Usaha berhasil', ringkas().berhasil], ['Rata-rata kenaikan pendapatan', ringkas().naik],
+            ...URUT_HASIL.map((k) => [HASIL[k].l + ' (minggu terakhir tiap PM)', kel.filter((r) => r.hasil === k).length])] },
+          { nama: 'Per Minggu', kolom: ['NAMA PM', 'NIK', 'POKJA', 'KAB/KOTA', 'PROVINSI', 'BULAN', mingguanAktif() ? 'MINGGU KE' : 'PUTARAN', 'JATUH TEMPO', 'TGL KUNJUNGAN', 'HASIL', 'USAHA BERJALAN', 'JENIS USAHA', 'PENDAPATAN KOTOR', 'PENGELUARAN',
             'PENDAPATAN BERSIH', 'SEBELUM BANTUAN', 'PERUBAHAN (%)', 'TAMBAH PEKERJA', 'KONDISI BARANG', 'MODAL USAHA', 'SUMBER MODAL', 'RINGKASAN KENDALA', 'KATEGORI KENDALA', 'PETUGAS', 'VERIFIKATOR'],
-          data: rows.map((r) => [r.nama, r.nik, r.pokja_nama, r.kabkota, r.provinsi, r.putaran, r.tgl_kunjungan, HASIL[r.hasil]?.l, r.usaha_berjalan ? 'Ya' : 'Tidak', r.usaha_berubah ? 'Berubah: ' + (r.usaha_baru || '') : 'Sama',
+          data: rows.map((r) => [r.nama, r.nik, r.pokja_nama, r.kabkota, r.provinsi, r.bulan || '', r.putaran, r.jatuh_tempo, r.tgl_kunjungan, HASIL[r.hasil]?.l, r.usaha_berjalan ? 'Ya' : 'Tidak', r.usaha_berubah ? 'Berubah: ' + (r.usaha_baru || '') : 'Sama',
             r.pendapatan_kotor, r.pengeluaran, r.pendapatan_bersih, r.dasar_pendapatan, r.kenaikan, r.tambah_pekerja, r.kondisi_barang, r.modal_usaha, r.sumber_modal, r.ringkasan_kendala, (r.kategori_kendala || []).join('; '), r.petugas_nama, r.diverifikasi_nama]) }]);
         toast('Excel laporan Supermonev terunduh.');
       } else {
         const w = document.createElement('div'); w.className = 'cetak-slide'; document.body.appendChild(w);
         const gaya = document.createElement('style'); gaya.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(gaya);
-        w.innerHTML = String(html`${rows.map((r) => html`<div class="halaman-slide">${slide1(r)}</div><div class="halaman-slide">${slide2(r)}</div>`)}`);
+        w.innerHTML = String(html`${kel.map((g) => html`<div class="halaman-slide">${slide1(g.akhir)}</div><div class="halaman-slide">${slide2(g.akhir)}</div><div class="halaman-slide">${slide3(g)}</div>`)}`);
         await Promise.all([...w.querySelectorAll('img[data-gambar-slide]')].map(async (img) => { try { const r = await ambilBerkas(img.dataset.gambarSlide); if (r.blob) { img.src = URL.createObjectURL(r.blob); await img.decode().catch(() => {}); } } catch { img.remove(); } }));
         document.documentElement.classList.add('mencetak-slide');
         const selesai = () => { document.documentElement.classList.remove('mencetak-slide'); w.remove(); gaya.remove(); removeEventListener('afterprint', selesai); };
@@ -284,7 +353,7 @@ export async function render(el) {
     pulih();
   });
   document.addEventListener('keydown', geserPanah);
-  function geserPanah(e) { if (!el.isConnected) return document.removeEventListener('keydown', geserPanah); if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)) return; if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { if (!rows.length) return; pilih = (pilih + (e.key === 'ArrowRight' ? 1 : -1) + rows.length) % rows.length; gambarSlide(); } }
+  function geserPanah(e) { if (!el.isConnected) return document.removeEventListener('keydown', geserPanah); if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)) return; if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { if (!kel.length) return; pilih = (pilih + (e.key === 'ArrowRight' ? 1 : -1) + kel.length) % kel.length; gambarSlide(); } }
   await muat();
   return () => document.removeEventListener('keydown', geserPanah);
 }

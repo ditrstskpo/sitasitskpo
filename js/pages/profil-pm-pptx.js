@@ -140,17 +140,34 @@ export async function unduhProfilPptx({ d, smv, dok, foto = true, nikPenuh = tru
   progres?.(5, jmlSlide, 'Supermonev…');
   s = p.addSlide(); kepala(s, '6 · Supermonev — Pemantauan Pascapenyaluran', '');
   s.addText(smv?.dimonitor === false ? 'Jenis bantuan ini tidak dimonitor Supermonev.' : `Pendapatan bersih sebelum bantuan: ${smv?.dasar == null ? '—' : rupiah(smv.dasar)}`, { x: 0.5, y: 1.2, w: 12.3, h: 0.4, fontFace: F, fontSize: 14, bold: true, color: JUDUL });
-  const put = smv?.putaran || [];
+  // v2.11.0: jadwal mingguan → tabel 10 minggu terakhir yang sudah jatuh tempo, grafik semua minggu, rincian minggu terakhir
+  const hiStr = new Date().toISOString().slice(0, 10), mingguan = smv?.mingguan !== false;
+  const lbl = (x) => x.label || (mingguan ? 'Minggu ke-' : 'Putaran ') + x.putaran;
+  const jalan = (smv?.putaran || []).filter((x) => x.jatuh_tempo <= hiStr || x.isian);
+  const put = jalan.slice(-10);
   if (put.length) {
-    const kt = ['Putaran', 'Jatuh tempo', 'Petugas', 'Status', 'Hasil', 'Pendapatan bersih', 'Perubahan'].map((t) => ({ text: t, options: { bold: true, color: 'FFFFFF', fill: { color: GELAP } } }));
-    s.addTable([kt, ...put.slice(0, 10).map((x) => { const i = x.isian || {};
-      return [{ text: 'Putaran ' + x.putaran, options: { bold: true } }, tanggal(x.jatuh_tempo), potong(i.petugas_nama || x.petugas_nama || '—', 24), i.status === 'terverifikasi' ? 'Terverifikasi' : i.status ? 'Terisi' : 'Belum diisi',
+    const kt = [mingguan ? 'Minggu' : 'Putaran', 'Jatuh tempo', 'Petugas', 'Status', 'Hasil', 'Pendapatan bersih', 'Perubahan'].map((t) => ({ text: t, options: { bold: true, color: 'FFFFFF', fill: { color: GELAP } } }));
+    s.addTable([kt, ...put.map((x) => { const i = x.isian || {};
+      return [{ text: lbl(x), options: { bold: true } }, tanggal(x.jatuh_tempo), potong(i.petugas_nama || x.petugas_nama || '—', 24), i.status === 'terverifikasi' ? 'Terverifikasi' : i.status ? 'Terisi' : 'Belum diisi',
         i.hasil || '—', i.pendapatan_bersih == null ? '—' : rupiah(i.pendapatan_bersih), i.kenaikan == null ? '—' : (i.kenaikan > 0 ? '+' : '') + angka(i.kenaikan) + '%']; })],
     { x: 0.5, y: 1.75, w: 12.3, colW: [1.4, 1.7, 2.4, 1.7, 1.8, 2.0, 1.3], fontFace: F, fontSize: 11, color: JUDUL, border: { type: 'solid', color: 'EEF1F4', pt: 1 }, rowH: 0.42, valign: 'middle' });
+    if (jalan.length > put.length) s.addText(`Menampilkan ${put.length} dari ${jalan.length} ${mingguan ? 'minggu' : 'putaran'} terakhir; selengkapnya pada grafik berikut.`, { x: 0.5, y: 6.55, w: 12.3, h: 0.3, fontFace: F, fontSize: 10, italic: true, color: REDUP });
   } else s.addText('Belum ada jadwal monitoring. Jadwal muncul otomatis 3 bulan setelah bantuan cair.', { x: 0.5, y: 1.8, w: 12.3, h: 0.5, fontFace: F, fontSize: 13, italic: true, color: REDUP });
-  kaki(s, 'Monitoring setiap 3 bulan setelah pencairan.');
-  for (const x of put.filter((q) => q.isian).slice(0, 4)) {
-    const i = x.isian, sl = p.addSlide(); kepala(sl, `Supermonev · Putaran ${x.putaran}`, '');
+  kaki(s, mingguan ? 'Monitoring setiap minggu, mulai 3 bulan setelah pencairan.' : 'Monitoring setiap 3 bulan setelah pencairan.');
+  // grafik pendapatan bersih per minggu (isian terverifikasi) + garis pendapatan sebelum bantuan
+  const terisi = jalan.filter((x) => x.isian?.status === 'terverifikasi' && x.isian.pendapatan_bersih != null);
+  if (terisi.length) {
+    const sg = p.addSlide(); kepala(sg, `Supermonev · Grafik pendapatan per ${mingguan ? 'minggu' : 'putaran'}`, '');
+    const lb = terisi.map((x) => (mingguan ? 'Mg ' : 'P ') + x.putaran), dz = Number(smv?.dasar) || 0;
+    const seri = [{ name: 'Pendapatan bersih', labels: lb, values: terisi.map((x) => Number(x.isian.pendapatan_bersih) || 0) }];
+    if (smv?.dasar != null) seri.push({ name: 'Sebelum bantuan', labels: lb, values: lb.map(() => dz) });
+    sg.addChart(p.ChartType.line, seri, { x: 0.5, y: 1.3, w: 12.3, h: 5.3, fontFace: F, chartColors: ['17824A', '8A96A3'], lineSize: 2, lineDataSymbol: 'circle', lineDataSymbolSize: 7,
+      showLegend: true, legendPos: 'b', legendFontSize: 11, valAxisLabelFormatCode: '#,##0', valAxisMinVal: 0, valAxisLabelFontSize: 10, valGridLine: { color: 'EEF1F4', size: 0.75 },
+      catAxisLabelFontSize: 10, catGridLine: { style: 'none' } });
+    kaki(sg, `${terisi.length} isian terverifikasi · ${tanggal(terisi[0].jatuh_tempo)} s.d. ${tanggal(terisi[terisi.length - 1].jatuh_tempo)}`);
+  }
+  for (const x of (smv?.putaran || []).filter((q) => q.isian).slice(mingguan ? -1 : 0).slice(0, 4)) {
+    const i = x.isian, sl = p.addSlide(); kepala(sl, `Supermonev · ${lbl(x)}`, mingguan ? 'Isian minggu terakhir' : '');
     kotak(sl, 0.4, 1.3, 4.1, 5.6, 'Keberhasilan & keuangan');
     tabelKv(sl, [['Tanggal kunjungan', tanggal(i.tgl_kunjungan)], ['Hasil', i.hasil || '—'], ['Pendapatan kotor', rupiah(i.pendapatan_kotor)], ['Pengeluaran', rupiah(i.pengeluaran)],
       ['Pendapatan bersih', rupiah(i.pendapatan_bersih)], ['Perubahan', i.kenaikan == null ? '—' : (i.kenaikan > 0 ? '+' : '') + angka(i.kenaikan) + '%'], ['Tambahan pekerja', angka(i.tambah_pekerja || 0) + ' orang']], 0.55, 1.75, 3.8, { ukuran: 11 });

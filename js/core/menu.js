@@ -61,7 +61,7 @@ export const MODUL = {
   hukum: { label: 'Produk Hukum & SOP', ikon: 'scale', rute: '/produk-hukum', judul: ['Produk Hukum', '& SOP'],
     ket: ['Kelola produk hukum dan SOP Direktorat'] },
   supermonev: { label: 'Supermonev (Formulir & Verifikasi)', pendek: 'Supermonev', ikon: 'clipboard-list', rute: '/supermonev', judul: ['Supermonev', '— Formulir & Verifikasi'],
-    ket: ['Jadwal monitoring otomatis 3 bulan setelah pencairan', 'Penilaian otomatis: Berhasil, Berhasil dengan Catatan, Perlu Pendampingan, Tidak Berhasil', 'Verifikasi oleh Kapokja Supermonev'] },
+    ket: ['Jadwal monitoring otomatis setiap minggu, mulai 3 bulan setelah pencairan', 'Penilaian otomatis: Berhasil, Berhasil dengan Catatan, Perlu Pendampingan, Tidak Berhasil', 'Verifikasi oleh Kapokja Supermonev'] },
   penugasan: { label: 'Penugasan Petugas', ikon: 'user-check', rute: '/penugasan-supermonev', judul: ['Penugasan Petugas', 'Supermonev'],
     ket: ['Kapokja Supermonev dan Kapokja TU menugaskan petugas per periode', 'Petugas hanya melihat PM yang ditugaskan kepadanya'] },
   verifBelanja: { label: 'Verifikasi Belanja & BAST', pendek: 'Belanja & BAST', ikon: 'receipt', rute: '/verifikasi-belanja', judul: ['Verifikasi Belanja', '& BAST'],

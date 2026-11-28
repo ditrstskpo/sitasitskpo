@@ -1,7 +1,7 @@
 // Penugasan Petugas Supermonev (W-28): Kapokja Supermonev & Kapokja TU menugaskan PM yang jatuh tempo monitoring
 // kepada petugas per periode, dikelompokkan per kab/kota. Penugasan dapat dipindah sebelum formulir diisi; perubahan
 // tercatat di audit log dan petugas mendapat notifikasi. Pegawai lain dapat melihat (tanpa mengubah).
-import { html, raw, angka, tanggal, debounce } from '../core/util.js';
+import { html, raw, angka, tanggal, debounce, hariIni } from '../core/util.js';
 import { ikon } from '../core/icons.js';
 import { api } from '../core/api.js';
 import { bus } from '../core/store.js';
@@ -10,18 +10,20 @@ import { opsi, pokjaCepat } from '../core/komp.js';
 import { pasangEfek, segarkanEfek } from '../core/efek.js';
 import { chipPokjaU } from '../core/bnba.js';
 import { PROVINSI } from './_t34.js';
-import { STATUS_SMV, lencanaStatus, chipJatuhTempo, bukaFormSmv, catatanPratinjau } from './_smv.js';
+import { STATUS_SMV, lencanaStatus, chipJatuhTempo, bukaFormSmv, catatanPratinjau, aturMingguan, labelPutaran, namaPutaran, daftarPutaran, mingguanAktif, namaBulan } from './_smv.js';
 import { rekomendasi, lokasiPenyaluran } from './_rekom-petugas.js';
 
 export async function render(el) {
-  const f = { q: '', bulan: '', putaran: '', provinsi: '', kabkota: '', pokja: '', status: '', petugas: '' };
+  // v2.11.0: jadwal mingguan → bawaan menampilkan bulan ini saja (pilih "Semua bulan" untuk melihat semuanya)
+  const BULAN_INI = hariIni().slice(0, 7);
+  const f = { q: '', bulan: BULAN_INI, putaran: '', provinsi: '', kabkota: '', pokja: '', status: '', petugas: '' };
   const pilih = new Map();     // kunci "bnba:putaran" → { bnba_id, putaran, nama }
   let d = null, petugas = [], tutup = new Set();
   const pokja = await pokjaCepat().catch(() => []);
   el.innerHTML = String(html`
     <div class="latar-hidup">
     ${judulHalaman({ pill: 'Supermonev · W-28', sorot: 'Penugasan Petugas', sisa: 'Supermonev',
-      sub: 'PM yang jatuh tempo monitoring muncul otomatis (3 bulan setelah cair), lengkap dengan lokasi penyalurannya. Centang PM per kab/kota atau satu per satu, pilih pegawai (sistem merekomendasikan petugas penyalur dan pegawai sekota), lalu tekan "Tugaskan". Bisa dipindah selama formulir belum diisi.',
+      sub: 'PM yang jatuh tempo monitoring muncul otomatis (setiap minggu, mulai 3 bulan setelah cair), lengkap dengan lokasi penyalurannya. Centang PM per kab/kota atau satu per satu, pilih pegawai (sistem merekomendasikan petugas penyalur dan pegawai sekota), lalu tekan "Tugaskan". Bisa dipindah selama formulir belum diisi.',
       aksi: String(html`<a class="btn btn-secondary" href="#/supermonev">${raw(ikon('clipboard-list', 18))} Formulir & Verifikasi</a>`) })}
     ${catatanPratinjau()}
     <div class="info-card biru rv" style="margin-bottom:16px">${raw(ikon('info', 20, 'ik'))}<span><b>Beda dengan menu Tugas &amp; Penugasan:</b> halaman ini khusus <b>turun lapangan Supermonev</b> (memantau PM yang sudah cair). Hanya Kapokja Supermonev dan Kapokja TU yang menugaskan. Penerima tugas boleh pegawai mana pun. Untuk tugas kerja umum (surat, rapat, laporan), pakai menu <a href="#/tugas">Tugas &amp; Penugasan</a>.</span></div>
@@ -32,7 +34,7 @@ export async function render(el) {
       <div class="dash-filter">
         <label class="input-ikon lebar">${raw(ikon('search', 18))}<input class="input" data-q placeholder="Nama PM atau NIK" aria-label="Cari PM"></label>
         <select class="select" data-f="bulan" aria-label="Bulan jatuh tempo"><option value="">Semua bulan</option></select>
-        <select class="select" data-f="putaran" aria-label="Putaran">${opsi([1, 2, 3, 4].map((n) => [String(n), 'Putaran ' + n]), '', 'Semua putaran')}</select>
+        <select class="select" data-f="putaran" aria-label="${namaPutaran()}">${opsi(daftarPutaran(), '', mingguanAktif() ? 'Semua minggu' : 'Semua putaran')}</select>
         <select class="select" data-f="status" aria-label="Status">${opsi(Object.entries(STATUS_SMV).map(([k, x]) => [k, x.l]), '', 'Semua status')}</select>
         <select class="select" data-f="provinsi" aria-label="Provinsi">${opsi(PROVINSI, '', 'Semua provinsi')}</select>
         <select class="select" data-f="pokja" aria-label="Pokja">${opsi(pokja.filter((p) => p.kelompok === 'teknis').map((p) => [p.id, 'Pokja ' + p.nama_pendek]), '', 'Semua Pokja')}</select>
@@ -55,7 +57,7 @@ export async function render(el) {
       ${kartu('user-check', r.ditugaskan, 'Sudah ditugaskan', 'biru', 'ditugaskan')}${kartu('pencil', r.diisi, 'Sedang diisi / menunggu', 'emas', 'menunggu')}${kartu('check-circle', r.selesai, 'Selesai', 'hijau', 'terverifikasi')}
       ${r.lewat ? html`<div class="rt-peringatan">${raw(ikon('alert', 20))}<span><b>${angka(r.lewat)} PM</b> sudah lewat jatuh tempo dan belum diisi.</span></div>` : ''}`);
     const sb = $('[data-f="bulan"]');
-    if (sb.options.length <= 1) sb.innerHTML = String(html`<option value="">Semua bulan</option>${d.bulan.map((b) => html`<option value="${b}">${new Date(b + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</option>`)}`);
+    if (sb.options.length <= 1) { sb.innerHTML = String(html`<option value="">Semua bulan</option>${[...new Set([...d.bulan, BULAN_INI])].sort().map((b) => html`<option value="${b}">${namaBulan(b)}</option>`)}`); sb.value = f.bulan; }
   }
   function gambarPetugas() {
     const maks = Math.max(1, ...petugas.map((p) => p.beban));
@@ -87,7 +89,7 @@ export async function render(el) {
           ${boleh ? html`<label class="cek-besar"><input type="checkbox" data-pilih="${kunci(r)}" ${pilih.has(kunci(r)) ? raw('checked') : ''} ${r.isian_id ? raw('disabled title="Formulir sudah diisi"') : ''} aria-label="Pilih ${r.nama}"><span></span></label>` : ''}
           <div class="bt-pm"><b>${r.nama}</b><small class="mono">${r.nik}</small>
             <small class="bt-lokasi" title="Lokasi penyaluran bantuan">${raw(ikon('map-pin', 13))} Disalurkan di ${lokasiPenyaluran(r)}${(r.penyalur || []).length ? html` · oleh ${r.penyalur.join(', ')}` : ''}</small></div>
-          <div class="bt-info">${chipPokjaU(r)}<span class="redup">Putaran ${r.putaran} · ${tanggal(r.jatuh_tempo)}</span></div>
+          <div class="bt-info">${chipPokjaU(r)}<span class="redup">${labelPutaran(r.putaran)} · ${tanggal(r.jatuh_tempo)}</span></div>
           <div class="bt-tempo">${['belum_ditugaskan', 'ditugaskan'].includes(r.status) ? chipJatuhTempo(r.jatuh_tempo) : ''}</div>
           <div class="bt-status">${lencanaStatus(STATUS_SMV, r.status)}<small>${r.petugas_nama ? html`${raw(ikon('user', 13))} ${r.petugas_nama}` : ''}</small></div>
           <button type="button" class="btn btn-ghost btn-sm" data-lihat-pm="${r.bnba_id}" data-putaran="${r.putaran}" aria-label="Buka formulir ${r.nama}">${raw(ikon('eye', 16))}</button></div>`)}</div></section>`;
@@ -112,7 +114,7 @@ export async function render(el) {
   }
   async function muat() {
     try {
-      const [x, p] = await Promise.all([api.smvPenugasan(Object.fromEntries(Object.entries(f).filter(([, v]) => v))), api.smvPetugas()]);
+      const [x, p] = await Promise.all([api.smvPenugasan(Object.fromEntries(Object.entries(f).filter(([, v]) => v))), api.smvPetugas()]); aturMingguan(x.mingguan);
       d = x; petugas = p;
       // buang pilihan yang sudah tidak bisa dipilih
       const ada = new Map(d.baris.map((r) => [kunci(r), r]));
@@ -132,7 +134,7 @@ export async function render(el) {
             ${alasan.length ? html`<span class="chips">${alasan.map((x) => html`<span class="badge b-ok kecil">${x}</span>`)}</span>` : ''}</span>
           <span class="pp-beban"><b>${angka(p.beban)}</b><small>PM aktif</small></span></label>`)}</div>
         <div class="field" style="margin-top:16px"><label class="label" for="tg-cat">Catatan untuk petugas (opsional)</label><textarea id="tg-cat" class="textarea" rows="2" placeholder="mis. Mohon dikunjungi minggu ini; koordinasi dengan pendamping setempat"></textarea></div>
-        <details class="rincian-pilih" style="margin-top:14px"><summary>Lihat ${angka(daftar.length)} PM yang dipilih</summary><ul>${daftar.map((r) => html`<li>${r.nama} · putaran ${r.putaran}${r.petugas_nama ? html` <small class="redup">(kini: ${r.petugas_nama})</small>` : ''}</li>`)}</ul></details>
+        <details class="rincian-pilih" style="margin-top:14px"><summary>Lihat ${angka(daftar.length)} PM yang dipilih</summary><ul>${daftar.map((r) => html`<li>${r.nama} · ${labelPutaran(r.putaran).toLowerCase()}${r.petugas_nama ? html` <small class="redup">(kini: ${r.petugas_nama})</small>` : ''}</li>`)}</ul></details>
         <div class="galat" data-galat hidden style="margin-top:12px"></div>`),
       kaki: String(html`<button type="button" class="btn btn-ghost" data-batal>Batal</button><button type="button" class="btn btn-primary" data-ok>${raw(ikon('send', 18))} Tugaskan &amp; Beri Tahu Petugas</button>`),
     });
@@ -167,7 +169,7 @@ export async function render(el) {
       catch (err) { pulih(); toast(pesanGalat(err), 'galat'); }
       return;
     }
-    if (e.target.closest('[data-reset]')) { Object.keys(f).forEach((k) => { f[k] = ''; }); el.querySelectorAll('[data-f]').forEach((x) => { x.value = ''; }); $('[data-q]').value = ''; return muat(); }
+    if (e.target.closest('[data-reset]')) { Object.keys(f).forEach((k) => { f[k] = ''; }); f.bulan = BULAN_INI; el.querySelectorAll('[data-f]').forEach((x) => { x.value = x.dataset.f === 'bulan' ? BULAN_INI : ''; }); $('[data-q]').value = ''; return muat(); }
   });
   el.addEventListener('change', (e) => {
     const c = e.target.closest('[data-pilih]');

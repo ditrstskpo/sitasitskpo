@@ -30,7 +30,7 @@ const FITUR = [
 const MODUL = [
   ['database', 'Central Database & Master BNBA', 'Pencatatan 40 kolom standar data penerima manfaat sesuai format BNBA, lengkap dengan verifikasi Kapokja dan riwayat perubahan.', 'Satu kunci per NIK · Validasi otomatis'],
   ['file-check', 'Pengusulan SK & Administrasi Pencairan', 'Alur draft SK, verifikasi TU, tanda tangan Direktur, Sekretariat, hingga Burekol, SP2D, dan SI dalam satu tampilan.', 'Status tahap realtime · Penyalur tercatat'],
-  ['clipboard-list', 'Supermonev Pascapenyaluran', 'Monitoring setiap 3 bulan setelah pencairan dengan penilaian keberhasilan usaha dan ringkasan kendala.', 'Jadwal otomatis · Penilaian terukur'],
+  ['clipboard-list', 'Supermonev Pascapenyaluran', 'Monitoring setiap minggu mulai 3 bulan setelah pencairan, dengan grafik per PM, penilaian keberhasilan usaha, dan ringkasan kendala.', 'Jadwal otomatis · Penilaian terukur'],
   ['lks', 'Data LKS, Aster & Manajemen Internal', 'Pemetaan LKS TSKPO di 38 provinsi, data Aster, kepegawaian, jadwal pegawai, dokumen, dan komunikasi antar-Pokja.', 'Peta 38 provinsi · Jadwal pegawai'],
 ];
 
@@ -106,7 +106,7 @@ export async function render(el) {
         <div class="rv lp-hero-teks">
           <span class="pill">Portal Kerja Internal RSTSKPO</span>
           ${kepanjangan()}
-          <h1>Satu data untuk setiap langkah pelayanan.</h1>
+          <h1>Satu data untuk setiap langkah pelayanan</h1>
           <p class="lead">Terpadu dari asesmen, usulan BNBA, pengusulan SK, pencairan bantuan ATENSI, hingga Supermonev.</p>
           <div class="lp-hero-aksi">
             <button type="button" class="btn btn-primary btn-lg" data-masuk>${logoGoogle} Masuk dengan Google</button>
@@ -141,7 +141,7 @@ export async function render(el) {
             <li><b>11 Tahap SK</b><small>Verifikasi sampai tanda tangan</small></li>
             <li><b>Pencairan</b><small>SP2D, rekening, penyalur</small></li>
             <li><b>Dokumentasi</b><small>Foto sebelum &amp; saat penyaluran</small></li>
-            <li><b>Supermonev</b><small>Hasil monitoring tiap 3 bulan</small></li>
+            <li><b>Supermonev</b><small>Hasil monitoring setiap minggu</small></li>
           </ol>
         </div>
       </div>
