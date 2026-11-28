@@ -5,6 +5,7 @@ import { CONFIG } from '../config.js';
 import { logo, logoGoogle, pasangReveal, bukaModal, gayaPokja } from '../core/ui.js';
 import { TAHAP_PENCAIRAN } from '../core/tahap.js';
 import { mulaiMasuk } from './masuk.js';
+import { pasangJeda } from '../core/efek.js';
 
 const POKJA = [
   ['KPO dan PMBS', '#17824A'], ['Gepenglung', '#E7B416'], ['BWBP dan Eks Napiter', '#2A4B8D'], ['KTK dan WTS', '#D9644A'],
@@ -24,7 +25,7 @@ const FITUR = [
   ['fingerprint', 'NIK Kunci Tunggal', 'Satu NIK hanya tercatat sekali dan menghubungkan BNBA, usulan, pencairan, dokumentasi, hingga Supermonev.'],
   ['badge-check', 'Verifikasi Kapokja', 'Usulan diverifikasi sekali oleh Kapokja, lalu otomatis masuk Pengusulan SK tanpa paraf tambahan.'],
   ['rekap', 'Rekap Pencairan Otomatis', 'Rekap Data Pencairan terisi dari BNBA sesuai format DATA ATENSI, dapat dikoreksi Pokja Keuangan.'],
-  ['chart', 'Supermonev 3 Bulan', 'Monitoring berkala setelah pencairan dengan penilaian keberhasilan usaha yang terukur.'],
+  ['chart', 'Supermonev Mingguan', 'Monitoring setiap minggu mulai 3 bulan setelah pencairan, dengan penilaian keberhasilan usaha yang terukur.'],
 ];
 
 const MODUL = [
@@ -284,6 +285,7 @@ export async function render(el) {
   });
   pasangReveal(el);
   pasKepanjangan(el);
+  pasangJeda(el);   // v2.12.0: animasi di luar layar dijeda agar gulir halus
 }
 
 function bantuan() {

@@ -44,6 +44,7 @@ export async function render(el) {
               <button type="button" class="btn btn-ghost btn-sm" data-em-ganti>${raw(ikon('pencil', 16))} Ganti email</button></div>
           </div>
           <button type="submit" class="btn btn-primary btn-lg btn-block" data-em-kirim>${TOMBOL_KIRIM}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-em-punya style="justify-self:center">${raw(ikon('key', 16))} Sudah menerima kode? Ketik kode di sini</button>
           <small class="redup em-info" data-em-info>${LEWAT_WA ? 'Tulis email Kemensos Anda (@kemensos.go.id / @kemsos.go.id). Kode masuk dikirim ke nomor WhatsApp yang terdaftar untuk email itu.' : 'Kode dikirim ke email Kemensos Anda (@kemensos.go.id / @kemsos.go.id). Hanya email yang sudah didaftarkan Super Admin yang dapat masuk.'}</small>
         </form>
         <div class="info-card biru" style="text-align:left;margin-top:8px;width:100%">${raw(ikon('shield', 20))}
@@ -79,11 +80,20 @@ function pilihAkunPratinjau() {
 
 const domainOk = (e) => { const d = String(e).toLowerCase().split('@')[1] || ''; return (CONFIG.DOMAIN_EMAIL || ['kemensos.go.id', 'kemsos.go.id']).includes(d); };
 const KUNCI_EMAIL = 'sitasi:email-kemensos';
+// v2.12.0: kode yang sudah dikirim diingat (email + jam kirim) agar setelah halaman tidak sengaja dimuat ulang,
+// kolom pengetikan kode langsung muncul lagi — tidak perlu (dan tidak memicu) kirim ulang yang dibatasi waktu.
+const KUNCI_TUNDA = 'sitasi:kode-tertunda';
+const BERLAKU_MS = 60 * 60 * 1000;   // samakan dengan Supabase → Email OTP Expiration (bawaan 3600 detik)
+const JEDA_ULANG = 60;               // detik sebelum boleh kirim ulang (Supabase: 60 detik per pengguna)
+const bacaTunda = () => { try { const t = JSON.parse(localStorage.getItem(KUNCI_TUNDA) || 'null'); return t && t.email && Date.now() - t.waktu < BERLAKU_MS ? t : null; } catch { return null; } };
+const simpanTunda = (email, waktu = Date.now()) => { try { localStorage.setItem(KUNCI_TUNDA, JSON.stringify({ email, waktu })); } catch {} };
+const hapusTunda = () => { try { localStorage.removeItem(KUNCI_TUNDA); } catch {} };
+const jamKirim = (ms) => new Date(ms).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 /** Login kode email: langkah 1 kirim kode, langkah 2 masukkan kode (otomatis masuk begitu kode lengkap). */
 function pasangMasukEmail(el) {
   const f = el.querySelector('[data-form-email]'); if (!f) return;
   const em = f.querySelector('[data-em-email]'), kode = f.querySelector('[data-em-kode]'), wadah = f.querySelector('[data-em-kode-wadah]'), btn = f.querySelector('[data-em-kirim]'),
-    info = f.querySelector('[data-em-info]'), ulang = f.querySelector('[data-em-ulang]'), ganti = f.querySelector('[data-em-ganti]');
+    info = f.querySelector('[data-em-info]'), ulang = f.querySelector('[data-em-ulang]'), ganti = f.querySelector('[data-em-ganti]'), punya = f.querySelector('[data-em-punya]');
   let tahap = 1, jam = 0, sibuk = false;
   try { const lama = localStorage.getItem(KUNCI_EMAIL); if (lama && !em.value) em.value = lama; } catch {}
   if (/[?&]cara=kemensos/.test(location.hash)) {
@@ -95,17 +105,28 @@ function pasangMasukEmail(el) {
     tulis();
     jam = setInterval(() => { detik -= 1; tulis(); if (detik <= 0) { clearInterval(jam); ulang.disabled = false; } }, 1000);
   };
-  const keTahap1 = () => { tahap = 1; clearInterval(jam); wadah.hidden = true; em.readOnly = false; kode.value = ''; btn.textContent = TOMBOL_KIRIM; info.textContent = `Tulis email Kemensos Anda, lalu tekan ${TOMBOL_KIRIM}.`; em.focus(); };
+  const keTahap1 = () => { tahap = 1; clearInterval(jam); hapusTunda(); wadah.hidden = true; punya.hidden = false; em.readOnly = false; kode.value = ''; btn.textContent = TOMBOL_KIRIM; info.textContent = `Tulis email Kemensos Anda, lalu tekan ${TOMBOL_KIRIM}.`; em.focus(); };
+  /** Tampilkan kolom kode. waktu = jam kode dikirim (ms) bila diketahui; null = pengguna menyatakan sudah punya kode. */
+  function keTahap2(email, waktu) {
+    tahap = 2; em.value = email; wadah.hidden = false; punya.hidden = true; em.readOnly = true; btn.textContent = 'Masuk';
+    const kapan = waktu ? html` pada pukul <b>${jamKirim(waktu)}</b>` : '';
+    info.innerHTML = waktu == null
+      ? String(html`Tulis kode yang sudah Anda terima di ${SALURAN} untuk <b>${email}</b>. Bila kode lama sudah kedaluwarsa, tekan <b>Kirim ulang kode</b>.`)
+      : LEWAT_WA
+        ? String(html`Kode sudah dikirim ke <b>WhatsApp</b> yang terdaftar untuk <b>${email}</b>${kapan}. Biasanya tiba dalam beberapa detik.
+        Tulis kodenya di atas — Anda langsung masuk begitu kode lengkap. Belum datang setelah 1 menit? Tekan <b>Kirim ulang kode</b>.`)
+        : String(html`Kode sudah dikirim ke <b>${email}</b>${kapan}. Biasanya tiba dalam kurang dari 1 menit di <b>Kotak Masuk</b> email Kemensos.
+        Tulis kodenya di atas — Anda langsung masuk begitu kode lengkap. Belum datang setelah 1 menit? Tekan <b>Kirim ulang kode</b>.`);
+    // hitung mundur kirim ulang melanjutkan sisa waktu sejak kode terakhir dikirim (tidak mulai dari awal setelah muat ulang)
+    hitungMundur(waktu ? Math.max(0, JEDA_ULANG - Math.floor((Date.now() - waktu) / 1000)) : 0);
+    if (waktu ? Date.now() - waktu >= JEDA_ULANG * 1000 : true) { clearInterval(jam); ulang.disabled = false; ulang.innerHTML = String(html`${raw(ikon('refresh', 16))} Kirim ulang kode`); }
+    kode.value = ''; setTimeout(() => kode.focus({ preventScroll: true }), 60);
+  }
   async function kirim(email) {
     await api.kirimKodeEmail(email);
     try { localStorage.setItem(KUNCI_EMAIL, email); } catch {}
-    tahap = 2; wadah.hidden = false; em.readOnly = true; kode.value = ''; kode.focus(); btn.textContent = 'Masuk';
-    info.innerHTML = LEWAT_WA
-      ? String(html`Kode sudah dikirim ke <b>WhatsApp</b> yang terdaftar untuk <b>${email}</b>. Biasanya tiba dalam beberapa detik.
-      Tulis kodenya di atas — Anda langsung masuk begitu kode lengkap. Belum datang setelah 1 menit? Tekan <b>Kirim ulang kode</b>.`)
-      : String(html`Kode sudah dikirim ke <b>${email}</b>. Biasanya tiba dalam kurang dari 1 menit di <b>Kotak Masuk</b> email Kemensos.
-      Tulis kodenya di atas — Anda langsung masuk begitu kode lengkap. Belum datang setelah 1 menit? Tekan <b>Kirim ulang kode</b>.`);
-    hitungMundur(60);
+    simpanTunda(email);
+    keTahap2(email, Date.now());
   }
   async function jalan() {
     if (sibuk) return;
@@ -120,11 +141,21 @@ function pasangMasukEmail(el) {
         const k = kode.value.replace(/\D/g, '');
         if (k.length < 6) { pulih(); btn.textContent = 'Masuk'; sibuk = false; return toast(`Tulis kode dari ${SALURAN} (minimal 6 angka).`, 'peringatan'); }
         await api.masukDenganKode(email, k);
+        hapusTunda();
       }
     } catch (err) {
       pulih(); btn.textContent = tahap === 1 ? TOMBOL_KIRIM : 'Masuk';
+      // Supabase menolak karena kode untuk email ini baru saja dikirim (< 60 detik) → kode itu masih berlaku:
+      // langsung buka kolom kode, jangan suruh kirim lagi.
+      const baru = tahap === 1 && /after (\d+) seconds?|setelah (\d+) detik/i.exec(`${err?.asli || ''} ${err?.message || ''}`);
+      if (baru) {
+        const sisa = Number(baru[1] || baru[2]) || 0, waktu = Date.now() - Math.max(0, JEDA_ULANG - sisa) * 1000;
+        simpanTunda(email, waktu); keTahap2(email, waktu); sibuk = false;
+        return toast(`Kode untuk email ini sudah dikirim kurang dari 1 menit lalu. Ketik kode tersebut di kolom kode.`, 'info', 'Kode sudah dikirim');
+      }
       if (tahap === 2) { kode.select(); }
-      else info.innerHTML = String(html`<b style="color:var(--merah,#B42318)">Kode belum terkirim.</b> ${pesanGalat(err)}${err?.asli && err.asli !== pesanGalat(err) ? html`<br><span style="font-size:.75rem">Detail teknis (untuk dilaporkan): ${err.asli}${err.code ? ` · ${err.code}` : ''}</span>` : ''}`);
+      else info.innerHTML = String(html`<b style="color:var(--merah,#B42318)">Kode belum terkirim.</b> ${pesanGalat(err)}${err?.asli && err.asli !== pesanGalat(err) ? html`<br><span style="font-size:.75rem">Detail teknis (untuk dilaporkan): ${err.asli}${err.code ? ` · ${err.code}` : ''}</span>` : ''}
+        <br><b>Sudah menerima kode sebelumnya?</b> Tekan <b>Sudah menerima kode? Ketik kode di sini</b> di atas.`);
       toast(pesanGalat(err), 'galat', tahap === 1 ? 'Kode belum terkirim' : 'Kode tidak cocok');
     }
     sibuk = false;
@@ -141,4 +172,17 @@ function pasangMasukEmail(el) {
     catch (err) { pulih(); toast(pesanGalat(err), 'galat', 'Kode belum terkirim'); }
   });
   ganti.addEventListener('click', keTahap1);
+  punya.addEventListener('click', () => {
+    const email = em.value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !domainOk(email)) { em.focus(); return toast('Tulis email Kemensos Anda terlebih dahulu (@kemensos.go.id / @kemsos.go.id).', 'peringatan'); }
+    const t = bacaTunda();
+    keTahap2(email, t && t.email === email ? t.waktu : null);
+  });
+  // halaman dimuat ulang setelah kode terkirim → langsung tampilkan kolom kode (tanpa mengirim kode baru)
+  const t = bacaTunda();
+  if (t && domainOk(t.email)) {
+    keTahap2(t.email, t.waktu); f.classList.add('sorot');
+    setTimeout(() => { f.scrollIntoView({ block: 'center', behavior: 'smooth' }); kode.focus({ preventScroll: true }); }, 150);
+  }
+  else hapusTunda();
 }

@@ -162,6 +162,7 @@ export async function masukDenganKode(email, kode) {
 export async function keluar({ catatLog = true } = {}) {
   if (catatLog && sayaAktif()) { log('LOGOUT', null, null, 'Keluar dari SITASI TSKPO'); simpan(); }
   sessionStorage.removeItem(KUNCI_AUTH);
+  try { localStorage.removeItem('sitasi:kode-tertunda'); } catch {}
 }
 export function onAuthBerubah() { return () => {}; }
 export function akunContoh() {

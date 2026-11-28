@@ -82,17 +82,33 @@ let jagaGulir = false;
 function pasangJagaGulir() {
   if (jagaGulir) return;
   jagaGulir = true;
-  let raf = 0;
+  let raf = 0, sisa = null;
   window.addEventListener('scroll', () => {
     if (raf) return;
     raf = requestAnimationFrame(() => {
       raf = 0;
+      // v2.12.0: hanya membaca posisi elemen yang belum muncul; bila semuanya sudah muncul, tidak ada kerja sama sekali
+      if (sisa === null || sisa.some((x) => !x.isConnected)) sisa = [...document.querySelectorAll('.rv:not(.on)')];
+      if (!sisa.length) return;
       const batas = window.innerHeight * 0.92;
-      document.querySelectorAll('.rv:not(.on)').forEach((x) => {
-        if (x.getBoundingClientRect().top < batas) { x.classList.add('on'); hitungNaik(x); }
+      sisa = sisa.filter((x) => {
+        if (x.classList.contains('on')) return false;
+        if (x.getBoundingClientRect().top < batas) { x.classList.add('on'); hitungNaik(x); return false; }
+        return true;
       });
     });
   }, { passive: true });
+  new MutationObserver(() => { sisa = null; }).observe(document.body, { childList: true, subtree: true });
+}
+
+// v2.12.0: animasi tanpa henti (aurora, kartu melayang, kepanjangan, dll.) dijeda saat bagiannya tidak terlihat di layar,
+// sehingga peramban hanya menggambar yang tampak — gulir tetap halus.
+let pengamatJeda;
+const PILIH_JEDA = '.aurora, .tumpuk, .lp-kp, .lp-foto, .lp-kolase, .latar-hidup, .orb3d, .fajar-sinar, .panggung-lampu';
+export function pasangJeda(root) {
+  if (!('IntersectionObserver' in window)) return;
+  pengamatJeda ||= new IntersectionObserver((daftar) => daftar.forEach((e) => e.target.classList.toggle('jeda', !e.isIntersecting)), { rootMargin: '120px 0px' });
+  root.querySelectorAll(PILIH_JEDA).forEach((el) => { if (!el.dataset.jedaOn) { el.dataset.jedaOn = '1'; pengamatJeda.observe(el); } });
 }
 
 export function pasangEfek(root) {
@@ -109,6 +125,7 @@ export function pasangEfek(root) {
   });
   pasangTilt(root);
   pasangSorot(root);
+  pasangJeda(root);
   hitungTerlihat(root);
 }
 

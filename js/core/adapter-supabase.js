@@ -69,12 +69,14 @@ export async function kirimKodeEmail(email) {
 export async function masukDenganKode(email, kode) {
   const { error } = await sb.auth.verifyOtp({ email, token: String(kode).replace(/\D/g, ''), type: 'email' });
   if (error) throw galatKodeEmail(error);
+  try { localStorage.removeItem('sitasi:kode-tertunda'); } catch {}   // v2.12.0: kode sudah terpakai
   sessionStorage.setItem('sitasi:baru-login', '1');
   location.replace(location.origin + location.pathname);
 }
 export async function keluar({ catatLog = true } = {}) {
   if (catatLog) { try { await rpc('catat_aktivitas', { p_aksi: 'LOGOUT', p_ringkasan: 'Keluar dari SITASI TSKPO' }); } catch {} }
   await sb.auth.signOut({ scope: 'local' });
+  try { localStorage.removeItem('sitasi:kode-tertunda'); } catch {}
 }
 export function onAuthBerubah(cb) {
   const { data } = sb.auth.onAuthStateChange((ev, s) => cb(ev, s));
